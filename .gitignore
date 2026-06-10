@@ -21,6 +21,7 @@ logs/
 # 对话数据 / 语料
 qqbot/data/
 corpus/
+**/corpus_ref/
 
 # Skill 数据（仅保留 761 作为示例）
 qqbot/skills/aoyi/
