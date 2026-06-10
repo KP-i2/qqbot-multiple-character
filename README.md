@@ -128,23 +128,42 @@ dashboard_silent.bat
 
 ```
 skill_communication/
-├── qqbot/                     # QQ Bot 应用
-│   ├── bot.py                 # NoneBot2 入口
-│   ├── dashboard.py           # Dashboard 入口
-│   ├── plugins/zyw_chat/      # 核心聊天插件
-│   ├── dashboard/             # Web 管理面板
-│   │   ├── main.py            # FastAPI 路由
-│   │   ├── monitor.py         # 进程监控 + 看门狗
-│   │   ├── skill_manager.py   # Skill CRUD
-│   │   ├── weibo_fetcher.py   # 语料采集 + Skill 蒸馏
-│   │   └── static/            # 前端界面
-│   ├── skills/                # 角色 Skill 目录
-│   ├── .env.example           # 配置模板
-│   └── pyproject.toml         # NoneBot2 配置
-├── scripts/                   # 工具脚本
-│   └── weibo_pw_cookies.py    # 微博语料抓取
-├── emoji/                     # 情绪表情资源
-├── requirements.txt           # Python 依赖
+├── qqbot/                          # QQ Bot 应用
+│   ├── bot.py                      # NoneBot2 入口
+│   ├── dashboard.py                # Dashboard 入口
+│   ├── plugins/zyw_chat/           # 核心聊天插件（模块化）
+│   │   ├── __init__.py             # 插件入口，按依赖顺序导入所有模块
+│   │   ├── config.py               # 全局配置（API Key、模型、路径、运行时参数）
+│   │   ├── provider.py             # LLM Provider 管理与健康检查
+│   │   ├── api_client.py           # HTTP API 请求（并发控制、重试、Provider 回退）
+│   │   ├── skill_manager.py        # Skill 加载、热重载、角色切换
+│   │   ├── history.py              # 对话历史管理（持久化、TTL 清理）
+│   │   ├── user_profile.py         # 用户画像提取与摘要
+│   │   ├── avatar.py               # QQ 昵称与头像设置（NapCat API）
+│   │   ├── search.py               # 联网搜索（百度+微博+搜狗+DDG，健康感知）
+│   │   ├── url_fetcher.py          # URL 提取与内容抓取（B站、短链等）
+│   │   ├── dsml_cleaner.py         # DSML 标记清理
+│   │   ├── message_utils.py        # 消息分段、QQ 表情解析
+│   │   ├── rich_message.py         # 富消息解析（QQ 小程序、XML、分享）
+│   │   ├── emoji_system.py         # 情绪表情系统（关键词检测、概率触发、冷却）
+│   │   ├── llm.py                  # DeepSeek 调用（Function Calling、探测式流式）
+│   │   ├── rules.py                # 消息匹配规则（@我、命令识别）
+│   │   ├── commands.py             # 命令处理（reset/skills/switch/current/reloademoji）
+│   │   ├── chat_handler.py         # 主消息处理流程
+│   │   └── lifecycle.py            # 生命周期管理（启动/关闭钩子）
+│   ├── dashboard/                  # Web 管理面板
+│   │   ├── main.py                 # FastAPI 路由
+│   │   ├── monitor.py              # 进程监控 + 看门狗
+│   │   ├── skill_manager.py        # Skill CRUD
+│   │   ├── weibo_fetcher.py        # 语料采集 + Skill 蒸馏
+│   │   └── static/                 # 前端界面
+│   ├── skills/                     # 角色 Skill 目录
+│   ├── .env.example                # 配置模板
+│   └── pyproject.toml              # NoneBot2 配置
+├── scripts/                        # 工具脚本
+│   └── weibo_pw_cookies.py         # 微博语料抓取
+├── emoji/                          # 情绪表情资源
+├── requirements.txt                # Python 依赖
 ├── .gitignore
 └── README.md
 ```
