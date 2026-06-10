@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QQ Bot</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.8em' font-size='90'>Q</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   THEME DEFINITIONS
+   ================================================================ */
+:root{
+  --void:#050810;--surface:#0a0f1e;--surface2:#0e1428;--elevated:#111830;
+  --edge:#151d38;--edge2:#1e2a4a;
+  --neon:#00d4ff;--neon-rgb:0,212,255;
+  --magenta:#ff2d78;--magenta-rgb:255,45,120;
+  --lime:#00ff88;--lime-rgb:0,255,136;
+  --amber:#ffaa00;--amber-rgb:255,170,0;
+  --coral:#ff3355;--coral-rgb:255,51,85;
+  --text:#c8d6e5;--text2:#7a8ba0;--text3:#4a5568;--text4:#2d3748;
+  --font-ui:'Outfit',sans-serif;
+  --font-mono:'JetBrains Mono','Cascadia Code',monospace;
+  --r:10px;--r-lg:14px;
+  --ease:cubic-bezier(0.4,0,0.2,1);
+  --glow-neon:0 0 20px rgba(var(--neon-rgb),0.15);
+  --glow-magenta:0 0 20px rgba(var(--magenta-rgb),0.15);
+  --grid-color:rgba(var(--neon-rgb),0.02);
+  --scan-opacity:1;--atmos:0.02;
+  --overlay-bg:rgba(5,8,16,0.7);--toast-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+[data-theme="midnight-galaxy"]{
+  --void:#0d0a1a;--surface:#161230;--surface2:#1c1640;--elevated:#221c4a;
+  --edge:#2a2455;--edge2:#3a3470;
+  --neon:#a490c2;--neon-rgb:164,144,194;
+  --magenta:#e06090;--magenta-rgb:224,96,144;
+  --lime:#7ccba2;--lime-rgb:124,203,162;
+  --amber:#f0c060;--amber-rgb:240,192,96;
+  --coral:#e06060;--coral-rgb:224,96,96;
+  --text:#e6e6fa;--text2:#a8a0c8;--text3:#6860a0;--text4:#3a3470;
+  --glow-neon:0 0 24px rgba(164,144,194,0.12);
+  --glow-magenta:0 0 24px rgba(224,96,144,0.12);
+  --grid-color:rgba(164,144,194,0.018);--scan-opacity:0.35;--atmos:0.015;
+  --overlay-bg:rgba(13,10,26,0.75);--toast-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+[data-theme="arctic-frost"]{
+  --void:#eef2f7;--surface:#ffffff;--surface2:#f0f4f9;--elevated:#e8ecf1;
+  --edge:#d1d9e6;--edge2:#b8c4d4;
+  --neon:#2b6cb0;--neon-rgb:43,108,176;
+  --magenta:#9b2c5e;--magenta-rgb:155,44,94;
+  --lime:#276749;--lime-rgb:39,103,73;
+  --amber:#b7791f;--amber-rgb:183,121,31;
+  --coral:#c53030;--coral-rgb:197,48,48;
+  --text:#1a202c;--text2:#4a5568;--text3:#718096;--text4:#a0aec0;
+  --glow-neon:0 2px 8px rgba(43,108,176,0.12);
+  --glow-magenta:0 2px 8px rgba(155,44,94,0.12);
+  --grid-color:rgba(43,108,176,0.03);--scan-opacity:0;--atmos:0;
+  --overlay-bg:rgba(200,210,220,0.6);--toast-shadow:0 4px 16px rgba(0,0,0,0.12);
+}
+[data-theme="scarlet-mecha"]{
+  --void:#0a0608;--surface:#160c14;--surface2:#1e121c;--elevated:#2a1a24;
+  --edge:#3a2030;--edge2:#4c2e40;
+  --neon:#ff6b9d;--neon-rgb:255,107,157;
+  --magenta:#e03050;--magenta-rgb:224,48,80;
+  --lime:#4dc88c;--lime-rgb:77,200,140;
+  --amber:#f0a030;--amber-rgb:240,160,48;
+  --coral:#ff3355;--coral-rgb:255,51,85;
+  --text:#e8d8d0;--text2:#b8a8a0;--text3:#7a6868;--text4:#3a2e2e;
+  --glow-neon:0 0 24px rgba(255,107,157,0.15);
+  --glow-magenta:0 0 24px rgba(224,48,80,0.15);
+  --grid-color:rgba(255,107,157,0.02);--scan-opacity:0.5;--atmos:0.03;
+  --overlay-bg:rgba(10,6,8,0.75);--toast-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+/* 绯红机甲主题 - 背景图 */
+[data-theme="scarlet-mecha"] body{
+  background-image:url('/static/bg-scarlet-mecha.jpg');
+  background-size:cover;background-position:center;background-attachment:fixed;
+  background-blend-mode:soft-light;
+}
+[data-theme="scarlet-mecha"] body::after{opacity:0.03}
+[data-theme="scarlet-mecha"] body::before{opacity:0.4}
+[data-theme="scarlet-mecha"] .header,[data-theme="scarlet-mecha"] .tabs,[data-theme="scarlet-mecha"] .card,[data-theme="scarlet-mecha"] .kpi-card,[data-theme="scarlet-mecha"] .stat-item{
+  backdrop-filter:blur(16px) saturate(1.2);background:rgba(var(--neon-rgb),0.04);
+}
+[data-theme="amber-black"]{
+  --void:#0a0a00;--surface:#141400;--surface2:#1c1c00;--elevated:#242400;
+  --edge:#333300;--edge2:#444400;
+  --neon:#ffc107;--neon-rgb:255,193,7;
+  --magenta:#ff6f00;--magenta-rgb:255,111,0;
+  --lime:#76ff03;--lime-rgb:118,255,3;
+  --amber:#ffab00;--amber-rgb:255,171,0;
+  --coral:#ff3d00;--coral-rgb:255,61,0;
+  --text:#e0e0b0;--text2:#a0a070;--text3:#606040;--text4:#3a3a20;
+  --glow-neon:0 0 20px rgba(255,193,7,0.2);
+  --glow-magenta:0 0 20px rgba(255,111,0,0.2);
+  --grid-color:rgba(255,193,7,0.02);--scan-opacity:0.6;--atmos:0.02;
+  --overlay-bg:rgba(10,10,0,0.8);--toast-shadow:0 8px 32px rgba(0,0,0,0.6);
+}
+[data-theme="arctic-green"]{
+  --void:#f0f8f0;--surface:#ffffff;--surface2:#f5faf5;--elevated:#e8f5e8;
+  --edge:#c8e6c8;--edge2:#a5d6a5;
+  --neon:#2e7d32;--neon-rgb:46,125,50;
+  --magenta:#c62828;--magenta-rgb:198,40,40;
+  --lime:#1b5e20;--lime-rgb:27,94,32;
+  --amber:#f57f17;--amber-rgb:245,127,23;
+  --coral:#d32f2f;--coral-rgb:211,47,47;
+  --text:#1a2e1a;--text2:#4a6a4a;--text3:#7a9a7a;--text4:#a0c0a0;
+  --glow-neon:0 2px 8px rgba(46,125,50,0.15);
+  --glow-magenta:0 2px 8px rgba(198,40,40,0.1);
+  --grid-color:rgba(46,125,50,0.03);--scan-opacity:0;--atmos:0;
+  --overlay-bg:rgba(200,230,200,0.6);--toast-shadow:0 4px 16px rgba(0,0,0,0.1);
+}
+
+/* ================================================================
+   BASE
+   ================================================================ */
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--font-ui),'Noto Sans SC','Microsoft YaHei',sans-serif;
+  background:var(--void);color:var(--text);min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  transition:background 0.35s var(--ease),color 0.35s var(--ease);
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+  opacity:var(--scan-opacity);transition:opacity 0.35s var(--ease);
+}
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background-image:
+    linear-gradient(var(--grid-color) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-color) 1px,transparent 1px);
+  background-size:60px 60px;
+}
+::selection{background:rgba(var(--neon-rgb),0.25);color:var(--text)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--edge2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* ================================================================
+   ANIMATIONS
+   ================================================================ */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+@keyframes glow{0%,100%{box-shadow:0 0 4px rgba(var(--neon-rgb),0.3)}50%{box-shadow:0 0 12px rgba(var(--neon-rgb),0.5)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes borderGlow{0%,100%{border-color:rgba(var(--neon-rgb),0.15)}50%{border-color:rgba(var(--neon-rgb),0.35)}}
+
+/* ================================================================
+   HEADER
+   ================================================================ */
+.header{
+  background:rgba(var(--neon-rgb),0.02);border-bottom:1px solid var(--edge);
+  padding:0 24px;height:52px;display:flex;align-items:center;gap:14px;
+  position:sticky;top:0;z-index:100;backdrop-filter:blur(20px) saturate(1.4);
+  transition:background 0.35s var(--ease),border-color 0.35s var(--ease);
+}
+.header-brand{display:flex;align-items:center;gap:10px}
+.header-logo{
+  width:28px;height:28px;border-radius:6px;
+  background:linear-gradient(135deg,var(--neon),var(--magenta));
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:#fff;font-weight:700;flex-shrink:0;
+  font-family:var(--font-mono);letter-spacing:-1px;
+}
+.header h1{font-size:14px;font-weight:600;letter-spacing:0.5px;color:var(--text);line-height:1;font-family:var(--font-mono)}
+.header .sub{font-size:10px;color:var(--text3);margin-top:3px;line-height:1;letter-spacing:0.3px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.health-pills{display:flex;gap:4px;align-items:center}
+.health-pill{
+  font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid var(--edge);color:var(--text3);
+  display:inline-flex;align-items:center;gap:4px;transition:all 0.3s var(--ease);
+  font-family:var(--font-ui);letter-spacing:0.3px;
+}
+.health-pill.on{border-color:rgba(var(--lime-rgb),0.3);color:var(--lime);background:rgba(var(--lime-rgb),0.06)}
+.health-pill.off{border-color:rgba(var(--coral-rgb),0.2);color:var(--coral);background:rgba(var(--coral-rgb),0.04)}
+.health-time{font-size:10px;color:var(--text4);font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.ws-badge{
+  font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid var(--edge);color:var(--text3);
+  display:inline-flex;align-items:center;gap:4px;transition:all 0.3s var(--ease);font-family:var(--font-mono);
+}
+.ws-badge.connected{border-color:rgba(var(--lime-rgb),0.3);color:var(--lime)}
+.ws-badge.disconnected{border-color:rgba(var(--coral-rgb),0.2);color:var(--coral)}
+
+/* ================================================================
+   THEME SWITCHER
+   ================================================================ */
+.theme-wrap{position:relative}
+.theme-btn{
+  background:transparent;border:1px solid var(--edge);color:var(--text3);
+  border-radius:4px;padding:2px 10px;font-size:10px;cursor:pointer;
+  font-family:var(--font-ui);letter-spacing:0.5px;transition:all 0.2s var(--ease);
+  display:flex;align-items:center;gap:5px;
+}
+.theme-btn:hover{border-color:var(--neon);color:var(--neon)}
+.theme-dot{width:8px;height:8px;border-radius:50%;background:var(--neon);flex-shrink:0}
+.theme-dropdown{
+  position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);
+  border:1px solid var(--edge);border-radius:8px;padding:4px;min-width:170px;z-index:200;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:fadeUp 0.2s var(--ease);
+}
+.theme-dropdown.hidden{display:none}
+.theme-option{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;border:none;background:transparent;
+  color:var(--text2);cursor:pointer;width:100%;font-size:11px;font-family:var(--font-ui);
+  border-radius:5px;transition:all 0.15s var(--ease);text-align:left;
+}
+.theme-option:hover{background:rgba(var(--neon-rgb),0.06);color:var(--text)}
+.theme-option.active{color:var(--neon)}
+.theme-option .t-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,0.1)}
+.theme-option .t-label{flex:1}
+.theme-option .t-check{font-size:12px;color:var(--neon);opacity:0}
+.theme-option.active .t-check{opacity:1}
+
+/* ================================================================
+   TABS
+   ================================================================ */
+.tabs{
+  display:flex;background:var(--surface);border-bottom:1px solid var(--edge);
+  padding:0 24px;gap:0;overflow-x:auto;scrollbar-width:none;
+  transition:background 0.35s var(--ease),border-color 0.35s var(--ease);
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  padding:10px 18px;cursor:pointer;color:var(--text3);font-size:12px;font-weight:500;
+  border-bottom:1px solid transparent;transition:all 0.25s var(--ease);white-space:nowrap;
+  position:relative;user-select:none;font-family:var(--font-ui);letter-spacing:0.3px;
+}
+.tab::after{content:'';position:absolute;bottom:-1px;left:50%;width:0;height:1px;background:var(--neon);transition:all 0.3s var(--ease);transform:translateX(-50%)}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--neon)}
+.tab.active::after{width:100%}
+
+/* ================================================================
+   CONTENT & CARDS
+   ================================================================ */
+.content{padding:20px 24px;max-width:1060px;margin:0 auto}
+.card{
+  background:var(--surface);border:1px solid var(--edge);border-radius:var(--r-lg);
+  padding:18px 22px;margin-bottom:14px;position:relative;overflow:hidden;
+  transition:all 0.3s var(--ease);animation:fadeUp 0.4s var(--ease) both;
+}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(var(--neon-rgb),0.1),transparent);
+  opacity:0;transition:opacity 0.3s var(--ease);
+}
+.card:hover{border-color:var(--edge2)}
+.card:hover::before{opacity:1}
+.card:nth-child(1){animation-delay:0.05s}
+.card:nth-child(2){animation-delay:0.1s}
+.card:nth-child(3){animation-delay:0.15s}
+.card:nth-child(4){animation-delay:0.2s}
+.card:nth-child(5){animation-delay:0.25s}
+.card h3{
+  font-size:10px;color:var(--text2);margin-bottom:14px;letter-spacing:1.2px;
+  font-weight:600;display:flex;align-items:center;gap:8px;
+  text-transform:uppercase;font-family:var(--font-ui);
+}
+.card h3 .icon{
+  width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;flex-shrink:0;border:1px solid transparent;
+}
+.card h3 .icon.purple,.card h3 .icon.pink{background:rgba(var(--magenta-rgb),0.08);color:var(--magenta);border-color:rgba(var(--magenta-rgb),0.15)}
+.card h3 .icon.cyan,.card h3 .icon.blue{background:rgba(var(--neon-rgb),0.08);color:var(--neon);border-color:rgba(var(--neon-rgb),0.15)}
+.card h3 .icon.green{background:rgba(var(--lime-rgb),0.08);color:var(--lime);border-color:rgba(var(--lime-rgb),0.15)}
+.card h3 .icon.red{background:rgba(var(--coral-rgb),0.08);color:var(--coral);border-color:rgba(var(--coral-rgb),0.15)}
+.card h3 .icon.yellow{background:rgba(var(--amber-rgb),0.08);color:var(--amber);border-color:rgba(var(--amber-rgb),0.15)}
+
+/* ================================================================
+   KPI GRID
+   ================================================================ */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.kpi-card{
+  background:var(--surface);border:1px solid var(--edge);border-radius:var(--r);
+  padding:14px 16px;transition:all 0.25s var(--ease);position:relative;overflow:hidden;
+  animation:fadeUp 0.4s var(--ease) both;
+}
+.kpi-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kpi-accent,var(--neon));opacity:0.5}
+.kpi-card:nth-child(1){animation-delay:0.03s;--kpi-accent:var(--neon)}
+.kpi-card:nth-child(2){animation-delay:0.06s;--kpi-accent:var(--lime)}
+.kpi-card:nth-child(3){animation-delay:0.09s;--kpi-accent:var(--amber)}
+.kpi-card:nth-child(4){animation-delay:0.12s;--kpi-accent:var(--magenta)}
+.kpi-card:hover{border-color:var(--edge2);transform:translateY(-1px)}
+.kpi-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;font-family:var(--font-ui);margin-bottom:6px}
+.kpi-value{font-size:22px;font-weight:700;font-family:var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text);line-height:1.2}
+.kpi-sub{font-size:10px;color:var(--text4);font-family:var(--font-ui);margin-top:4px}
+
+/* ================================================================
+   CHARACTER ROSTER
+   ================================================================ */
+.roster-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.roster-card{
+  text-align:center;padding:14px 8px 12px;background:var(--void);
+  border:1px solid var(--edge);border-radius:var(--r);transition:all 0.25s var(--ease);
+}
+.roster-card:hover{border-color:var(--neon);transform:translateY(-2px);box-shadow:var(--glow-neon)}
+.roster-avatar{
+  width:56px;height:56px;border-radius:50%;margin:0 auto 8px;
+  border:2px solid var(--edge);object-fit:cover;transition:border-color 0.25s var(--ease);
+}
+.roster-card:hover .roster-avatar{border-color:var(--neon)}
+.roster-name{font-size:12px;font-weight:600;color:var(--text);font-family:var(--font-ui);margin-bottom:2px}
+.roster-sub{font-size:9px;color:var(--text4);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.5px}
+.roster-fallback{
+  width:56px;height:56px;border-radius:50%;margin:0 auto 8px;
+  background:rgba(var(--neon-rgb),0.08);border:2px solid var(--edge);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:var(--neon);font-weight:700;font-family:var(--font-mono);
+}
+.roster-upload{
+  font-size:10px;color:var(--text2);cursor:pointer;margin-top:6px;
+  transition:all 0.2s;font-family:var(--font-ui);display:inline-block;
+  background:rgba(var(--neon-rgb),0.12);border:1px solid rgba(var(--neon-rgb),0.25);
+  border-radius:4px;padding:3px 10px;
+}
+.roster-upload:hover{color:var(--neon);background:rgba(var(--neon-rgb),0.22);border-color:var(--neon)}
+
+/* ================================================================
+   SKILL CARD (技能卡片布局)
+   ================================================================ */
+.skill-card{
+  text-align:center;padding:14px 10px 12px;background:var(--void);
+  border:1px solid var(--edge);border-radius:var(--r);transition:all 0.25s var(--ease);
+  display:flex;flex-direction:column;gap:5px;
+}
+.skill-card:hover{border-color:var(--neon);transform:translateY(-2px);box-shadow:var(--glow-neon)}
+.skill-avatar{
+  width:48px;height:48px;border-radius:50%;margin:0 auto;
+  border:2px solid var(--edge);object-fit:cover;transition:border-color 0.25s var(--ease);
+}
+.skill-card:hover .skill-avatar{border-color:var(--neon)}
+.skill-fallback{
+  width:48px;height:48px;border-radius:50%;margin:0 auto;
+  background:rgba(var(--magenta-rgb),0.08);border:2px solid var(--edge);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;color:var(--magenta);font-weight:700;font-family:var(--font-mono);
+}
+.skill-name{font-size:13px;font-weight:600;color:var(--text);font-family:var(--font-ui)}
+.skill-id{font-size:9px;color:var(--text4);letter-spacing:0.5px;font-family:var(--font-mono)}
+.skill-desc{font-size:11px;color:var(--text3);line-height:1.4;max-height:32px;overflow:hidden;text-overflow:ellipsis;font-family:var(--font-ui)}
+.skill-badges{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
+.skill-badge{
+  font-size:9px;padding:2px 6px;border-radius:3px;border:1px solid var(--edge);
+  color:var(--text3);font-family:var(--font-mono);letter-spacing:0.3px;
+}
+.skill-badge.linked{border-color:rgba(var(--lime-rgb),0.2);color:var(--lime);cursor:pointer;transition:all 0.2s var(--ease)}
+.skill-badge.linked:hover{background:rgba(var(--lime-rgb),0.06)}
+.skill-actions{display:flex;gap:4px;justify-content:center;margin-top:4px}
+.btn-xs{padding:3px 8px;font-size:10px;border-radius:4px}
+.skills-grid{grid-template-columns:repeat(3,1fr);max-width:1060px;margin:0 auto;padding:0 24px}
+
+/* ================================================================
+   STATUS GRID / BUTTONS / TABLES
+   ================================================================ */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.stat-item{background:var(--void);border:1px solid var(--edge);border-radius:var(--r);padding:10px 12px;transition:all 0.25s var(--ease)}
+.stat-item:hover{border-color:var(--edge2);background:var(--surface2)}
+.stat .label{font-size:9px;color:var(--text4);margin-bottom:3px;letter-spacing:0.5px;font-weight:600;font-family:var(--font-ui)}
+.stat .value{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.3;font-family:var(--font-mono)}
+.stat .value.ok{color:var(--lime)}.stat .value.err{color:var(--coral)}.stat .value.warn{color:var(--amber)}.stat .value.neutral{color:var(--text2)}
+
+.btn-group{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.btn{
+  padding:6px 14px;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;
+  transition:all 0.2s var(--ease);position:relative;overflow:hidden;display:inline-flex;
+  align-items:center;gap:5px;font-family:var(--font-ui);line-height:1.4;letter-spacing:0.2px;
+}
+.btn:hover{transform:translateY(-1px)}.btn:active{transform:translateY(0)}
+.btn-primary{background:var(--neon);color:var(--void)}.btn-primary:hover{box-shadow:var(--glow-neon);filter:brightness(1.1)}
+.btn-danger{background:rgba(var(--coral-rgb),0.1);color:var(--coral);border:1px solid rgba(var(--coral-rgb),0.2)}
+.btn-danger:hover{background:rgba(var(--coral-rgb),0.18);box-shadow:0 0 12px rgba(var(--coral-rgb),0.15)}
+.btn-sm{padding:4px 10px;font-size:10px}
+.btn-outline{background:transparent;border:1px solid var(--edge);color:var(--text2)}
+.btn-outline:hover{border-color:var(--neon);color:var(--neon);background:rgba(var(--neon-rgb),0.04)}
+.btn-accent{background:rgba(var(--neon-rgb),0.08);color:var(--neon);border:1px solid rgba(var(--neon-rgb),0.15)}
+.btn-accent:hover{background:rgba(var(--neon-rgb),0.14);box-shadow:var(--glow-neon)}
+.btn-success{background:rgba(var(--lime-rgb),0.08);color:var(--lime);border:1px solid rgba(var(--lime-rgb),0.15)}
+.btn-success:hover{background:rgba(var(--lime-rgb),0.14);box-shadow:0 0 12px rgba(var(--lime-rgb),0.15)}
+.btn-lg{padding:8px 20px;font-size:12px;border-radius:8px}
+
+.table-wrap{overflow-x:auto;margin:0 -22px;padding:0 22px}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+th{text-align:left;padding:7px 10px;color:var(--text3);font-weight:600;font-size:9px;letter-spacing:0.5px;border-bottom:1px solid var(--edge);background:var(--void);font-family:var(--font-ui)}
+td{padding:9px 10px;border-bottom:1px solid rgba(var(--neon-rgb),0.04)}
+tr:hover td{background:rgba(var(--neon-rgb),0.015)}
+.c-magenta{color:var(--magenta)}.c-neon{color:var(--neon)}.c-lime{color:var(--lime)}
+.c-coral{color:var(--coral)}.c-amber{color:var(--amber)}.c-text{color:var(--text)}
+.c-text2{color:var(--text2)}.c-text3{color:var(--text3)}.c-text4{color:var(--text4)}
+.fw-700{font-weight:700}.fs-10{font-size:10px}.fs-11{font-size:11px}.fm{font-family:var(--font-mono)}
+.nowrap{white-space:nowrap}
+.avatar-check{color:var(--lime)}.avatar-cross{color:var(--text4)}
+
+/* ================================================================
+   FORMS / LOG / UTILITIES
+   ================================================================ */
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:9px;color:var(--text3);margin-bottom:4px;font-weight:600;letter-spacing:0.5px;font-family:var(--font-ui)}
+.form-group input,.form-group textarea,.form-group select{
+  width:100%;padding:8px 10px;background:var(--void);border:1px solid var(--edge);
+  border-radius:6px;color:var(--text);font-size:12px;transition:all 0.25s var(--ease);font-family:var(--font-ui);
+}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--neon);outline:none;box-shadow:0 0 0 2px rgba(var(--neon-rgb),0.08);background:var(--surface)}
+.form-group textarea{min-height:90px;resize:vertical;font-family:var(--font-mono);font-size:11px}
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.log-box{background:var(--void);border:1px solid var(--edge);border-radius:var(--r);padding:10px 12px;font-family:var(--font-mono);font-size:11px;max-height:280px;overflow-y:auto;white-space:pre-wrap;color:var(--lime);line-height:1.7}
+.hidden{display:none !important}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.mt-8{margin-top:8px}.mt-16{margin-top:16px}.mb-8{margin-bottom:8px}
+.empty{text-align:center;padding:36px 20px;color:var(--text4);font-size:12px;font-family:var(--font-ui)}
+code{font-family:var(--font-mono);font-size:0.9em}
+
+/* ================================================================
+   TOAST / PROGRESS / MODAL / TOKEN
+   ================================================================ */
+.toast{position:fixed;right:16px;padding:10px 16px;border-radius:8px;font-size:12px;z-index:9999;animation:slideIn .3s var(--ease);backdrop-filter:blur(16px);max-width:360px;word-break:break-word;display:flex;align-items:center;gap:8px;font-weight:500;font-family:var(--font-ui);box-shadow:var(--toast-shadow)}
+.toast-ok{background:rgba(var(--lime-rgb),0.1);color:var(--lime);border:1px solid rgba(var(--lime-rgb),0.2)}
+.toast-err{background:rgba(var(--coral-rgb),0.1);color:var(--coral);border:1px solid rgba(var(--coral-rgb),0.2)}
+.toast-warn{background:rgba(var(--amber-rgb),0.1);color:var(--amber);border:1px solid rgba(var(--amber-rgb),0.2)}
+.toast-close{background:none;border:none;color:inherit;cursor:pointer;font-size:12px;opacity:0.5;margin-left:6px;flex-shrink:0;padding:2px}
+.toast-close:hover{opacity:1}
+.progress{height:2px;background:var(--edge);border-radius:1px;overflow:hidden;margin-top:8px}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--neon),var(--magenta));transition:width .4s;width:0}
+.progress-panel{background:var(--void);border:1px solid var(--edge);border-radius:var(--r);padding:12px 14px;margin-top:10px;animation:borderGlow 3s infinite}
+.progress-panel .pp-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.progress-panel .pp-title{font-size:12px;font-weight:600;color:var(--magenta);font-family:var(--font-mono)}
+.progress-panel .pp-stage{font-size:11px;color:var(--neon);margin-bottom:3px}
+.progress-panel .pp-msg{font-size:11px;color:var(--text2);margin-bottom:4px;word-break:break-word}
+.progress-panel .pp-time{font-size:10px;color:var(--text4);font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.progress-panel .pp-bar{height:3px;background:var(--edge);border-radius:2px;overflow:hidden;margin-top:5px}
+.progress-panel .pp-fill{height:100%;background:linear-gradient(90deg,var(--neon),var(--magenta));transition:width .6s;border-radius:2px}
+.btn.loading{pointer-events:none;opacity:0.6}
+.btn.loading::before{content:'';display:inline-block;width:10px;height:10px;border:2px solid transparent;border-top-color:currentColor;border-radius:50%;animation:spin .5s linear infinite}
+.wd-indicator{font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid var(--edge);display:inline-flex;align-items:center;gap:4px;font-weight:600;font-family:var(--font-ui);letter-spacing:0.3px}
+.wd-indicator.on{border-color:rgba(var(--lime-rgb),0.25);color:var(--lime);background:rgba(var(--lime-rgb),0.05)}
+.wd-indicator.off{border-color:var(--edge);color:var(--text4)}
+.modal-overlay{position:fixed;inset:0;background:var(--overlay-bg);backdrop-filter:blur(8px);z-index:1000;display:flex;align-items:center;justify-content:center;animation:fadeUp .25s var(--ease)}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--surface);border:1px solid var(--edge);border-radius:var(--r-lg);width:90%;max-width:820px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 0 40px rgba(0,0,0,0.3),var(--glow-neon)}
+.modal-header{padding:14px 18px;border-bottom:1px solid var(--edge);display:flex;justify-content:space-between;align-items:center}
+.modal-header h3{margin:0;font-size:13px;color:var(--text);font-weight:600;font-family:var(--font-ui)}
+.modal-close{background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all 0.2s var(--ease)}
+.modal-close:hover{background:rgba(var(--neon-rgb),0.05);color:var(--text)}
+.modal-body{padding:14px 18px;overflow-y:auto;flex:1}
+.modal-tabs{display:flex;gap:2px;padding:0 18px;border-bottom:1px solid var(--edge)}
+.modal-tab{padding:8px 14px;cursor:pointer;color:var(--text3);font-size:11px;font-weight:500;border-bottom:1px solid transparent;transition:all 0.2s var(--ease);font-family:var(--font-ui)}
+.modal-tab.active{color:var(--neon);border-bottom-color:var(--neon)}
+.modal-content{padding:12px 0}
+.modal-content pre{font-family:var(--font-mono);font-size:11px;line-height:1.7;color:var(--text2);white-space:pre-wrap;word-break:break-word}
+.modal-content .file-label{font-size:9px;color:var(--text3);font-weight:700;margin-bottom:6px;letter-spacing:0.5px;font-family:var(--font-ui)}
+.token-box{background:var(--void);border:1px solid var(--edge);border-radius:var(--r);padding:10px 12px;margin-top:10px;font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+.token-box code{color:var(--magenta);background:rgba(var(--magenta-rgb),0.06);padding:1px 5px;border-radius:3px}
+.token-box .url{color:var(--neon);word-break:break-all}
+.hint{font-size:10px;color:var(--text4);margin-top:6px;line-height:1.5;font-family:var(--font-ui)}
+.desc{font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.6}
+
+@media(max-width:768px){
+  .header{padding:0 14px;height:46px}.header h1{font-size:12px}.header .sub{display:none}
+  .content{padding:14px}.card{padding:14px;border-radius:var(--r)}
+  .stat-grid{grid-template-columns:repeat(2,1fr);gap:6px}.kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .roster-grid{grid-template-columns:repeat(3,1fr)}.skills-grid{grid-template-columns:repeat(2,1fr)}.tabs{padding:0 14px}.tab{padding:8px 12px;font-size:11px}
+}
+@media(max-width:480px){
+  .stat-grid{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}
+  .health-pills{display:none}.kpi-grid{grid-template-columns:1fr 1fr}.roster-grid{grid-template-columns:repeat(2,1fr)}.skills-grid{grid-template-columns:1fr}
+}
+
+/* ================================================================
+   SKILL EDITOR PANEL
+   ================================================================ */
+.editor-panel{
+  background:var(--surface);border:1px solid var(--neon);border-radius:var(--r-lg);
+  padding:0;margin-top:14px;overflow:hidden;animation:fadeUp .3s var(--ease);
+  box-shadow:var(--glow-neon);
+}
+.editor-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 18px;border-bottom:1px solid var(--edge);background:rgba(var(--neon-rgb),0.03);
+}
+.editor-title{font-size:13px;font-weight:600;color:var(--neon);font-family:var(--font-mono);display:flex;align-items:center;gap:8px}
+.editor-body{padding:14px 18px}
+.editor-tabs{display:flex;gap:2px;margin-bottom:10px}
+.editor-tab{
+  padding:6px 14px;cursor:pointer;color:var(--text3);font-size:11px;font-weight:500;
+  border:1px solid var(--edge);border-bottom:none;border-radius:6px 6px 0 0;
+  background:transparent;transition:all .2s var(--ease);font-family:var(--font-ui);
+}
+.editor-tab.active{color:var(--neon);background:var(--void);border-color:var(--edge2)}
+.editor-textarea{
+  width:100%;min-height:320px;padding:12px;background:var(--void);border:1px solid var(--edge);
+  border-radius:0 var(--r) var(--r) var(--r);color:var(--text);font-family:var(--font-mono);
+  font-size:12px;line-height:1.7;resize:vertical;transition:border-color .25s var(--ease);
+}
+.editor-textarea:focus{border-color:var(--neon);outline:none;box-shadow:0 0 0 2px rgba(var(--neon-rgb),0.08)}
+.editor-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.editor-status{font-size:11px;color:var(--text4);font-family:var(--font-mono)}
+.trait-section{
+  margin-top:14px;padding:14px;background:var(--void);border:1px solid var(--edge);border-radius:var(--r);
+}
+.trait-section h4{font-size:10px;color:var(--magenta);letter-spacing:1px;font-weight:600;margin-bottom:8px;font-family:var(--font-ui);text-transform:uppercase}
+.trait-input{
+  width:100%;min-height:60px;padding:8px 10px;background:var(--surface);border:1px solid var(--edge);
+  border-radius:6px;color:var(--text);font-family:var(--font-ui);font-size:12px;resize:vertical;
+  transition:border-color .25s var(--ease);margin-bottom:8px;
+}
+.trait-input:focus{border-color:var(--magenta);outline:none;box-shadow:0 0 0 2px rgba(var(--magenta-rgb),0.08)}
+.trait-input::placeholder{color:var(--text4)}
+.reload-banner{
+  background:rgba(var(--lime-rgb),0.08);border:1px solid rgba(var(--lime-rgb),0.2);
+  color:var(--lime);padding:6px 14px;border-radius:6px;font-size:11px;font-family:var(--font-ui);
+  display:flex;align-items:center;gap:6px;animation:slideIn .3s var(--ease);margin-top:8px;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ 顶栏 ═══ -->
+<div class="header">
+  <div class="header-brand">
+    <div class="header-logo">Q</div>
+    <div><h1>QQ_BOT</h1><div class="sub">控制面板 v2.1</div></div>
+  </div>
+  <div class="header-right">
+    <div class="health-pills">
+      <span class="health-pill off" id="healthBot" title="NoneBot2"><span id="healthBotDot">&#9679;</span> 机器人</span>
+      <span class="health-pill off" id="healthNc" title="NapCatQQ Desktop"><span id="healthNcDot">&#9679;</span> 协议端</span>
+      <span class="health-pill off" id="healthWs" title="WebSocket 连接"><span id="healthWsDot">&#9679;</span> WS</span>
+      <span class="health-time" id="healthTime">--:--</span>
+    </div>
+    <div class="ws-badge disconnected" id="wsStatus">连接中...</div>
+    <div class="theme-wrap">
+      <button class="theme-btn" onclick="toggleThemeMenu(event)"><span class="theme-dot"></span>主题</button>
+      <div class="theme-dropdown hidden" id="themeDropdown">
+        <button class="theme-option active" data-theme="neon-terminal" onclick="applyTheme('neon-terminal')"><span class="t-dot" style="background:#00d4ff"></span><span class="t-label">霓虹终端</span><span class="t-check">&#10003;</span></button>
+        <button class="theme-option" data-theme="midnight-galaxy" onclick="applyTheme('midnight-galaxy')"><span class="t-dot" style="background:#a490c2"></span><span class="t-label">午夜银河</span><span class="t-check">&#10003;</span></button>
+        <button class="theme-option" data-theme="arctic-frost" onclick="applyTheme('arctic-frost')"><span class="t-dot" style="background:#4a6fa5"></span><span class="t-label">极地霜白</span><span class="t-check">&#10003;</span></button>
+        <button class="theme-option" data-theme="scarlet-mecha" onclick="applyTheme('scarlet-mecha')"><span class="t-dot" style="background:#ff6b9d"></span><span class="t-label">绯红机甲</span><span class="t-check">&#10003;</span></button>
+        <button class="theme-option" data-theme="amber-black" onclick="applyTheme('amber-black')"><span class="t-dot" style="background:#ffc107"></span><span class="t-label">琥珀暗夜</span><span class="t-check">&#10003;</span></button>
+        <button class="theme-option" data-theme="arctic-green" onclick="applyTheme('arctic-green')"><span class="t-dot" style="background:#2e7d32"></span><span class="t-label">翡翠霜白</span><span class="t-check">&#10003;</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 标签页 ═══ -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(this,'process')">进程管理</div>
+  <div class="tab" onclick="switchTab(this,'cookie')">Cookie</div>
+  <div class="tab" onclick="switchTab(this,'corpus')">语料库</div>
+  <div class="tab" onclick="switchTab(this,'skills')">技能管理</div>
+  <div class="tab" onclick="switchTab(this,'help')">帮助文档</div>
+  <div class="tab" onclick="switchTab(this,'settings')">参数设置</div>
+</div>
+
+<div class="content">
+
+  <!-- ═══ KPI 总览 ═══ -->
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">系统状态</div><div class="kpi-value" id="kpiSystem">--</div><div class="kpi-sub" id="kpiSystemSub">检测中...</div></div>
+    <div class="kpi-card"><div class="kpi-label">机器人</div><div class="kpi-value" id="kpiBot">--</div><div class="kpi-sub" id="kpiBotSub">端口 8080</div></div>
+    <div class="kpi-card"><div class="kpi-label">WS 连接</div><div class="kpi-value" id="kpiNapcat">--</div><div class="kpi-sub" id="kpiNapcatSub">--</div></div>
+    <div class="kpi-card"><div class="kpi-label">技能</div><div class="kpi-value" id="kpiSkills">--</div><div class="kpi-sub" id="kpiSkillsSub">个角色</div></div>
+  </div>
+
+  <!-- ═══ 进程管理 ═══ -->
+  <div id="tab-process" class="tab-content">
+    <div class="card">
+      <div class="flex-between">
+        <h3><span class="icon green">&#9889;</span> 服务控制</h3>
+        <div id="wdStatus" class="wd-indicator off"><span id="wdDot">&#9679;</span> <span id="wdText">看门狗 关闭</span></div>
+      </div>
+      <p class="desc">管理 NoneBot2 服务。NapCatQQ Desktop 由外部独立管理。看门狗每 30 秒检测，自动重启崩溃的 NoneBot2，并监控 WebSocket 连接状态。</p>
+      <div class="btn-group">
+        <button class="btn btn-success btn-lg" onclick="startAll()">启动 NoneBot2</button>
+        <button class="btn btn-accent btn-lg" onclick="restartNonebot(this)">重启 NoneBot2</button>
+        <button class="btn btn-danger btn-lg" onclick="shutdownProject()">关闭 NoneBot2</button>
+        <span style="border-left:1px solid var(--edge);margin:0 6px;height:20px"></span>
+        <button class="btn btn-accent btn-sm" onclick="toggleWatchdog(true)">开启看门狗</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleWatchdog(false)">关闭看门狗</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex-between mb-8">
+        <h3><span class="icon purple">&#9881;</span> NoneBot2</h3>
+        <button class="btn btn-outline btn-sm" onclick="reloadBotSkills()">重载技能</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="stat"><div class="label">状态</div><div class="value neutral" id="nb2Status">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">端口</div><div class="value" id="nb2Port" style="color:var(--text2)">8080</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">PID</div><div class="value" id="nb2Pid" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">内存</div><div class="value" id="nb2Mem" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">运行时间</div><div class="value" id="nb2Uptime" style="color:var(--text2)">-</div></div></div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary btn-sm" onclick="startProc('nonebot2')">启动</button>
+        <button class="btn btn-danger btn-sm" onclick="stopProc('nonebot2')">停止</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex-between mb-8"><h3><span class="icon cyan">&#128268;</span> NapCatQQ Desktop <span style="font-size:9px;color:var(--text4);font-weight:400;letter-spacing:0.3px">(外部管理)</span></h3></div>
+      <p class="desc">NapCatQQ Desktop 独立运行，负责 QQ 登录和协议转换。请通过 NapCatQQ Desktop 窗口管理 QQ 连接。</p>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="stat"><div class="label">Desktop</div><div class="value neutral" id="ncStatus">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">QQ 客户端</div><div class="value neutral" id="qqStatus">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">WebSocket</div><div class="value neutral" id="wsConnStatus">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">PID</div><div class="value" id="ncPid" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">内存</div><div class="value" id="ncMem" style="color:var(--text2)">-</div></div></div>
+      </div>
+    </div>
+
+    <!-- 角色花名册 -->
+    <div class="card">
+      <h3><span class="icon pink">&#127917;</span> 角色花名册</h3>
+      <div class="roster-grid" id="rosterGrid"><div class="empty" style="grid-column:1/-1">加载角色中...</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ Cookie ═══ -->
+  <div id="tab-cookie" class="tab-content hidden">
+    <div class="card">
+      <h3><span class="icon yellow">&#127850;</span> 微博 Cookie</h3>
+      <div class="stat-grid mb-8">
+        <div class="stat-item"><div class="stat"><div class="label">状态</div><div class="value neutral" id="cookieStatus">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">数量</div><div class="value" id="cookieCount" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">大小</div><div class="value" id="cookieSize" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">更新时间</div><div class="value" id="cookieModified" style="color:var(--text2)">-</div></div></div>
+      </div>
+      <div class="btn-group">
+        <input type="file" id="cookieFile" accept=".json" style="display:none" onchange="uploadCookie()">
+        <button class="btn btn-accent btn-sm" onclick="document.getElementById('cookieFile').click()">上传</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 语料库 ═══ -->
+  <div id="tab-corpus" class="tab-content hidden">
+    <div class="card">
+      <h3><span class="icon pink">&#128228;</span> 数据导入</h3>
+      <div class="editor-tabs" style="margin-bottom:14px">
+        <button class="editor-tab active" onclick="switchImportTab(this,'import-weibo')">微博抓取</button>
+        <button class="editor-tab" onclick="switchImportTab(this,'import-qq')">QQ 聊天记录</button>
+        <button class="editor-tab" onclick="switchImportTab(this,'import-text')">文本导入</button>
+      </div>
+      <div id="import-weibo">
+        <div class="form-group"><label>微博 UID</label><input type="text" id="weiboUid" placeholder="例：7382396909"></div>
+        <button class="btn btn-primary btn-sm" onclick="fetchWeibo(this)">抓取</button>
+        <div class="log-box mt-8" id="weiboLog" style="display:none"></div>
+      </div>
+      <div id="import-qq" class="hidden">
+        <div class="form-group"><label>QQChatExporter JSON 文件</label><input type="file" id="qqJsonFile" accept=".json" onchange="previewSenders()"></div>
+        <div id="sendersList" class="mt-8"></div>
+        <div class="form-row mt-8">
+          <div class="form-group"><label>发送者 QQ 号</label><input type="text" id="qqTargetUid" placeholder="选择或输入"></div>
+          <div class="form-group"><label>目标语料 UID</label><input type="text" id="qqDirUid" placeholder="例：1197504813"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="importQQ(this)">导入</button>
+      </div>
+      <div id="import-text" class="hidden">
+        <p class="desc">支持 .md / .txt / .log 文件。</p>
+        <div class="form-row">
+          <div class="form-group"><label>目标 UID</label><input type="text" id="textImportUid" placeholder="留空则使用文件名"></div>
+          <div class="form-group"><label>文件</label><input type="file" id="textImportFile" accept=".md,.txt,.log,.markdown,.text"></div>
+        </div>
+        <button class="btn btn-accent btn-sm" onclick="importTextFile(this)">导入</button>
+      </div>
+    </div>
+    <div class="card"><h3><span class="icon purple">&#128194;</span> 语料库</h3><div id="corpusList"></div></div>
+    <div class="card hidden" id="genSkillCard">
+      <h3><span class="icon pink">&#10024;</span> 从语料生成技能</h3>
+      <div class="form-group"><label>语料 UID</label><input type="text" id="genSkillUid" readonly></div>
+      <div class="form-row">
+        <div class="form-group"><label>技能名称</label><input type="text" id="genSkillName" placeholder="my_character"></div>
+        <div class="form-group"><label>显示名称</label><input type="text" id="genSkillDisplay" placeholder="角色名"></div>
+        <div class="form-group"><label>版本</label><input type="text" id="genSkillVer" value="1.0.0"></div>
+      </div>
+      <div class="form-group"><label>描述</label><input type="text" id="genSkillDesc" placeholder="一行描述"></div>
+      <div class="form-row">
+        <div class="form-group"><label>角色类型</label><select id="genSkillCharacter" style="padding:7px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-ui)"><option value="celebrity">名人</option><option value="colleague">同事</option><option value="relationship">亲密关系</option></select></div>
+        <div class="form-group" id="genResearchProfileGroup"><label>调研深度</label><select id="genResearchProfile" style="padding:7px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-ui)"><option value="budget-friendly">标准</option><option value="budget-unfriendly">深度</option></select></div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary btn-sm" onclick="generateSkill(this)">生成</button>
+        <button class="btn btn-outline btn-sm" onclick="hideGenerateSkill()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 技能管理 ═══ -->
+  <div id="tab-skills" class="tab-content hidden">
+    <div class="flex-between mb-8" style="padding:0 24px;max-width:1060px;margin:0 auto">
+      <h3 style="font-size:10px;color:var(--text2);letter-spacing:1.2px;font-weight:600;text-transform:uppercase;font-family:var(--font-ui);display:flex;align-items:center;gap:8px"><span class="icon purple">&#127917;</span> 技能列表</h3>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-outline btn-sm" onclick="reloadBotSkills()">重载技能</button>
+        <button class="btn btn-primary btn-sm" onclick="showCreateSkill()">+ 新建技能</button>
+      </div>
+    </div>
+    <div class="roster-grid skills-grid" id="skillsGrid"><div class="empty" style="grid-column:1/-1">加载技能中...</div></div>
+    <div id="retrainProgressPanels" style="max-width:1060px;margin:14px auto 0;padding:0 24px"></div>
+
+    <!-- 技能编辑面板 -->
+    <div class="editor-panel hidden" id="skillEditorPanel">
+      <div class="editor-header">
+        <span class="editor-title">&#9998; 编辑：<span id="editorSkillName">-</span></span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="closeEditor()">关闭</button>
+        </div>
+      </div>
+      <div class="editor-body">
+        <div class="editor-tabs">
+          <button class="editor-tab active" data-file="persona.md" onclick="switchEditorTab(this,'persona.md')">persona.md</button>
+          <button class="editor-tab" data-file="work.md" onclick="switchEditorTab(this,'work.md')">work.md</button>
+          <button class="editor-tab" data-file="SKILL.md" onclick="switchEditorTab(this,'SKILL.md')">SKILL.md</button>
+        </div>
+        <textarea class="editor-textarea" id="editorContent" placeholder="文件内容为空或不存在..."></textarea>
+        <div class="editor-footer">
+          <div class="editor-status" id="editorStatus"></div>
+          <button class="btn btn-primary btn-sm" id="editorSaveBtn" onclick="saveEditorContent()">保存</button>
+        </div>
+        <div id="editorReloadBanner" class="reload-banner hidden">&#10003; 已保存，bot 正在重载技能...</div>
+
+        <!-- AI 特征整合 -->
+        <div class="trait-section">
+          <h4>&#10024; AI 智能特征整合</h4>
+          <p style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.6">输入新的角色特征（如「说话喜欢用反问」「爱吃火锅」「会模仿对方的口癖」），AI 会自动分析并合并到对应文件的合适位置。</p>
+          <textarea class="trait-input" id="traitInput" placeholder="例：她有一个新习惯，紧张的时候会捏衣角；口头禅增加了「没问题的啦~」；对甜食特别执着..."></textarea>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="traitTarget" style="padding:5px 8px;border-radius:6px;border:1px solid var(--edge);background:var(--surface);color:var(--text);font-size:11px;font-family:var(--font-ui)">
+              <option value="persona.md">persona.md</option>
+              <option value="work.md">work.md</option>
+            </select>
+            <button class="btn btn-accent btn-sm" id="traitIntegrateBtn" onclick="integrateTrait()">整合</button>
+            <span style="font-size:10px;color:var(--text4)" id="traitStatus"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card hidden" id="createSkillCard">
+      <h3><span class="icon pink">&#10024;</span> 新建技能</h3>
+      <div class="form-group"><label>语料（可选）</label><select id="newSkillCorpus" onchange="onCorpusSelect()"><option value="">-- 手动创建 --</option></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>技能名称</label><input type="text" id="newSkillName" placeholder="my_character"></div>
+        <div class="form-group"><label>显示名称</label><input type="text" id="newSkillDisplay" placeholder="角色名"></div>
+        <div class="form-group"><label>版本</label><input type="text" id="newSkillVer" value="1.0.0"></div>
+      </div>
+      <div class="form-group"><label>描述</label><input type="text" id="newSkillDesc" placeholder="一行描述"></div>
+      <div class="form-row">
+        <div class="form-group"><label>角色类型</label><select id="newSkillCharacter" style="padding:7px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-ui)"><option value="celebrity">名人</option><option value="colleague">同事</option><option value="relationship">亲密关系</option></select></div>
+        <div class="form-group" id="researchProfileGroup"><label>调研深度</label><select id="newSkillResearchProfile" style="padding:7px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-ui)"><option value="budget-friendly">标准</option><option value="budget-unfriendly">深度</option></select></div>
+      </div>
+      <div class="form-group"><label>人设</label><textarea id="newSkillPersona" placeholder="# 人设..."></textarea></div>
+      <div class="form-group"><label>工作方式</label><textarea id="newSkillWork" placeholder="# 工作方式..."></textarea></div>
+      <div class="btn-group">
+        <button class="btn btn-primary btn-sm" onclick="createSkill(this)">创建</button>
+        <button class="btn btn-accent btn-sm" onclick="createSkillFromCorpus(this)">从语料生成</button>
+        <button class="btn btn-outline btn-sm" onclick="hideCreateSkill()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 帮助文档 ═══ -->
+  <div id="tab-help" class="tab-content hidden">
+    <div class="card">
+      <h3><span class="icon green">&#128640;</span> 快速上手</h3>
+      <div style="font-size:12px;color:var(--text2);line-height:2.2;font-family:var(--font-ui)">
+        <p><span class="c-neon">01</span> <strong class="c-text">启动 Dashboard</strong> &mdash; 双击桌面快捷方式或运行 <code>dashboard_silent.bat</code>，浏览器打开 <code>http://localhost:8501</code></p>
+        <p><span class="c-neon">02</span> <strong class="c-text">启动 NapCatQQ Desktop</strong> &mdash; 从开始菜单或 <code>C:\Program Files\NapCatQQ Desktop\</code> 启动，等待 QQ 自动登录</p>
+        <p><span class="c-neon">03</span> <strong class="c-text">启动 NoneBot2</strong> &mdash; 在本页「进程管理」点击「启动 NoneBot2」</p>
+        <p><span class="c-neon">04</span> <strong class="c-text">确认连接</strong> &mdash; 检查顶栏 WS 指示灯变绿，表示 NapCat 已通过 WebSocket 连接到 NoneBot2</p>
+        <p><span class="c-neon">05</span> <strong class="c-text">开始聊天</strong> &mdash; 私聊或在群里 @机器人</p>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span class="icon purple">&#9881;</span> 进程操作</h3>
+      <div class="table-wrap"><table>
+        <tr><th>操作</th><th>说明</th></tr>
+        <tr><td class="c-lime fw-700">启动 NoneBot2</td><td>启动 NoneBot2 服务，等待端口 8080 就绪</td></tr>
+        <tr><td class="c-neon fw-700">重启 NoneBot2</td><td>关闭并重新启动 NoneBot2（NapCatQQ Desktop 会自动重连）</td></tr>
+        <tr><td class="c-coral fw-700">关闭 NoneBot2</td><td>停止 NoneBot2 服务</td></tr>
+        <tr><td class="c-magenta fw-700">重载技能</td><td>热重载技能文件，无需重启</td></tr>
+        <tr><td class="c-lime fw-700">看门狗</td><td>自动重启崩溃的 NoneBot2，监控 WebSocket 连接状态（30 秒间隔）</td></tr>
+      </table></div>
+      <p class="hint" style="margin-top:10px">NapCatQQ Desktop 由外部独立管理，不在本面板控制。它具有 <code>autoStart</code> 和 <code>offlineAutoRestart</code> 功能，启动后会自动登录 QQ 并通过 WebSocket Client 连接到 NoneBot2。</p>
+    </div>
+    <div class="card">
+      <h3><span class="icon blue">&#129302;</span> 机器人指令</h3>
+      <div class="table-wrap"><table>
+        <tr><th>指令</th><th>说明</th><th>权限</th></tr>
+        <tr><td><code>/skills</code></td><td>列出所有可用角色</td><td>所有人</td></tr>
+        <tr><td><code>/switch &lt;名字&gt;</code></td><td>切换全局角色，所有人对话都会变成该角色</td><td>所有人</td></tr>
+        <tr><td><code>/current</code></td><td>查看当前角色和模型信息</td><td>所有人</td></tr>
+        <tr><td><code>/reset</code></td><td>清除你与当前角色的对话记忆</td><td>所有人</td></tr>
+        <tr><td><code>/reloademoji</code></td><td>热重载表情文件（新增/修改表情后无需重启）</td><td>管理员</td></tr>
+      </table></div>
+    </div>
+    <div class="card">
+      <h3><span class="icon pink">&#127912;</span> 情绪表情系统</h3>
+      <p class="desc">Bot 回复后自动分析对话情绪，概率性发送表情图片。表情文件位于 <code>skill_communication/emoji/</code>。</p>
+      <div class="table-wrap"><table>
+        <tr><th>操作</th><th>说明</th></tr>
+        <tr><td class="c-lime fw-700">新增情绪</td><td>在 <code>emoji/</code> 下新建文件夹（文件夹名即情绪类别），放入图片和 <code>keywords.txt</code></td></tr>
+        <tr><td class="c-neon fw-700">添加关键词</td><td>编辑对应文件夹的 <code>keywords.txt</code>，每行一个关键词，<code>#</code> 开头为注释</td></tr>
+        <tr><td class="c-coral fw-700">添加图片</td><td>放入 jpg/png/gif/webp 格式图片，同情绪多张图随机选取</td></tr>
+        <tr><td class="c-magenta fw-700">热加载</td><td>给 Bot 发送 <code>/reloademoji</code>，无需重启即可使用新表情</td></tr>
+      </table></div>
+      <p class="hint" style="margin-top:10px">触发概率 35%，同一用户 60 秒冷却。当前情绪类别：<code>angry</code> / <code>happy</code> / <code>joker</code> / <code>sad</code>（可自行新增任意类别）。</p>
+    </div>
+    <div class="card">
+      <h3><span class="icon blue">&#128279;</span> 链接内容抓取</h3>
+      <p class="desc">用户分享 URL 时，Bot 自动抓取页面内容并据此对话。</p>
+      <div class="table-wrap"><table>
+        <tr><th>链接类型</th><th>处理方式</th></tr>
+        <tr><td class="c-neon fw-700">B站视频</td><td>通过 B站 API 获取标题、简介、标签、热评等完整视频信息</td></tr>
+        <tr><td class="c-lime fw-700">b23.tv 短链</td><td>自动解析重定向，识别 B站视频后走专用 API</td></tr>
+        <tr><td class="c-text2 fw-700">其他网页</td><td>通用 HTML 抓取，提取正文内容（标题 + 段落）</td></tr>
+      </table></div>
+      <p class="hint" style="margin-top:10px">QQ 小程序和分享卡片也会被自动解析为可读文本，Bot 可以理解并回复。</p>
+    </div>
+    <div class="card">
+      <h3><span class="icon pink">&#128194;</span> 目录结构</h3>
+      <div class="fm fs-11 c-text3" style="line-height:1.8;white-space:pre;overflow-x:auto">skill_communication/
+<span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard_silent.bat  <span class="c-text4"># 启动 Dashboard（可创建桌面快捷方式）</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard.bat         <span class="c-text4"># 启动 Dashboard（带控制台窗口）</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> setup.bat             <span class="c-text4"># 初始化安装脚本</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> create_shortcut.bat   <span class="c-text4"># 创建桌面快捷方式</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> corpus/               <span class="c-text4"># 语料 {技能}_{uid}</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> photo/                <span class="c-text4"># 角色头像</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> scripts/              <span class="c-text4"># 微博爬虫</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> cookies.json          <span class="c-text4"># 微博认证</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> skill_qqbot/          <span class="c-text4"># Python 虚拟环境</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> emoji/                <span class="c-text4"># 情绪表情（子文件夹=情绪，含 keywords.txt + 图片）</span>
+<span class="c-magenta">&boxur;&boxh;&boxh;</span> qqbot/
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> .env          <span class="c-text4"># NoneBot2 配置（API 密钥等）</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> bot.py        <span class="c-text4"># NoneBot2 入口文件</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> skills/       <span class="c-text4"># 角色技能</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> plugins/      <span class="c-text4"># 核心插件</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard/    <span class="c-text4"># 本控制面板</span>
+
+<span class="c-amber">外部组件：</span>
+<span class="c-amber">&boxur;&boxh;&boxh;</span> C:\Program Files\NapCatQQ Desktop\    <span class="c-text4"># NapCatQQ Desktop 应用</span>
+<span class="c-amber">&boxur;&boxh;&boxh;</span> C:\ProgramData\...\config\bot.json    <span class="c-text4"># NapCatQQ Desktop 配置（含 WS Client）</span></div>
+    </div>
+    <div class="card">
+      <h3><span class="icon cyan">&#128295;</span> NoneBot2 配置 (.env)</h3>
+      <p class="desc">位于 <code>qqbot/.env</code>，修改后需重启 NoneBot2 生效。</p>
+      <div class="table-wrap"><table>
+        <tr><th>键</th><th>说明</th><th>默认值</th></tr>
+        <tr><td><code>DEEPSEEK_API_KEY</code></td><td>DeepSeek API 密钥（必填）</td><td>-</td></tr>
+        <tr><td><code>DEEPSEEK_MODEL</code></td><td>对话模型名称</td><td>deepseek-v4-pro</td></tr>
+        <tr><td><code>ADMIN_QQ</code></td><td>管理员 QQ 号</td><td>2972494435</td></tr>
+        <tr><td><code>DASHBOARD_TOKEN</code></td><td>面板访问密码</td><td>自定义</td></tr>
+        <tr><td><code>WEB_SEARCH_ENABLED</code></td><td>联网搜索开关</td><td>true</td></tr>
+      </table></div>
+    </div>
+    <div class="card">
+      <h3><span class="icon amber">&#128295;</span> NapCatQQ Desktop 配置</h3>
+      <p class="desc">位于 <code>C:\ProgramData\NapCatQQ Desktop\runtime\config\bot.json</code>，由 NapCatQQ Desktop 管理。关键配置项：</p>
+      <div class="table-wrap"><table>
+        <tr><th>配置项</th><th>说明</th><th>当前值</th></tr>
+        <tr><td><code>websocketClients</code></td><td>WebSocket 客户端连接配置（连接到 NoneBot2）</td><td>ws://127.0.0.1:8080/onebot/v11/ws</td></tr>
+        <tr><td><code>autoStart</code></td><td>启动 NapCatQQ Desktop 时自动启动 Bot</td><td>true</td></tr>
+        <tr><td><code>offlineAutoRestart</code></td><td>QQ 离线时自动重启</td><td>true</td></tr>
+        <tr><td><code>autoRestartSchedule</code></td><td>定期重启（防止 QQ 掉线）</td><td>每 12 小时</td></tr>
+      </table></div>
+      <p class="hint">修改 <code>bot.json</code> 后需在 NapCatQQ Desktop 界面重启 Bot 才能生效。</p>
+    </div>
+    <div class="card">
+      <h3><span class="icon yellow">&#10067;</span> 常见问题</h3>
+      <div style="font-size:12px;color:var(--text2);line-height:2.2;font-family:var(--font-ui)">
+        <p><span class="c-amber">!</span> <strong class="c-text">设备重启后恢复服务</strong> &mdash; ①双击桌面快捷方式启动 Dashboard &rarr; ②启动 NapCatQQ Desktop &rarr; ③在 Dashboard 点「启动 NoneBot2」 &rarr; ④等待 WS 指示灯变绿</p>
+        <p><span class="c-coral">?</span> WS 指示灯不亮 &mdash; NapCatQQ Desktop 未运行或 WS Client 配置错误，检查 <code>bot.json</code> 中 <code>websocketClients</code> 的 <code>url</code> 是否为 <code>ws://127.0.0.1:8080/onebot/v11/ws</code></p>
+        <p><span class="c-coral">?</span> 机器人不回复 &mdash; 检查 NoneBot2 是否运行 + WS 是否已连接 + NapCatQQ Desktop 中 QQ 是否在线</p>
+        <p><span class="c-coral">?</span> NapCatQQ Desktop 中 QQ 离线 &mdash; 在 NapCatQQ Desktop 界面重新登录或重启 Bot</p>
+        <p><span class="c-coral">?</span> 技能修改没生效 &mdash; 点击「重载技能」</p>
+        <p><span class="c-coral">?</span> 蒸馏速度慢 &mdash; DeepSeek API，30-60 秒属正常</p>
+        <p><span class="c-coral">?</span> 微博抓取失败 &mdash; 检查 Cookie 是否有效</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 参数设置 ═══ -->
+  <div id="tab-settings" class="tab-content hidden">
+    <div class="card">
+      <h3><span class="icon cyan">&#9881;</span> Bot 行为</h3>
+      <p class="desc">调整机器人基础行为参数，保存后即时生效（无需重启）。</p>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group"><label>活跃时段起始 (0-23)</label><input type="number" id="set-active_hours_start" min="0" max="23"></div>
+        <div class="form-group"><label>活跃时段结束 (0-23)</label><input type="number" id="set-active_hours_end" min="0" max="23"></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group"><label>联网搜索</label><select id="set-web_search_enabled"><option value="true">开启</option><option value="false">关闭</option></select></div>
+        <div class="form-group"><label>多轮对话</label><select id="set-multi_turn_enabled"><option value="true">开启</option><option value="false">关闭</option></select></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="icon green">&#9889;</span> 流式输出</h3>
+      <p class="desc">控制流式输出的断句策略。字符阈值越小，分段越频繁；等待秒数越短，响应越快但可能断句不自然。</p>
+      <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="form-group"><label>流式输出</label><select id="set-stream_enabled"><option value="true">开启</option><option value="false">关闭</option></select></div>
+        <div class="form-group"><label>断句字符阈值</label><input type="number" id="set-stream_flush_chars" min="20" max="300"></div>
+        <div class="form-group"><label>断句等待秒数</label><input type="number" id="set-stream_flush_interval" min="1" max="15" step="0.5"></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <div class="form-group"><label>单段最大字符数</label><input type="number" id="set-stream_max_flush_size" min="50" max="1000"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="icon purple">&#128190;</span> 历史管理</h3>
+      <p class="desc">对话历史的容量与持久化策略。过期历史会在后台定期清理。</p>
+      <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="form-group"><label>最大对话轮数</label><input type="number" id="set-max_history_rounds" min="1" max="100"></div>
+        <div class="form-group"><label>历史过期 (小时)</label><input type="number" id="set-history_ttl_hours" min="1" max="168"></div>
+        <div class="form-group"><label>保存间隔 (秒)</label><input type="number" id="set-history_save_interval" min="10" max="600"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="icon yellow">&#9201;</span> 响应时间</h3>
+      <p class="desc">控制等待提示的触发时机。秒数越小，提示出现越快。</p>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <div class="form-group"><label>等待提示秒数（超过此时间发"在想..."）</label><input type="number" id="set-thinking_timer_seconds" min="1" max="30"></div>
+      </div>
+    </div>
+
+    <div class="btn-group" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="saveSettings(this)">保存设置</button>
+      <button class="btn btn-outline" onclick="loadSettings()">重置为当前值</button>
+    </div>
+  </div>
+
+</div>
+<div class="modal-overlay" id="retrainModal" style="display:none" onclick="if(event.target===this){this.style.display='none'}">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3 id="retrainModalTitle">蒸馏配置</h3>
+      <button class="modal-close" onclick="document.getElementById('retrainModal').style.display='none'">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>角色类型</label><select id="retrainCharacter" style="padding:8px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);width:100%;font-family:var(--font-ui)"><option value="celebrity">名人</option><option value="colleague">同事</option><option value="relationship" selected>亲密关系</option></select></div>
+      <div class="form-group" id="retrainResearchGroup"><label>调研深度</label><select id="retrainResearchProfile" style="padding:8px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);width:100%;font-family:var(--font-ui)"><option value="budget-friendly">标准（2 次 API 调用）</option><option value="budget-unfriendly">深度（4 次 API 调用）</option></select></div>
+      <p class="hint" style="margin:10px 0">旧版本会自动备份。</p>
+      <div class="btn-group" style="justify-content:flex-end">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('retrainModal').style.display='none'">取消</button>
+        <button class="btn btn-primary btn-sm" id="retrainConfirmBtn" onclick="confirmRetrain()">开始</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   主题系统
+   ================================================================ */
+const _THEMES = {'neon-terminal':'霓虹终端','midnight-galaxy':'午夜银河','arctic-frost':'极地霜白','scarlet-mecha':'绯红机甲','amber-black':'琥珀暗夜','arctic-green':'翡翠霜白'};
+function applyTheme(name){if(!_THEMES[name])return;document.documentElement.setAttribute('data-theme',name);localStorage.setItem('qqbot-theme',name);document.querySelectorAll('.theme-option').forEach(b=>b.classList.toggle('active',b.dataset.theme===name));const dd=document.getElementById('themeDropdown');if(dd)dd.classList.add('hidden')}
+function toggleThemeMenu(e){e.stopPropagation();document.getElementById('themeDropdown').classList.toggle('hidden')}
+document.addEventListener('click',function(e){const dd=document.getElementById('themeDropdown');if(dd&&!dd.classList.contains('hidden')&&!e.target.closest('.theme-wrap'))dd.classList.add('hidden')});
+(function(){applyTheme(localStorage.getItem('qqbot-theme')||'neon-terminal')})();
+
+/* ================================================================
+   角色花名册 & 头像上传
+   ================================================================ */
+const _PHOTOS={};
+
+async function fetchAvatarPaths(){
+  try{const d=await(await safeFetch('/api/avatars')).json();for(const[k,v]of Object.entries(d))_PHOTOS[k]=v}catch(e){}
+}
+
+async function loadRoster(){
+  await fetchAvatarPaths();
+  const grid=document.getElementById('rosterGrid');
+  let nameMap={};
+  try{const skills=await(await safeFetch('/api/skills')).json();skills.forEach(s=>{nameMap[s.name]=s.display_name||s.name})}catch(e){}
+  const t=Date.now();let html='';
+  const chars=Object.keys(nameMap).length>0?Object.keys(nameMap):Object.keys(_PHOTOS);
+  const allNames=new Set([...chars,...Object.keys(_PHOTOS)]);
+  for(const id of allNames){
+    const display=nameMap[id]||id;const photo=_PHOTOS[id];
+    const avatarHtml=photo
+      ?'<img class="roster-avatar" src="'+photo+'?t='+t+'" onerror="this.outerHTML=\'<div class=roster-fallback>'+escapeHtml(id[0].toUpperCase())+'</div>\'" />'
+      :'<div class="roster-fallback">'+escapeHtml(id[0].toUpperCase())+'</div>';
+    html+='<div class="roster-card">'+avatarHtml+
+      '<div class="roster-name">'+escapeHtml(display)+'</div>'+
+      '<label class="roster-upload">&#128247; 上传头像<input type="file" accept=".jpg,.jpeg,.png" style="display:none" onchange="uploadAvatar(\''+escapeHtml(id)+'\',this)"></label>'+
+      '</div>';
+  }
+  grid.innerHTML=html;
+}
+
+async function uploadAvatar(skillName,input){
+  const f=input.files[0];if(!f)return;
+  if(!/\.(jpg|jpeg|png)$/i.test(f.name)){toast('仅支持 JPG / PNG 格式',false);return}
+  if(f.size>5*1024*1024){toast('文件大小不能超过 5MB',false);input.value='';return}
+  const fd=new FormData();fd.append('file',f);
+  try{
+    const d=await(await safeFetch('/api/skills/'+skillName+'/avatar',{method:'POST',body:fd})).json();
+    toast(d.msg,d.ok);if(d.ok)loadRoster();
+  }catch(e){toast('上传失败: '+e.message,false)}
+  input.value='';
+}
+
+/* ================================================================
+   KPI 总览更新
+   ================================================================ */
+function updateKPIs(d){
+  const sysEl=document.getElementById('kpiSystem'),sysSub=document.getElementById('kpiSystemSub');
+  const botEl=document.getElementById('kpiBot'),botSub=document.getElementById('kpiBotSub');
+  const ncEl=document.getElementById('kpiNapcat'),ncSub=document.getElementById('kpiNapcatSub');
+  if(d.status==='ok'){sysEl.textContent='正常';sysEl.style.color='var(--lime)';sysSub.textContent='所有服务运行中'}
+  else if(d.status==='warn'){sysEl.textContent='警告';sysEl.style.color='var(--amber)';sysSub.textContent='部分服务离线'}
+  else{sysEl.textContent='异常';sysEl.style.color='var(--coral)';sysSub.textContent='服务不可用'}
+  botEl.textContent=d.bot?'运行':'停止';botEl.style.color=d.bot?'var(--lime)':'var(--coral)';
+  botSub.textContent=d.bot?'端口 8080 活跃':'端口 8080 空闲';
+  const ncOk=d.napcat&&d.ws_connected;ncEl.textContent=ncOk?'已连接':'未连接';ncEl.style.color=ncOk?'var(--lime)':'var(--coral)';
+  ncSub.textContent=d.napcat?(d.ws_connected?'WS 已连接':'Desktop 运行, WS 未连接'):'Desktop 未运行';
+}
+async function loadSkillCount(){
+  try{const s=await(await safeFetch('/api/skills')).json();
+    document.getElementById('kpiSkills').textContent=s.length;document.getElementById('kpiSkills').style.color='var(--magenta)';
+    document.getElementById('kpiSkillsSub').textContent=s.length+' 个角色';
+  }catch(e){document.getElementById('kpiSkills').textContent='-'}
+}
+
+/* ================================================================
+   核心功能（保留）
+   ================================================================ */
+let ws,modalData={};
+let wsRetryCount=0,wsRetryDelay=1000;
+let _lastHealthStatus='';const _activePolls={};const _toastDedup=new Map();
+
+function switchTab(el,name){
+  document.querySelectorAll('.tab-content').forEach(e=>e.classList.add('hidden'));
+  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.remove('hidden');el.classList.add('active');
+  if(name==='cookie')loadCookieStatus();if(name==='corpus')loadCorpus();
+  if(name==='skills')loadSkills();
+  if(name==='settings')loadSettings();
+}
+
+function switchImportTab(el,tabId){
+  document.querySelectorAll('#tab-corpus .editor-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  ['import-weibo','import-qq','import-text'].forEach(id=>{document.getElementById(id).classList.toggle('hidden',id!==tabId)});
+}
+
+// ── 语料列表（增强版：元信息 + 技能联动） ──
+const _settingKeys=['active_hours_start','active_hours_end','web_search_enabled','multi_turn_enabled','stream_enabled','stream_flush_chars','stream_flush_interval','stream_max_flush_size','max_history_rounds','history_ttl_hours','history_save_interval','thinking_timer_seconds'];
+
+async function loadSettings(){
+  try{
+    const d=await(await safeFetch('/api/settings')).json();
+    if(!d.ok){toast('加载设置失败',false);return}
+    for(const key of _settingKeys){
+      const el=document.getElementById('set-'+key);
+      if(!el||!d.settings[key])continue;
+      const val=d.settings[key].value;
+      if(el.tagName==='SELECT'){el.value=String(val)}
+      else{el.value=val}
+    }
+  }catch(e){toast('加载设置出错: '+e.message,false)}
+}
+
+async function saveSettings(btn){
+  btnLoading(btn,true,'保存中...');
+  const body={};
+  for(const key of _settingKeys){
+    const el=document.getElementById('set-'+key);
+    if(!el)continue;
+    let v=el.value;
+    if(el.type==='number')v=Number(v);
+    else if(el.tagName==='SELECT')v=(v==='true');
+    body[key]=v;
+  }
+  try{
+    const d=await(await safeFetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+    toast(d.msg,d.ok);
+  }catch(e){toast('保存失败: '+e.message,false)}
+  finally{btnLoading(btn,false)}
+}
+
+function toast(msg,ok=true,type=null){
+  const dk=msg+(type||(ok?'ok':'err')),now=Date.now();
+  if(_toastDedup.has(dk)&&now-_toastDedup.get(dk)<5000)return;_toastDedup.set(dk,now);
+  const cls=type==='warn'?'toast-warn':(ok?'toast-ok':'toast-err'),el=document.createElement('div');el.className='toast '+cls;
+  const ex=document.querySelectorAll('.toast');let top=16;ex.forEach(t=>{top=Math.max(top,t.offsetTop+t.offsetHeight+6)});el.style.top=top+'px';
+  const sp=document.createElement('span');sp.textContent=msg;sp.style.flex='1';el.appendChild(sp);
+  const cb=document.createElement('button');cb.className='toast-close';cb.textContent='\u2715';cb.onclick=()=>el.remove();el.appendChild(cb);
+  document.body.appendChild(el);setTimeout(()=>{if(el.parentNode)el.remove()},6000);
+}
+
+async function safeFetch(url,opts={},timeoutMs=120000){
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),timeoutMs);
+  const hdrs={'X-Dashboard-Token':window._DASHBOARD_TOKEN||''};
+  // 仅当 body 非 FormData 时加 Content-Type（FormData 自动处理 boundary）
+  if(opts.body&&!(opts.body instanceof FormData))hdrs['Content-Type']='application/json';
+  try{const r=await fetch(url,{...opts,headers:{...hdrs,...(opts.headers||{})},signal:c.signal});clearTimeout(t);return r}
+  catch(e){clearTimeout(t);throw e.name==='AbortError'?new Error('请求超时'):e}
+}
+function btnLoading(btn,loading,text=''){
+  if(loading){btn._origText=btn.textContent;btn._origDisabled=btn.disabled;btn.disabled=true;btn.classList.add('loading');if(text)btn.textContent=text}
+  else{btn.disabled=btn._origDisabled||false;btn.classList.remove('loading');btn.textContent=btn._origText||text}
+}
+
+function connectWS(){
+  const p=location.protocol==='https:'?'wss:':'ws:';
+  try{ws=new WebSocket(p+'//'+location.host+'/ws/status')}catch(e){setTimeout(connectWS,wsRetryDelay);return}
+  ws.onopen=()=>{const el=document.getElementById('wsStatus');el.textContent='已连接';el.className='ws-badge connected';wsRetryCount=0;wsRetryDelay=1000};
+  ws.onclose=()=>{const el=document.getElementById('wsStatus');el.className='ws-badge disconnected';
+    wsRetryCount++;wsRetryDelay=Math.min(wsRetryDelay*1.5,30000);el.textContent='重连('+wsRetryCount+')';setTimeout(connectWS,wsRetryDelay)};
+  ws.onerror=()=>{};ws.onmessage=(e)=>{try{updateStatus(JSON.parse(e.data))}catch(err){}};
+}
+
+function updateStatus(s){
+  if(!s)return;
+  const nb=s.nonebot2,nc=s.napcat;
+  if(!nb||!nc)return;
+  const nb2El=document.getElementById('nb2Status');nb2El.textContent=nb.running?'\u25cf 运行':'\u25cb 停止';nb2El.className='value '+(nb.running?'ok':'err');
+  document.getElementById('nb2Port').textContent=nb.port||8080;
+  if(nb.processes&&nb.processes.length>0){document.getElementById('nb2Pid').textContent=nb.processes[0].pid;document.getElementById('nb2Mem').textContent=nb.processes[0].memory_mb+' MB';document.getElementById('nb2Uptime').textContent=nb.processes[0].uptime||'-'}
+  else{['nb2Pid','nb2Mem','nb2Uptime'].forEach(id=>document.getElementById(id).textContent='-')}
+  // NapCatQQ Desktop 状态（只读）
+  const ncEl=document.getElementById('ncStatus');ncEl.textContent=nc.running?'\u25cf 运行':'\u25cb 停止';ncEl.className='value '+(nc.running?'ok':'err');
+  const qqEl=document.getElementById('qqStatus');qqEl.textContent=nc.qq_running?'\u25cf 运行':'\u25cb 停止';qqEl.className='value '+(nc.qq_running?'ok':'err');
+  const wsEl=document.getElementById('wsConnStatus');wsEl.textContent=nc.ws_connected?'\u25cf 已连接':'\u25cb 未连接';wsEl.className='value '+(nc.ws_connected?'ok':'err');
+  if(nc.processes&&nc.processes.length>0){document.getElementById('ncPid').textContent=nc.processes[0].pid;document.getElementById('ncMem').textContent=nc.processes[0].memory_mb+' MB'}
+  else{['ncPid','ncMem'].forEach(id=>document.getElementById(id).textContent='-')}
+  if(s.watchdog){const wdEl=document.getElementById('wdStatus');
+    if(s.watchdog.running){wdEl.className='wd-indicator on';document.getElementById('wdDot').textContent='\u25cf';document.getElementById('wdText').textContent='看门狗 开启'}
+    else{wdEl.className='wd-indicator off';document.getElementById('wdDot').textContent='\u25cf';document.getElementById('wdText').textContent='看门狗 关闭'}}
+}
+
+async function startProc(n){try{const d=(await(await safeFetch('/api/process/start/'+n,{method:'POST'})).json());toast(d.msg,d.ok)}catch(e){toast('启动失败: '+e.message,false)}}
+async function stopProc(n){if(!confirm('确定停止 '+n+'？'))return;try{const d=(await(await safeFetch('/api/process/stop/'+n,{method:'POST'})).json());toast(d.msg,d.ok)}catch(e){toast('停止失败: '+e.message,false)}}
+async function reloadBotSkills(){try{const d=await(await safeFetch('/api/bot/reload',{method:'POST'})).json();toast(d.msg,d.ok)}catch(e){toast('重载失败: '+e.message,false)}}
+async function shutdownProject(){
+  if(!confirm('确定关闭 NoneBot2？'))return;toast('正在关闭...',true);
+  try{
+    const r1=await safeFetch('/api/process/stop/nonebot2',{method:'POST'});const d1=await r1.json();
+    if(!d1.ok){toast('NoneBot2 关闭失败: '+d1.msg,false)}
+    else{toast('NoneBot2 已停止',true)}
+  }
+  catch(e){toast('关闭出错: '+e.message,false)}
+}
+async function startAll(){
+  if(!confirm('启动 NoneBot2？'))return;toast('正在启动...',true);
+  try{const d1=await(await safeFetch('/api/process/start/nonebot2',{method:'POST'})).json();toast(d1.msg,d1.ok)}
+  catch(e){toast('启动出错: '+e.message,false)}
+}
+async function restartNonebot(btn){
+  if(!confirm('重启 NoneBot2？'))return;
+  btnLoading(btn,true,'重启中...');toast('正在重启 NoneBot2...',true);
+  try{const d=await(await safeFetch('/api/process/full-restart',{method:'POST'},30000)).json();toast(d.msg,d.ok)}
+  catch(e){toast('重启出错: '+e.message,false)}finally{btnLoading(btn,false)}
+}
+async function toggleWatchdog(start){try{const url=start?'/api/watchdog/start':'/api/watchdog/stop';const d=await(await safeFetch(url,{method:'POST'})).json();toast(d.msg,d.ok)}catch(e){toast('出错: '+e.message,false)}}
+
+async function loadCookieStatus(){try{const d=await(await safeFetch('/api/cookies')).json();const el=document.getElementById('cookieStatus');el.textContent=d.exists?'\u2713 已设置':'\u2717 未设置';el.className='value '+(d.exists?'ok':'err');document.getElementById('cookieCount').textContent=d.count||'-';document.getElementById('cookieSize').textContent=d.size_kb?d.size_kb+' KB':'-';document.getElementById('cookieModified').textContent=d.modified||'-'}catch(e){}}
+async function uploadCookie(){const f=document.getElementById('cookieFile').files[0];if(!f)return;const fd=new FormData();fd.append('file',f);try{const d=await(await safeFetch('/api/cookies/upload',{method:'POST',body:fd})).json();toast(d.msg,d.ok);if(d.ok)loadCookieStatus()}catch(e){toast('上传失败',false)}}
+
+async function loadCorpus(){try{
+  const list=await(await safeFetch('/api/corpus')).json();
+  // 同时加载技能列表以建立关联映射
+  const skills=await(await safeFetch('/api/skills')).json();
+  const el=document.getElementById('corpusList');
+  if(!list.length){el.innerHTML='<div class="empty">暂无语料数据</div>';return}
+  let h='<table><thead><tr><th>UID</th><th>文件</th><th>大小</th><th>关联技能</th><th></th></tr></thead><tbody>';
+  for(const c of list){
+    const fn=Object.keys(c.files).join(', ');
+    // 语料-技能联动：查找关联技能
+    let linkedSkill=null;
+    if(c.linked_skill){linkedSkill=c.linked_skill}
+    else{
+      // 尝试通过 UID 匹配技能名称
+      const match=skills.find(s=>s.name===c.uid||c.uid.startsWith(s.name+'_'));
+      if(match)linkedSkill=match.name;
+    }
+    const lk=linkedSkill
+      ?'<span class="c-lime">&#10003; <a style="color:var(--lime);cursor:pointer;text-decoration:none" onclick="navigateToSkill(\''+linkedSkill+'\')">'+linkedSkill+'</a></span>'
+      :'未关联 <button class="btn btn-accent btn-sm" onclick="showGenerateSkill(\''+c.uid+'\')">生成技能</button>';
+    h+='<tr><td><strong class="c-magenta">'+c.uid+'</strong></td><td class="fs-11 c-text2">'+fn+'</td><td class="c-text3 fm">'+c.total_kb+'KB</td><td>'+lk+'</td><td><button class="btn btn-outline btn-sm" onclick="viewCorpus(\''+c.uid+'\')">查看</button></td></tr>'
+  }
+  el.innerHTML=h+'</tbody></table>'}catch(e){toast('语料加载失败',false)}}
+
+function navigateToSkill(skillName){
+  // 跳转到技能管理标签页并打开编辑器
+  const tab=document.querySelectorAll('.tab')[3]; // 技能管理是第4个tab (index 3)
+  switchTab(tab,'skills');
+  setTimeout(()=>openEditor(skillName),300);
+}
+function navigateToCorpus(corpusRef){
+  // 跳转到语料库标签页
+  const tab=document.querySelectorAll('.tab')[2]; // 语料库是第3个tab
+  switchTab(tab,'corpus');
+}
+function showGenerateSkill(uid){document.getElementById('genSkillUid').value=uid;document.getElementById('genSkillCard').classList.remove('hidden');document.getElementById('genSkillName').focus()}
+function hideGenerateSkill(){document.getElementById('genSkillCard').classList.add('hidden')}
+async function generateSkill(ev){const fd=new FormData();fd.append('uid',document.getElementById('genSkillUid').value);fd.append('skill_name',document.getElementById('genSkillName').value);fd.append('display_name',document.getElementById('genSkillDisplay').value);fd.append('description',document.getElementById('genSkillDesc').value);fd.append('version',document.getElementById('genSkillVer').value);fd.append('character',document.getElementById('genSkillCharacter').value);
+  const btn=ev;btnLoading(btn,true,'生成中...');try{const d=await(await safeFetch('/api/corpus/generate-skill',{method:'POST',body:fd},180000)).json();toast(d.msg,d.ok);if(d.ok){loadCorpus();hideGenerateSkill();loadSkills()}}catch(e){toast('生成失败',false)}finally{btnLoading(btn,false)}}
+async function viewCorpus(uid){try{const d=await(await safeFetch('/api/corpus/'+uid)).json();if(!d.ok){toast(d.msg,false);return}
+  let c=uid+'\n'+'='.repeat(50)+'\n\n';for(const f of d.files)c+='--- '+f.name+' ('+f.size_kb+'KB) ---\n'+f.preview+'\n...\n\n';
+  const w=window.open('','_blank');if(!w){toast('弹窗被阻止',false);return}
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+escapeHtml(uid)+'</title></head><body style="margin:0;background:#1a1a2e;color:#e0e0e0"><pre style="font-family:monospace;font-size:13px;padding:20px;white-space:pre-wrap">'+escapeHtml(c)+'</pre></body></html>')}catch(e){toast('查看失败',false)}}
+async function fetchWeibo(ev){const uid=document.getElementById('weiboUid').value.trim();if(!uid){toast('请输入 UID',false);return}
+  const btn=ev;btnLoading(btn,true,'抓取中...');document.getElementById('weiboLog').style.display='block';
+  document.getElementById('weiboLog').textContent='> 正在抓取...';
+  try{const fd=new FormData();fd.append('uid',uid);const d=await(await safeFetch('/api/corpus/fetch',{method:'POST',body:fd},180000)).json();
+    document.getElementById('weiboLog').textContent+='\n'+d.msg;toast(d.msg,d.ok);if(d.ok)loadCorpus()}
+  catch(e){document.getElementById('weiboLog').textContent+='\n错误: '+e.message;toast('抓取失败',false)}finally{btnLoading(btn,false)}}
+async function previewSenders(){const f=document.getElementById('qqJsonFile').files[0];if(!f)return;const fd=new FormData();fd.append('file',f);
+  try{const d=await(await safeFetch('/api/corpus/qq-senders',{method:'POST',body:fd})).json();const el=document.getElementById('sendersList');
+    if(!d.ok){el.innerHTML='<div class="c-coral">'+d.msg+'</div>';return}
+    let h='<table><thead><tr><th>UID</th><th>名称</th><th>消息数</th><th></th></tr></thead><tbody>';
+    for(const[uid,info]of Object.entries(d.senders))h+='<tr><td class="fs-10 fm">'+uid+'</td><td>'+info.name+'</td><td>'+info.count+'</td><td><button class="btn btn-outline btn-sm" onclick="selectSender(\''+uid+'\')">选择</button></td></tr>';
+    el.innerHTML=h+'</tbody></table>'}catch(e){toast('解析失败',false)}}
+function selectSender(qqUid){document.getElementById('qqTargetUid').value=qqUid}
+async function importQQ(ev){const f=document.getElementById('qqJsonFile').files[0];const qqUid=document.getElementById('qqTargetUid').value.trim();const dirUid=document.getElementById('qqDirUid').value.trim()||qqUid;
+  if(!f||!qqUid){toast('请选择文件并填写发送者',false);return}
+  const btn=ev;btnLoading(btn,true,'导入中...');try{const fd=new FormData();fd.append('file',f);fd.append('qq_uid',qqUid);fd.append('dir_uid',dirUid);
+    const d=await(await safeFetch('/api/corpus/qq-import',{method:'POST',body:fd})).json();toast(d.msg,d.ok);if(d.ok)loadCorpus()}catch(e){toast('导入失败',false)}finally{btnLoading(btn,false)}}
+async function importTextFile(ev){const f=document.getElementById('textImportFile').files[0];if(!f){toast('请选择文件',false);return}
+  const btn=ev;btnLoading(btn,true,'导入中...');try{const fd=new FormData();fd.append('file',f);fd.append('uid',document.getElementById('textImportUid').value.trim());
+    const d=await(await safeFetch('/api/corpus/import-text',{method:'POST',body:fd})).json();toast(d.msg,d.ok);if(d.ok)loadCorpus()}catch(e){toast('导入失败',false)}finally{btnLoading(btn,false)}}
+
+async function loadSkills(){
+  try{
+    const list=await(await safeFetch('/api/skills')).json();
+    const grid=document.getElementById('skillsGrid');
+    if(!list.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1">暂无技能</div>';return}
+    let h='';
+    for(const s of list){
+      const photo=_PHOTOS[s.name];
+      const t=Date.now();
+      const initial=(s.display_name||s.name)[0].toUpperCase();
+      const avatarHtml=photo
+        ?'<img class="skill-avatar" src="'+photo+'?t='+t+'" onerror="this.outerHTML=\'<div class=skill-fallback>'+escapeHtml(initial)+'</div>\'" />'
+        :'<div class="skill-fallback">'+escapeHtml(initial)+'</div>';
+      const versionBadge=s.version?'<span class="skill-badge">v'+escapeHtml(s.version)+'</span>':'';
+      const corpusBadge=s.corpus_ref
+        ?'<span class="skill-badge linked" onclick="navigateToCorpus(\''+escapeHtml(s.corpus_ref)+'\')">&#128194; '+escapeHtml(s.corpus_ref)+'</span>'
+        :'';
+      const retrainBtn=s.corpus_ref
+        ?'<button class="btn btn-outline btn-xs" onclick="openRetrainModal(\''+escapeHtml(s.name)+'\')">蒸馏</button>'
+        :'';
+      h+='<div class="skill-card">'+avatarHtml+
+        '<div class="skill-name">'+escapeHtml(s.display_name||s.name)+'</div>'+
+        '<div class="skill-id">'+escapeHtml(s.name)+'</div>'+
+        (s.description?'<div class="skill-desc">'+escapeHtml(s.description)+'</div>':'')+
+        '<div class="skill-badges">'+versionBadge+corpusBadge+'</div>'+
+        '<div class="skill-actions">'+
+          '<button class="btn btn-primary btn-xs" onclick="openEditor(\''+escapeHtml(s.name)+'\')">编辑</button>'+
+          retrainBtn+
+          '<button class="btn btn-danger btn-xs" onclick="deleteSkill(\''+escapeHtml(s.name)+'\')">删除</button>'+
+        '</div>'+
+      '</div>';
+    }
+    grid.innerHTML=h;
+  }catch(e){toast('技能加载失败',false)}
+}
+function showCreateSkill(){document.getElementById('createSkillCard').classList.remove('hidden');loadCorpusOptions()}
+function hideCreateSkill(){document.getElementById('createSkillCard').classList.add('hidden')}
+async function loadCorpusOptions(){try{const list=await(await safeFetch('/api/corpus')).json();const sel=document.getElementById('newSkillCorpus');
+  sel.innerHTML='<option value="">-- 手动创建 --</option>';
+  for(const c of list)sel.innerHTML+='<option value="'+c.uid+'">'+c.uid+' ('+c.total_kb+'KB)'+(c.linked_skill?' ['+c.linked_skill+']':'')+'</option>'}catch(e){}}
+function onCorpusSelect(){const uid=document.getElementById('newSkillCorpus').value;if(uid){const n=uid.split('_')[0];if(!document.getElementById('newSkillName').value)document.getElementById('newSkillName').value=n;if(!document.getElementById('newSkillDisplay').value)document.getElementById('newSkillDisplay').value=n}}
+async function createSkill(ev){const fd=new FormData();fd.append('name',document.getElementById('newSkillName').value);fd.append('display_name',document.getElementById('newSkillDisplay').value);fd.append('description',document.getElementById('newSkillDesc').value);fd.append('version',document.getElementById('newSkillVer').value);fd.append('persona',document.getElementById('newSkillPersona').value);fd.append('work',document.getElementById('newSkillWork').value);
+  const btn=ev;btnLoading(btn,true,'创建中...');try{const d=await(await safeFetch('/api/skills/create',{method:'POST',body:fd})).json();toast(d.msg,d.ok);if(d.ok){loadSkills();loadSkillCount();hideCreateSkill()}}catch(e){toast('创建失败',false)}finally{btnLoading(btn,false)}}
+async function createSkillFromCorpus(ev){
+  const uid=document.getElementById('newSkillCorpus').value,name=document.getElementById('newSkillName').value.trim(),display=document.getElementById('newSkillDisplay').value.trim();
+  const desc=document.getElementById('newSkillDesc').value.trim(),ver=document.getElementById('newSkillVer').value.trim();
+  const character=document.getElementById('newSkillCharacter').value,researchProfile=document.getElementById('newSkillResearchProfile').value;
+  if(!uid){toast('请选择语料',false);return}if(!name){toast('请输入技能名称',false);return}
+  const btn=ev;btnLoading(btn,true,'生成中...');
+  try{const fd=new FormData();fd.append('uid',uid);fd.append('skill_name',name);fd.append('display_name',display||name);fd.append('description',desc);fd.append('version',ver||'1.0.0');fd.append('character',character);
+    const d1=await(await safeFetch('/api/corpus/generate-skill',{method:'POST',body:fd},180000)).json();if(!d1.ok){toast(d1.msg,false);return}
+    const d2=await(await safeFetch('/api/skills/'+name+'/retrain?character='+character+'&research_profile='+researchProfile,{method:'POST'})).json();if(!d2.ok){toast('技能已创建但蒸馏失败: '+d2.msg,false);loadSkills();loadSkillCount();return}
+    toast('蒸馏已开始',true);startProgressPoll(name);loadSkills();loadSkillCount()}
+  catch(e){toast('生成失败: '+e.message,false)}finally{btnLoading(btn,false)}}
+function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+async function deleteSkill(name){if(!confirm('确定删除 "'+name+'"？'))return;try{const d=await(await safeFetch('/api/skills/'+name,{method:'DELETE'})).json();toast(d.msg,d.ok);if(d.ok){loadSkills();loadSkillCount();loadRoster()}}catch(e){toast('删除失败',false)}}
+
+let _retrainTarget='';
+function openRetrainModal(name){_retrainTarget=name;document.getElementById('retrainModalTitle').textContent='蒸馏配置：'+name;document.getElementById('retrainModal').style.display='flex'}
+document.getElementById('retrainCharacter').addEventListener('change',function(){document.getElementById('retrainResearchGroup').style.display=this.value==='celebrity'?'block':'none'});
+async function confirmRetrain(){
+  const name=_retrainTarget,character=document.getElementById('retrainCharacter').value,rp=document.getElementById('retrainResearchProfile').value;
+  document.getElementById('retrainModal').style.display='none';const btn=document.getElementById('retrainConfirmBtn');btnLoading(btn,true,'启动中...');
+  try{const d=await(await safeFetch('/api/skills/'+name+'/retrain?character='+character+'&research_profile='+rp,{method:'POST'})).json();if(!d.ok){toast(d.msg,false);return}toast(d.msg,true);startProgressPoll(name)}
+  catch(e){toast('启动失败: '+e.message,false)}finally{btnLoading(btn,false)}}
+
+function startProgressPoll(name){
+  if(_activePolls[name])clearInterval(_activePolls[name]);
+  const container=document.getElementById('retrainProgressPanels');let panel=document.getElementById('pp-'+name);
+  if(!panel){panel=document.createElement('div');panel.id='pp-'+name;panel.className='progress-panel';container.prepend(panel)}
+  panel.innerHTML='<div class="pp-header"><span class="pp-title">'+name+'</span><span class="pp-time" id="pp-time-'+name+'">--:--</span></div><div class="pp-stage" id="pp-stage-'+name+'">初始化中...</div><div class="pp-msg" id="pp-msg-'+name+'">正在启动流水线</div><div class="pp-bar"><div class="pp-fill" id="pp-fill-'+name+'" style="width:5%"></div></div>';
+  let pc=0,errCount=0;const mp=240;
+  const sm={'\u5206\u6790':30,'\u7814\u7a76\u5206\u6790':20,'\u7814\u7a76\u5ba1\u8ba1':40,'\u5fc3\u667a\u6a21\u578b\u63d0\u70bc':60,'\u751f\u6210':80,'\u5b8c\u6210':100,'error':0};
+  _activePolls[name]=setInterval(async()=>{
+    pc++;if(pc>mp){clearInterval(_activePolls[name]);delete _activePolls[name];return}
+    try{const r=await safeFetch('/api/skills/'+name+'/retrain-progress');const d=await r.json();
+      const se=document.getElementById('pp-stage-'+name),me=document.getElementById('pp-msg-'+name),fe=document.getElementById('pp-fill-'+name),te=document.getElementById('pp-time-'+name);
+      if(!se)return;
+      if(d.stage&&d.stage!=='idle'){se.textContent=d.is_running?'\u23f3 '+d.stage:d.stage;me.textContent=d.message||'';te.textContent=d.timestamp||'';fe.style.width=(sm[d.stage]||50)+'%'}
+      if(d.done){clearInterval(_activePolls[name]);delete _activePolls[name];
+        if(d.ok){fe.style.width='100%';se.textContent='\u2713 完成';se.style.color='var(--lime)';me.textContent=d.message||'';toast(name+' 蒸馏完成',true);loadSkills()}
+        else{fe.style.width='100%';fe.style.background='var(--coral)';se.textContent='\u2717 失败';se.style.color='var(--coral)';me.textContent=d.message||'';toast(name+' 蒸馏失败: '+d.message,false)}
+        setTimeout(()=>{if(panel.parentNode)panel.style.opacity='0.4'},5000)}}
+    catch(e){errCount++;const me=document.getElementById('pp-msg-'+name);if(me)me.textContent='轮询异常 ('+errCount+')，自动重试中...';if(errCount>=12){clearInterval(_activePolls[name]);delete _activePolls[name];const se=document.getElementById('pp-stage-'+name);if(se){se.textContent='⚠ 轮询中断';se.style.color='var(--coral)'}if(me)me.textContent='无法连接服务器，请刷新页面重试';toast(name+' 蒸馏进度丢失',false)}}
+  },5000);
+}
+
+async function checkHealth(){try{const r=await safeFetch('/api/health',{},10000);const d=await r.json();
+  document.getElementById('healthBot').className='health-pill '+(d.bot?'on':'off');
+  document.getElementById('healthNc').className='health-pill '+(d.napcat?'on':'off');
+  document.getElementById('healthWs').className='health-pill '+(d.ws_connected?'on':'off');
+  document.getElementById('healthTime').textContent=d.timestamp;
+  updateKPIs(d);
+  if(d.status!==_lastHealthStatus){_lastHealthStatus=d.status;if(d.status==='error')toast('服务异常',false,'warn');else if(d.status==='warn')toast('部分服务离线',false,'warn')}
+}catch(e){}}
+
+/* ================================================================
+   技能编辑面板
+   ================================================================ */
+let _editorSkill='',_editorFile='persona.md',_editorFiles={};
+
+async function openEditor(name){
+  _editorSkill=name;_editorFile='persona.md';_editorFiles={};
+  document.getElementById('editorSkillName').textContent=name;
+  document.getElementById('skillEditorPanel').classList.remove('hidden');
+  document.getElementById('editorReloadBanner').classList.add('hidden');
+  // 加载技能所有文件
+  try{
+    const r=await safeFetch('/api/skills/'+name);
+    const d=await r.json();
+    if(!d.ok){toast(d.msg,false);closeEditor();return}
+    _editorFiles=d.files||{};
+  }catch(e){toast('加载失败: '+e.message,false);closeEditor();return}
+  // 激活 persona.md 标签
+  document.querySelectorAll('.editor-tab').forEach(t=>t.classList.toggle('active',t.dataset.file==='persona.md'));
+  document.getElementById('editorContent').value=_editorFiles['persona.md']||'';
+  document.getElementById('editorStatus').textContent='已加载 '+Object.keys(_editorFiles).length+' 个文件';
+  // 滚动到编辑面板
+  document.getElementById('skillEditorPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function switchEditorTab(el,filename){
+  _editorFile=filename;
+  document.querySelectorAll('.editor-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('editorContent').value=_editorFiles[filename]||'';
+  document.getElementById('editorStatus').textContent=filename+(filename in _editorFiles?' ('+((_editorFiles[filename]||'').length)+' chars)':' (新建)');
+}
+
+function closeEditor(){
+  document.getElementById('skillEditorPanel').classList.add('hidden');
+  _editorSkill='';_editorFiles={};
+}
+
+async function saveEditorContent(){
+  if(!_editorSkill)return;
+  const content=document.getElementById('editorContent').value;
+  const btn=document.getElementById('editorSaveBtn');
+  btnLoading(btn,true,'保存中...');
+  try{
+    const r=await safeFetch('/api/skills/'+_editorSkill+'/'+_editorFile,{
+      method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})
+    });
+    const d=await r.json();
+    toast(d.msg,d.ok);
+    if(d.ok){
+      _editorFiles[_editorFile]=content;
+      document.getElementById('editorStatus').textContent='已保存 '+_editorFile;
+      if(d.reloaded){
+        const banner=document.getElementById('editorReloadBanner');
+        banner.classList.remove('hidden');
+        setTimeout(()=>banner.classList.add('hidden'),4000);
+      }
+    }
+  }catch(e){toast('保存失败: '+e.message,false)}
+  finally{btnLoading(btn,false)}
+}
+
+async function integrateTrait(){
+  if(!_editorSkill){toast('请先打开一个技能进行编辑',false);return}
+  const trait=document.getElementById('traitInput').value.trim();
+  if(!trait){toast('请输入特征描述',false);return}
+  const target=document.getElementById('traitTarget').value;
+  const btn=document.getElementById('traitIntegrateBtn');
+  const status=document.getElementById('traitStatus');
+  btnLoading(btn,true,'AI 整合中...');
+  status.textContent='正在调用 AI 分析特征...';status.style.color='var(--amber)';
+  try{
+    const r=await safeFetch('/api/skills/'+_editorSkill+'/integrate-trait',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({trait,target})
+    },180000);
+    const d=await r.json();
+    if(d.ok){
+      toast(d.msg,true);
+      status.textContent='整合完成';status.style.color='var(--lime)';
+      document.getElementById('traitInput').value='';
+      // 更新本地缓存并刷新编辑器
+      _editorFiles[target]=d.content;
+      if(_editorFile===target){
+        document.getElementById('editorContent').value=d.content;
+        document.getElementById('editorStatus').textContent=target+' 已更新 (AI 整合)';
+      }
+      // 显示重载横幅
+      const banner=document.getElementById('editorReloadBanner');
+      banner.classList.remove('hidden');
+      setTimeout(()=>banner.classList.add('hidden'),4000);
+    }else{
+      toast(d.msg,false);
+      status.textContent='整合失败';status.style.color='var(--coral)';
+    }
+  }catch(e){
+    toast('整合失败: '+e.message,false);
+    status.textContent='错误';status.style.color='var(--coral)';
+  }finally{btnLoading(btn,false)}
+}
+
+/* ================================================================
+   初始化
+   ================================================================ */
+connectWS();checkHealth();setInterval(checkHealth,30000);
+loadRoster();loadSkillCount();
+// 定期清理 toast 去重缓存（防止内存泄漏）
+setInterval(()=>{const now=Date.now();for(const[k,v]of _toastDedup)if(now-v>10000)_toastDedup.delete(k)},60000);
+document.getElementById('newSkillCharacter').addEventListener('change',function(){document.getElementById('researchProfileGroup').style.display=this.value==='celebrity'?'block':'none'});
+document.getElementById('genSkillCharacter').addEventListener('change',function(){document.getElementById('genResearchProfileGroup').style.display=this.value==='celebrity'?'block':'none'});
+</script>
+</body>
+</html>

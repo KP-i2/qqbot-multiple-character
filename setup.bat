@@ -1,0 +1,92 @@
+@echo off
+chcp 65001 >nul
+setlocal enabledelayedexpansion
+
+echo ============================================
+echo   微博蒸馏角色 Skill + QQ Bot 环境部署
+echo ============================================
+echo.
+
+REM ========== 1. 检查 Python ==========
+echo [1/4] 检查 Python...
+python --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo   [错误] 未找到 Python 3.10+，请安装后重试
+    echo   下载: https://www.python.org/downloads/
+    pause
+    exit /b 1
+)
+for /f "tokens=2" %%v in ('python --version 2^>^&1') do echo   Python %%v OK
+
+REM ========== 2. 创建虚拟环境 ==========
+echo.
+echo [2/4] 创建虚拟环境...
+if exist "skill_qqbot\Scripts\python.exe" (
+    echo   skill_qqbot\ 已存在，跳过
+) else (
+    python -m venv skill_qqbot
+    if %errorlevel% neq 0 (
+        echo   [错误] 创建虚拟环境失败
+        pause
+        exit /b 1
+    )
+    echo   创建成功
+)
+
+REM ========== 3. 安装依赖 ==========
+echo.
+echo [3/4] 安装 Python 依赖...
+call "skill_qqbot\Scripts\activate.bat"
+pip install -r requirements.txt -q
+if %errorlevel% neq 0 (
+    echo   [错误] pip install 失败
+    pause
+    exit /b 1
+)
+echo   安装完成
+
+REM 安装 Playwright 浏览器（仅抓取微博时需要）
+echo.
+echo   安装 Playwright Chromium（微博抓取用）...
+playwright install chromium -q 2>nul
+if %errorlevel% neq 0 (
+    echo   [提示] Playwright 浏览器安装跳过（已存在或网络问题）
+    echo   如需抓微博语料，请手动运行: skill_qqbot\Scripts\playwright install chromium
+)
+
+REM ========== 4. 配置 .env ==========
+echo.
+echo [4/4] 检查配置...
+if not exist "qqbot\.env" (
+    copy "qqbot\.env.example" "qqbot\.env" >nul 2>nul
+    echo   已从模板创建 qqbot\.env
+    echo   [!!] 请编辑 qqbot\.env 填入 DeepSeek API Key
+) else (
+    echo   qqbot\.env 已存在
+)
+
+REM ========== 检查 NapCat ==========
+echo.
+set "NC=%~dp0qqbot\napcat\NapCat.44498.Shell\NapCatWinBootMain.exe"
+if exist "%NC%" (
+    echo   NapCat: 已就绪
+) else (
+    echo   NapCat: 未安装
+    echo     → 下载 NapCat.OneKey.zip 解压到 qqbot\napcat\
+    echo     → 或访问 https://github.com/NapNeko/NapCatQQ/releases
+)
+
+echo.
+echo ============================================
+echo   部署完成！
+echo ============================================
+echo.
+echo   后续操作：
+echo     1. 编辑 qqbot\.env 填入 API Key
+echo     2. 首次需运行 NapCat 扫码登录 QQ
+echo     3. 运行 setup_napcat.bat 写入连接配置
+echo     4. 运行 start_all.bat 启动 Bot
+echo.
+echo   详细步骤见 DEPLOY.md
+echo.
+pause

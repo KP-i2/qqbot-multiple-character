@@ -1,0 +1,15 @@
+# NoneBot2 + OneBot
+nonebot2[fastapi]>=2.2.0
+nonebot-adapter-onebot>=2.4.0
+
+# HTTP / 工具
+httpx>=0.27.0
+python-dotenv>=1.0.0
+psutil>=5.9.0
+python-multipart>=0.0.6
+uvicorn>=0.20.0
+Pillow>=9.0.0
+
+# 微博语料抓取
+playwright>=1.40.0
+duckduckgo-search>=4.0.0

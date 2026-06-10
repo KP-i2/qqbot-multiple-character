@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# 虚拟环境
+skill_qqbot/
+
+# API Key / 秘钥
+.env
+cookies.json
+**/key.json
+
+# 日志
+*.log
+logs/
+
+# 对话数据
+qqbot/data/
+
+# 缓存 / 临时
+_cache/
+*.pyc
+*.pyo
+
+# 备份
+**/backup_*/
+
+# NapCat / QQ 运行时
+qqbot/napcat/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.claude/
+memory/
+.vscode/
+.idea/
+
+# 运行时文件
+.egg-info/
+*.egg
+.reload_skills_trigger
+.reload_settings_trigger
+
+# 静态资源缓存
+*.bak
