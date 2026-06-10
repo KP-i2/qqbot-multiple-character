@@ -54,7 +54,7 @@ cp qqbot/.env.example qqbot/.env
 DEEPSEEK_API_KEY=sk-你的deepseek-api-key    # 必填，从 platform.deepseek.com 获取
 ADMIN_QQ=你的QQ号                            # 必填
 DASHBOARD_TOKEN=自定义密码                    # Dashboard 访问密码
-DEFAULT_SKILL=guuo                           # 启动时的默认角色
+DEFAULT_SKILL=761                           # 启动时的默认角色（示例为 761）
 ```
 
 **4. 安装 NapCat 并配置**
@@ -120,7 +120,7 @@ dashboard_silent.bat
 | `OPENAI_ENABLED` | 启用 OpenAI 主选 | `false` |
 | `ADMIN_QQ` | 管理员 QQ 号 | — |
 | `DASHBOARD_TOKEN` | Dashboard 访问密码 | — |
-| `DEFAULT_SKILL` | 启动默认角色 | `guuo` |
+| `DEFAULT_SKILL` | 启动默认角色 | `761` |
 | `WEB_SEARCH_ENABLED` | 联网搜索开关 | `true` |
 | `ACTIVE_HOURS_START/END` | 活跃时段 | `0 / 23`（全天） |
 

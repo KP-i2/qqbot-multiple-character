@@ -1,0 +1,90 @@
+{
+  "ok": 1,
+  "data": {
+    "user": {
+      "id": 7781198463,
+      "idstr": "7781198463",
+      "pc_new": 0,
+      "screen_name": "小未Mika-VORTEX",
+      "profile_image_url": "https://tvax3.sinaimg.cn/crop.0.0.1080.1080.50/008uB7b1ly8ibwcuk15vdj30u00u0mzm.jpg?KID=imgbed,tva&Expires=1780812400&ssig=xcceTwWqo9",
+      "profile_url": "/u/7781198463",
+      "verified": true,
+      "verified_type": 0,
+      "domain": "",
+      "weihao": "",
+      "verified_type_ext": 2,
+      "status_total_counter": {
+        "total_cnt_format": "19.9万",
+        "comment_cnt": "81,353",
+        "repost_cnt": "1,577",
+        "like_cnt": "116,381",
+        "total_cnt": "199,311"
+      },
+      "avatar_large": "https://tvax3.sinaimg.cn/crop.0.0.1080.1080.180/008uB7b1ly8ibwcuk15vdj30u00u0mzm.jpg?KID=imgbed,tva&Expires=1780812400&ssig=vJqtV%2F7UcK",
+      "avatar_hd": "https://tvax3.sinaimg.cn/crop.0.0.1080.1080.1024/008uB7b1ly8ibwcuk15vdj30u00u0mzm.jpg?KID=imgbed,tva&Expires=1780812400&ssig=1tafu3Sc29",
+      "follow_me": false,
+      "following": true,
+      "mbrank": 1,
+      "mbtype": 12,
+      "v_plus": 0,
+      "user_ability": 2376200,
+      "planet_video": false,
+      "verified_reason": "惑星VORTEX偶像团体成员",
+      "description": "开心点儿！｜偶像组合@惑星VORTEX 红色担当❤️‍🔥｜DM已关闭看不到🚫｜好好吃饭好好睡觉｜商务合作联系vx ultima030",
+      "location": "上海",
+      "gender": "f",
+      "followers_count": 145969,
+      "followers_count_str": "14.6万",
+      "friends_count": 347,
+      "statuses_count": 1634,
+      "url": "",
+      "svip": 1,
+      "vvip": 1,
+      "cover_image_phone": "https://wx4.sinaimg.cn/crop.0.0.640.640.640/008uB7b1gy1i5tpdcw8ldj31bq1bqad9.jpg;https://wx2.sinaimg.cn/crop.0.0.640.640.640/008uB7b1ly1hfq17g2rvmj30e80e8js8.jpg;https://wx4.sinaimg.cn/crop.0.0.640.640.640/008uB7b1gy1hfm7blpc0mj30wi0wiwk0.jpg;https://wx3.sinaimg.cn/crop.0.0.640.640.640/008uB7b1gy1hgfyuad7v9j30e80e8jtn.jpg;https://wx4.sinaimg.cn/crop.0.0.640.640.640/008uB7b1gy1i5tpfxx50aj315o15o113.jpg;https://wx4.sinaimg.cn/crop.0.0.640.640.640/008uB7b1gy1hfm7buybbrj30wi0witcw.jpg;https://wx1.sinaimg.cn/crop.0.0.640.640.640/008uB7b1gy1i5tphw3yovj30an0anmx4.jpg;https://wx3.sinaimg.cn/crop.0.0.640.640.640/008uB7b1gy1hgfytrepibj30e80e8dhg.jpg;https://wx3.sinaimg.cn/crop.0.0.640.640.640/008uB7b1ly1hfpu8n618wj30e80e80ts.jpg",
+      "icon_list": [
+        {
+          "type": "vip",
+          "data": {
+            "mbrank": 1,
+            "mbtype": 12,
+            "svip": 1,
+            "vvip": 1
+          }
+        },
+        {
+          "type": "icon",
+          "data": {
+            "value": "1",
+            "icon_img": "https://d.sinaimg.cn/prd/100/1264/2026/06/04/feed_icon_yijuduokui_2x.png",
+            "title": "一举夺魁",
+            "url": "http://s.weibo.com/weibo?q=%23高考加油%23"
+          }
+        }
+      ],
+      "top_user": 1,
+      "user_type": 0,
+      "is_star": "0",
+      "is_muteuser": false,
+      "special_follow": false
+    },
+    "tabList": [
+      {
+        "name": "home",
+        "tabName": "精选"
+      },
+      {
+        "name": "feed",
+        "tabName": "微博"
+      },
+      {
+        "name": "newVideo",
+        "tabName": "视频"
+      },
+      {
+        "name": "album",
+        "tabName": "相册"
+      }
+    ],
+    "blockText": ""
+  }
+}
