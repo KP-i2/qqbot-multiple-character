@@ -22,10 +22,9 @@ D:\agent_function\skill_communication\qqbot\
 ├── plugins/
 │   └── zyw_chat/
 │       └── __init__.py             # 主插件（~3100 行，全部逻辑在此）
-├── skills/                         # 角色 Skill 目录（10 个角色）
-│   ├── 761/   aoyi/   guuo/   iteru/   jinmao/
-│   ├── mika/  nana/   skingfd/  ytj/   zyw/
-│   └── (每个 skill 含 SKILL.md + 可选 corpus/ + avatar)
+├── skills/                         # 角色 Skill 目录（示例：761）
+│   ├── 761/                         # 示例角色
+│   └── (每个 skill 含 SKILL.md + persona.md + work.md)
 └── dashboard/
     ├── main.py                     # FastAPI 仪表盘主逻辑
     ├── monitor.py                  # 进程监控 + watchdog

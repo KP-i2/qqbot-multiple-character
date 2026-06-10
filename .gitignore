@@ -72,3 +72,4 @@ emoji/*/*.webp
 photo/*/*.jpg
 photo/*/*.jpeg
 photo/*/*.png
+qqbot/dashboard/static/photo/

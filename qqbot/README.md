@@ -150,8 +150,8 @@ Bot 收到无法回答的问题时自动触发联网搜索，搜索流程:
 **SKILL.md** (YAML frontmatter):
 ```yaml
 ---
-name: jinmao
-display_name: 金毛
+name: your-character
+display_name: 角色显示名
 description: 一行描述
 version: 1.0.0
 ---
