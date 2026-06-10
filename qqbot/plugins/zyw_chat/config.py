@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import time
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from nonebot import get_driver, logger
@@ -200,7 +201,12 @@ _LOG_DIR = QQBOT_DIR / "logs"
 _LOG_DIR.mkdir(exist_ok=True)
 chat_logger = logging.getLogger("zyw_chat.events")
 chat_logger.setLevel(logging.INFO)
-_fh = logging.FileHandler(_LOG_DIR / "chat.log", encoding="utf-8")
+_fh = RotatingFileHandler(
+    _LOG_DIR / "chat.log",
+    maxBytes=5 * 1024 * 1024,   # 5 MB
+    backupCount=3,
+    encoding="utf-8",
+)
 _fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%m-%d %H:%M:%S"))
 chat_logger.addHandler(_fh)
 chat_logger.propagate = False
