@@ -137,7 +137,7 @@ async def fetch_weibo(uid: str, progress_callback=None) -> dict:
 
     # Import and run the fetcher
     import importlib.util, sys
-    fetcher_path = PROJECT_ROOT / "scripts" / "weibo_fetch_final.py"
+    fetcher_path = PROJECT_ROOT / "scripts" / "archive" / "weibo_fetch_final.py"
     if not fetcher_path.exists():
         return {"ok": False, "msg": f"weibo_fetch_final.py not found at {fetcher_path}"}
 

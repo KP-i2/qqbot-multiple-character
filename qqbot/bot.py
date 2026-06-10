@@ -1,5 +1,4 @@
 import sys
-import os
 
 # 修复 venv 子进程问题：venv 基于 anaconda 创建，sys._base_executable 指向
 # anaconda python，导致 uvicorn/multiprocessing 生成 anaconda 子进程（缺少依赖）。

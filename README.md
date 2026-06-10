@@ -348,7 +348,7 @@ version: 1.0.0
 
 ## 致谢
 
-本项目的角色 Skill 体系（`.skill` 目录结构、`SKILL.md` 元数据 + `persona.md` 七层人设 + `work.md` 工作方式）以及语料蒸馏为 AI Skill 的理念，源自 [titanwings/colleague-skill](https://github.com/titanwings/colleague-skill)（dot-skill 项目）。该项目提出了将任何人的思维模型、决策框架和表达风格蒸馏为可复用 AI Skill 的方法，本项目的角色蒸馏流程在此基础上进行了针对 QQ Bot 场景的适配与扩展（多源语料采集、微博/微信/QQ 聊天记录导入、Dashboard 可视化蒸馏管理等）。
+本项目的角色 Skill 体系（`.skill` 目录结构、`SKILL.md` 元数据 + `persona.md` 七层人设 + `work.md` 工作方式）以及语料蒸馏为 AI Skill 的理念，源自 [titanwings/colleague-skill](https://github.com/titanwings/colleague-skill)（dot-skill 项目）。该项目提出了将任何人的思维模型、决策框架和表达风格蒸馏为可复用 AI Skill 的方法，本项目的角色蒸馏流程在此基础上进行了针对 QQ Bot 场景的适配与扩展（多源语料采集、微博/QQ 聊天记录导入、Dashboard 可视化蒸馏管理等）。
 
 ## License
 

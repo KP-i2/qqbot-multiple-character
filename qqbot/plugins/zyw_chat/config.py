@@ -32,7 +32,7 @@ config = driver.config
 
 DEEPSEEK_API_KEY: str = getattr(config, "deepseek_api_key", "")
 DEEPSEEK_BASE_URL: str = getattr(config, "deepseek_base_url", "https://api.deepseek.com")
-DEEPSEEK_MODEL: str = getattr(config, "deepseek_model", "deepseek-chat")
+DEEPSEEK_MODEL: str = getattr(config, "deepseek_model", "deepseek-v4-pro")
 DEEPSEEK_SEARCH_MODEL: str = "deepseek-v4-flash"  # 联网搜索时使用更快的模型
 
 # OpenAI API（主选模型，失败时回退 DeepSeek）
@@ -40,7 +40,7 @@ _openai_enabled_raw = getattr(config, "openai_enabled", "false")
 OPENAI_ENABLED: bool = str(_openai_enabled_raw).lower() == "true"
 OPENAI_API_KEY: str = getattr(config, "openai_api_key", "")
 OPENAI_BASE_URL: str = getattr(config, "openai_base_url", "")
-OPENAI_MODEL: str = getattr(config, "openai_model", "gpt-4o")
+OPENAI_MODEL: str = getattr(config, "openai_model", "gpt-5.5")
 
 
 # ============================================================

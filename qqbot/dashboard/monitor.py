@@ -10,7 +10,6 @@ logger = logging.getLogger("dashboard.monitor")
 PROJECT_ROOT = Path(__file__).parent.parent.parent  # skill_communication/
 QQBOT_DIR = PROJECT_ROOT / "qqbot"
 VENV_PYTHON = PROJECT_ROOT / "skill_qqbot" / "Scripts" / "python.exe"
-VENV_SITE_PACKAGES = PROJECT_ROOT / "skill_qqbot" / "Lib" / "site-packages"
 BOT_SCRIPT = QQBOT_DIR / "bot.py"
 LOG_DIR = QQBOT_DIR / "logs"
 NAPCAT_DESKTOP_EXE = "NapCatQQ-Desktop.exe"  # NapCatQQ Desktop 进程名（外部管理）

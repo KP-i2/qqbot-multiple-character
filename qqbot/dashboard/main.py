@@ -1,7 +1,8 @@
 """FastAPI Dashboard 主应用（修复版）"""
-import asyncio, json, logging, os, re, shutil, tempfile, time
+import asyncio, json, logging, os, re, secrets, tempfile, time
+from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Request, Depends, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 
 logger = logging.getLogger("dashboard")
@@ -12,13 +13,28 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import monitor, weibo_fetcher, skill_manager
 
-app = FastAPI(title="QQ Bot Dashboard")
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    logger.info("Dashboard starting...")
+    monitor.start_watchdog(interval=30)
+    logger.info("Process watchdog auto-started")
+    yield
+    logger.info("Dashboard shutting down...")
+    monitor.stop_watchdog()
+    logger.info("Process watchdog stopped")
+
+
+app = FastAPI(title="QQ Bot Dashboard", lifespan=_lifespan)
 STATIC_DIR = Path(__file__).parent / "static"
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 COOKIES_FILE = PROJECT_ROOT / "cookies.json"
 
 # ── 安全：Token 认证 ──
-DASHBOARD_TOKEN = os.getenv("DASHBOARD_TOKEN", "qqbot2024")
+DASHBOARD_TOKEN = os.getenv("DASHBOARD_TOKEN", "")
+if not DASHBOARD_TOKEN:
+    DASHBOARD_TOKEN = secrets.token_urlsafe(16)
+    logger.warning("DASHBOARD_TOKEN not set in .env — generated random token: %s", DASHBOARD_TOKEN)
 _AUTH_ENABLED = DASHBOARD_TOKEN and DASHBOARD_TOKEN.strip()
 
 # 缓存 index.html（避免每次请求读磁盘）
@@ -527,7 +543,8 @@ _SETTINGS_SCHEMA = {
     "web_search_enabled":    {"type": "bool",  "label": "联网搜索",                "default": True,  "category": "bot"},
     "stream_enabled":        {"type": "bool",  "label": "流式输出",                "default": True,  "category": "stream"},
     "stream_flush_chars":    {"type": "int",   "label": "断句字符阈值",            "default": 60,    "category": "stream", "min": 20, "max": 300},
-    "stream_flush_interval": {"type": "float", "label": "断句等待秒数",            "default": 3.0,   "category": "stream", "min": 1, "max": 15},
+    "stream_flush_interval": {"type": "float", "label": "断句等待秒数",            "default": 8.0,   "category": "stream", "min": 1, "max": 15},
+    "stream_flush_min_chars":{"type": "int",   "label": "最小累积字符数",          "default": 80,    "category": "stream", "min": 20, "max": 300},
     "stream_max_flush_size": {"type": "int",   "label": "单段最大字符",            "default": 300,   "category": "stream", "min": 50, "max": 1000},
     "max_history_rounds":    {"type": "int",   "label": "最大对话轮数",            "default": 15,    "category": "history", "min": 1, "max": 100},
     "history_ttl_hours":     {"type": "int",   "label": "历史过期时间 (小时)",     "default": 6,     "category": "history", "min": 1, "max": 168},
@@ -629,19 +646,3 @@ async def ws_status(websocket: WebSocket):
         pass
     except Exception as e:
         logger.error(f"WebSocket fatal error: {e}")
-
-
-# ── 应用生命周期 ──
-@app.on_event("startup")
-async def app_startup():
-    logger.info("Dashboard starting...")
-    # 自动启动进程看门狗
-    monitor.start_watchdog(interval=30)
-    logger.info("Process watchdog auto-started")
-
-
-@app.on_event("shutdown")
-async def app_shutdown():
-    logger.info("Dashboard shutting down...")
-    monitor.stop_watchdog()
-    logger.info("Process watchdog stopped")
