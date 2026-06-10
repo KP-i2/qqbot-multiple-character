@@ -268,7 +268,7 @@ def _resolve_corpus_dir(uid_input: str) -> Path:
     for d in CORPUS_DIR.iterdir():
         if d.is_dir() and d.name.startswith(uid_input + "_"):
             return d
-    # 模糊匹配：输入是某个目录名的后缀（如 7841140689 → ytj_7841140689）
+    # 模糊匹配：输入是某个目录名的后缀（如 9999 → ytj_9999）
     for d in CORPUS_DIR.iterdir():
         if d.is_dir() and d.name.endswith("_" + uid_input):
             return d

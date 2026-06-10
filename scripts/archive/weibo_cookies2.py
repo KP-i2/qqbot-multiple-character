@@ -2,8 +2,8 @@ import os, sys, json, sqlite3, shutil, subprocess, re, time, requests
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-OUTPUT_DIR = r'D:\Agent+LLM_results\skill_communication'
-UID = '7382396909'
+OUTPUT_DIR = r'.'
+UID = '1234567890'
 
 # Edge cookies paths
 EDGE_COOKIES_PATHS = [

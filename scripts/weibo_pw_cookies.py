@@ -2,8 +2,8 @@
 微博语料抓取脚本 — Playwright + Cookie 注入 + 浏览器内 AJAX
 用法:
     python weibo_pw_cookies.py                    # 使用默认 UID
-    python weibo_pw_cookies.py 7382396909         # 指定 UID
-    python weibo_pw_cookies.py 7382396909 --all   # 抓取全部（含扩展页）
+    python weibo_pw_cookies.py 1234567890         # 指定 UID
+    python weibo_pw_cookies.py 1234567890 --all   # 抓取全部（含扩展页）
 
 输出到 corpus/{UID}/ 目录:
     corpus.txt           — 初始抓取（约 20 页）
@@ -23,7 +23,7 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 COOKIES_FILE = PROJECT_ROOT / 'cookies.json'
-DEFAULT_UID = '7382396909'
+DEFAULT_UID = '1234567890'
 
 
 def parse_args():

@@ -2,9 +2,9 @@ import requests, json, re, sys, time, os
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-OUTPUT_DIR = r'D:\Agent+LLM_results\skill_communication'
+OUTPUT_DIR = r'.'
 COOKIES_FILE = os.path.join(OUTPUT_DIR, 'cookies.json')
-UID = '7382396909'
+UID = '1234567890'
 
 with open(COOKIES_FILE, 'r', encoding='utf-8') as f:
     cookie_list = json.load(f)
