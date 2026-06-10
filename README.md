@@ -211,6 +211,7 @@ skill_communication/
 │   │   ├── weibo_fetcher.py        # 语料采集 + Skill 蒸馏
 │   │   └── static/                 # 前端界面
 │   ├── skills/                     # 角色 Skill 目录
+│   ├── logs/                       # 运行日志（自动轮转）
 │   ├── napcat_onebot_config.json   # NapCat 反向 WebSocket 配置模板
 │   ├── .env.example                # 配置模板
 │   └── pyproject.toml              # NoneBot2 配置
@@ -237,6 +238,29 @@ skill_communication/
 - 虚拟环境路径硬编码在 `skill_qqbot/` 目录下
 
 Mac/Linux 用户需自行替换 NapCat 版本、调整启动脚本和路径。
+
+## 日志与调试
+
+所有日志存放在 `qqbot/logs/` 目录下（自动创建），超过 5MB 时自动轮转，保留 3 份备份：
+
+| 文件 | 内容 | 查看时机 |
+|------|------|----------|
+| `nonebot2.log` | Bot 全部输出（启动、Skill 加载、API 调用、错误堆栈） | Bot 启动失败、API 报错、功能异常 |
+| `chat.log` | 对话事件（用户消息、Bot 回复、搜索触发、流式分段） | 查看聊天记录、确认搜索是否触发、调试回复内容 |
+| `napcat.log` | NapCat QQ 协议层日志（WebSocket 连接、消息收发） | QQ 消息未收到/未发出、连接断开 |
+
+快速排查命令：
+
+```bash
+# 查看最近的错误
+tail -50 qqbot/logs/nonebot2.log | grep -i error
+
+# 查看最近对话
+tail -20 qqbot/logs/chat.log
+
+# 实时监控 Bot 输出
+tail -f qqbot/logs/nonebot2.log
+```
 
 ## 添加新角色 Skill
 
