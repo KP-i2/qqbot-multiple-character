@@ -22,6 +22,17 @@ logs/
 qqbot/data/
 corpus/
 
+# Skill 数据（仅保留 761 作为示例）
+qqbot/skills/aoyi/
+qqbot/skills/guuo/
+qqbot/skills/iteru/
+qqbot/skills/jinmao/
+qqbot/skills/mika/
+qqbot/skills/nana/
+qqbot/skills/skingfd/
+qqbot/skills/ytj/
+qqbot/skills/zyw/
+
 # 缓存 / 临时
 _cache/
 *.pyc
