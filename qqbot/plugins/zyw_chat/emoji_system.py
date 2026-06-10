@@ -15,7 +15,7 @@ from nonebot.adapters.onebot.v11 import Bot, Event, MessageSegment
 from . import config as cfg
 
 
-_EMOJI_DIR = Path(os.environ.get("EMOJI_DIR", r"D:\agent_function\skill_communication\emoji"))
+_EMOJI_DIR = Path(os.environ.get("EMOJI_DIR", str(cfg.QQBOT_DIR.parent / "emoji")))
 _EMOJI_PROBABILITY = 0.50  # 50% 概率发送表情
 _EMOJI_COOLDOWN = {}       # per-user cooldown to avoid spamming
 _EMOJI_IMG_EXTS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
