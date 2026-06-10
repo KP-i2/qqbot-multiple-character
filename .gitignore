@@ -51,3 +51,13 @@ memory/
 
 # 静态资源缓存
 *.bak
+
+# 表情/头像图片（仅上传文本关键词）
+emoji/*/*.jpg
+emoji/*/*.jpeg
+emoji/*/*.png
+emoji/*/*.gif
+emoji/*/*.webp
+photo/*/*.jpg
+photo/*/*.jpeg
+photo/*/*.png
