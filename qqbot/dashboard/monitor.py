@@ -10,9 +10,6 @@ logger = logging.getLogger("dashboard.monitor")
 PROJECT_ROOT = Path(__file__).parent.parent.parent  # skill_communication/
 QQBOT_DIR = PROJECT_ROOT / "qqbot"
 VENV_PYTHON = PROJECT_ROOT / "skill_qqbot" / "Scripts" / "python.exe"
-# 直接使用 anaconda base python + PYTHONPATH 指向 venv site-packages，
-# 避免 venv python.exe 启动器产生 anaconda 子进程（重复进程问题）。
-BASE_PYTHON = Path(r"D:\Work\anaconda3\python.exe")
 VENV_SITE_PACKAGES = PROJECT_ROOT / "skill_qqbot" / "Lib" / "site-packages"
 BOT_SCRIPT = QQBOT_DIR / "bot.py"
 LOG_DIR = QQBOT_DIR / "logs"

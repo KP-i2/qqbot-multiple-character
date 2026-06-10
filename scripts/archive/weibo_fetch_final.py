@@ -2,9 +2,9 @@ import requests, json, re, sys, time, os
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-OUTPUT_DIR = r'D:\Agent+LLM_results\skill_communication'
+OUTPUT_DIR = r'.'  # will be replaced at runtime
 COOKIES_FILE = os.path.join(OUTPUT_DIR, 'cookies.json')
-UID = '7382396909'
+UID = '0'  # will be replaced at runtime
 
 # Load cookies
 with open(COOKIES_FILE, 'r', encoding='utf-8') as f:

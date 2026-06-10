@@ -142,20 +142,24 @@ async def fetch_weibo(uid: str, progress_callback=None) -> dict:
         return {"ok": False, "msg": f"weibo_fetch_final.py not found at {fetcher_path}"}
 
     try:
-        # Read the fetcher source and modify OUTPUT_DIR and UID
+        # Read the fetcher source and replace OUTPUT_DIR, UID, COOKIES_FILE via regex
+        import re
         source = fetcher_path.read_text(encoding="utf-8")
-        source = source.replace(
-            "OUTPUT_DIR = r'D:\\Agent+LLM_results\\skill_communication'",
-            f"OUTPUT_DIR = r'{output_dir}'"
+        source = re.sub(
+            r"OUTPUT_DIR\s*=\s*r?(['\"]).*?\1",
+            f"OUTPUT_DIR = r'{output_dir}'",
+            source
         )
-        source = source.replace(
-            "UID = '7382396909'",
-            f"UID = '{uid}'"
+        source = re.sub(
+            r"UID\s*=\s*r?(['\"]).*?\1",
+            f"UID = '{uid}'",
+            source
         )
         # 修复 cookies.json 路径：指向项目根目录
-        source = source.replace(
-            "COOKIES_FILE = os.path.join(OUTPUT_DIR, 'cookies.json')",
-            f"COOKIES_FILE = r'{COOKIES_FILE}'"
+        source = re.sub(
+            r"COOKIES_FILE\s*=\s*r?(['\"]).*?\1",
+            f"COOKIES_FILE = r'{COOKIES_FILE}'",
+            source
         )
 
         # Write modified script to temp location
