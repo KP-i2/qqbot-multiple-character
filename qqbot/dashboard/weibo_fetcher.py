@@ -260,7 +260,7 @@ def _resolve_corpus_dir(uid_input: str) -> Path:
     exact = CORPUS_DIR / uid_input
     if exact.exists():
         return exact
-    # 模糊匹配：输入是某个目录名的前缀（如 ytj → ytj_7841140689）
+    # 模糊匹配：输入是某个目录名的前缀（如 761 → 761_7781690158）
     for d in CORPUS_DIR.iterdir():
         if d.is_dir() and d.name.startswith(uid_input + "_"):
             return d
