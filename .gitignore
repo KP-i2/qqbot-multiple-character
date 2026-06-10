@@ -18,8 +18,9 @@ cookies.json
 *.log
 logs/
 
-# 对话数据
+# 对话数据 / 语料
 qqbot/data/
+corpus/
 
 # 缓存 / 临时
 _cache/
