@@ -21,6 +21,7 @@ PLUGIN_DIR = Path(__file__).parent
 QQBOT_DIR = PLUGIN_DIR.parent.parent
 SKILLS_DIR = QQBOT_DIR / "skills"
 PHOTO_DIR = QQBOT_DIR.parent / "photo"
+NORMAL_PAPER_DIR = QQBOT_DIR.parent / "normal-paper"
 
 
 # ============================================================

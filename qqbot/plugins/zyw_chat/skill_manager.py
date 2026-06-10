@@ -12,6 +12,27 @@ from nonebot.message import event_preprocessor
 from . import config as cfg
 
 
+def _load_normal_paper() -> str:
+    """加载 normal-paper/ 目录下所有 .md 文件作为通用背景知识"""
+    if not cfg.NORMAL_PAPER_DIR.exists():
+        return ""
+    parts = []
+    for md_file in sorted(cfg.NORMAL_PAPER_DIR.glob("*.md")):
+        content = md_file.read_text(encoding="utf-8").strip()
+        if content:
+            title = md_file.stem  # 文件名去 .md 后缀
+            parts.append(f"## {title}\n{content}")
+    if not parts:
+        return ""
+    return "# 通用背景知识\n以下是所有角色共享的领域背景资料，请在回复中自然运用这些知识。\n\n" + "\n\n".join(parts)
+
+
+# 启动时加载通用背景
+NORMAL_PAPER_CONTEXT = _load_normal_paper()
+if NORMAL_PAPER_CONTEXT:
+    logger.info(f"[normal-paper] Loaded {len(NORMAL_PAPER_CONTEXT)} chars from {cfg.NORMAL_PAPER_DIR}")
+
+
 @dataclass
 class Skill:
     """一个角色 Skill"""
@@ -95,6 +116,10 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
     )
     parts = [role_instruction]
 
+    # 注入通用背景知识（normal-paper/）
+    if NORMAL_PAPER_CONTEXT:
+        parts.append(NORMAL_PAPER_CONTEXT)
+
     if persona_md.exists():
         parts.append(f"# 角色人格\n{persona_md.read_text(encoding='utf-8')}")
     if work_md.exists():
@@ -165,7 +190,11 @@ RELOAD_TRIGGER = cfg.QQBOT_DIR.parent / ".reload_skills_trigger"
 
 def reload_skills():
     """重新加载所有 Skill（热重载）"""
-    global ALL_SKILLS, DEFAULT_SKILL_NAME
+    global ALL_SKILLS, DEFAULT_SKILL_NAME, NORMAL_PAPER_CONTEXT
+    # 刷新通用背景
+    NORMAL_PAPER_CONTEXT = _load_normal_paper()
+    if NORMAL_PAPER_CONTEXT:
+        logger.info(f"[normal-paper] Reloaded {len(NORMAL_PAPER_CONTEXT)} chars")
     old_names = set(ALL_SKILLS.keys())
     ALL_SKILLS = load_all_skills()
     new_names = set(ALL_SKILLS.keys())
