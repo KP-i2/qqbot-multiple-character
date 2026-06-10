@@ -1,0 +1,78 @@
+{
+  "ok": 1,
+  "data": {
+    "user": {
+      "id": 5251418141,
+      "idstr": "5251418141",
+      "pc_new": 0,
+      "screen_name": "小凍Iteru-午前4時",
+      "profile_image_url": "https://tvax3.sinaimg.cn/crop.0.0.1080.1080.50/005JopKBly8iclu0a2famj30u00u0q70.jpg?KID=imgbed,tva&Expires=1780857188&ssig=lhKSfdd3FT",
+      "profile_url": "/u/5251418141",
+      "verified": false,
+      "verified_type": -1,
+      "domain": "",
+      "weihao": "",
+      "status_total_counter": {
+        "total_cnt_format": "6.6万",
+        "comment_cnt": "24,503",
+        "repost_cnt": "228",
+        "like_cnt": "41,298",
+        "total_cnt": "66,029"
+      },
+      "avatar_large": "https://tvax3.sinaimg.cn/crop.0.0.1080.1080.180/005JopKBly8iclu0a2famj30u00u0q70.jpg?KID=imgbed,tva&Expires=1780857188&ssig=xh2USlaV4v",
+      "avatar_hd": "https://tvax3.sinaimg.cn/crop.0.0.1080.1080.1024/005JopKBly8iclu0a2famj30u00u0q70.jpg?KID=imgbed,tva&Expires=1780857188&ssig=Jcm8Edv6yk",
+      "follow_me": false,
+      "following": true,
+      "mbrank": 6,
+      "mbtype": 12,
+      "v_plus": 0,
+      "user_ability": 2359304,
+      "planet_video": false,
+      "description": "cult of self🪽 欢迎来到新世界🤍🌨️",
+      "location": "其他",
+      "gender": "f",
+      "followers_count": 1771,
+      "followers_count_str": "1771",
+      "friends_count": 405,
+      "statuses_count": 942,
+      "url": "",
+      "svip": 1,
+      "vvip": 0,
+      "cover_image_phone": "https://wx1.sinaimg.cn/crop.0.0.640.640.640/005JopKBly1i4bcpgy1dwj31an1an45a.jpg;https://wx1.sinaimg.cn/crop.0.0.640.640.640/005JopKBly1i4bcpudg6nj31o01o0k2s.jpg;https://wx4.sinaimg.cn/crop.0.0.640.640.640/005JopKBly1i4bcp62r3lj31o01o0ana.jpg;https://wx4.sinaimg.cn/crop.0.0.640.640.640/005JopKBly1i4bcqw8f24j31fp1fpadr.jpg",
+      "icon_list": [
+        {
+          "type": "vip",
+          "data": {
+            "mbrank": 6,
+            "mbtype": 12,
+            "svip": 1,
+            "vvip": 0
+          }
+        }
+      ],
+      "user_type": 2,
+      "is_star": "0",
+      "is_muteuser": false,
+      "special_follow": false
+    },
+    "tabList": [
+      {
+        "name": "home",
+        "tabName": "精选"
+      },
+      {
+        "name": "feed",
+        "tabName": "微博"
+      },
+      {
+        "name": "newVideo",
+        "tabName": "视频"
+      },
+      {
+        "name": "album",
+        "tabName": "相册"
+      }
+    ],
+    "blockText": ""
+  }
+}

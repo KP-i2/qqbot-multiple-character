@@ -204,7 +204,7 @@ def _has_search_intent(text: str) -> bool:
 MAX_HISTORY_ROUNDS = 15
 REQUEST_TIMEOUT = 60
 MAX_HISTORY_MESSAGES = MAX_HISTORY_ROUNDS * 2
-ADMIN_QQ = getattr(config, "admin_qq", "2972494435")
+ADMIN_QQ = getattr(config, "admin_qq", "")
 DEFAULT_SKILL_NAME_CONFIG: str = getattr(config, "default_skill", "")  # .env 中配置的默认角色
 
 PLUGIN_DIR = Path(__file__).parent

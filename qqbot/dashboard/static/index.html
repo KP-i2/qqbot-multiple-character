@@ -794,7 +794,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
       <div class="table-wrap"><table>
         <tr><th>指令</th><th>说明</th><th>权限</th></tr>
         <tr><td><code>/skills</code></td><td>列出所有可用角色</td><td>所有人</td></tr>
-        <tr><td><code>/switch &lt;名字&gt;</code></td><td>切换全局角色，所有人对话都会变成该角色</td><td>所有人</td></tr>
+        <tr><td><code>/switch &lt;名字&gt;</code></td><td>切换全局角色，所有人对话都会变成该角色</td><td>管理员</td></tr>
         <tr><td><code>/current</code></td><td>查看当前角色和模型信息</td><td>所有人</td></tr>
         <tr><td><code>/reset</code></td><td>清除你与当前角色的对话记忆</td><td>所有人</td></tr>
         <tr><td><code>/reloademoji</code></td><td>热重载表情文件（新增/修改表情后无需重启）</td><td>管理员</td></tr>
@@ -810,7 +810,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
         <tr><td class="c-coral fw-700">添加图片</td><td>放入 jpg/png/gif/webp 格式图片，同情绪多张图随机选取</td></tr>
         <tr><td class="c-magenta fw-700">热加载</td><td>给 Bot 发送 <code>/reloademoji</code>，无需重启即可使用新表情</td></tr>
       </table></div>
-      <p class="hint" style="margin-top:10px">触发概率 35%，同一用户 60 秒冷却。当前情绪类别：<code>angry</code> / <code>happy</code> / <code>joker</code> / <code>sad</code>（可自行新增任意类别）。</p>
+      <p class="hint" style="margin-top:10px">触发概率 50%，同一用户 60 秒冷却。当前情绪类别：<code>angry</code> / <code>biaoxian</code> / <code>chigua</code> / <code>ganga</code> / <code>haoqi</code> / <code>happy</code> / <code>joker</code> / <code>ota</code> / <code>refuse</code> / <code>sad</code>（可自行新增任意类别）。</p>
     </div>
     <div class="card">
       <h3><span class="icon blue">&#128279;</span> 链接内容抓取</h3>
@@ -854,7 +854,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
         <tr><th>键</th><th>说明</th><th>默认值</th></tr>
         <tr><td><code>DEEPSEEK_API_KEY</code></td><td>DeepSeek API 密钥（必填）</td><td>-</td></tr>
         <tr><td><code>DEEPSEEK_MODEL</code></td><td>对话模型名称</td><td>deepseek-v4-pro</td></tr>
-        <tr><td><code>ADMIN_QQ</code></td><td>管理员 QQ 号</td><td>2972494435</td></tr>
+        <tr><td><code>ADMIN_QQ</code></td><td>管理员 QQ 号</td><td>已配置</td></tr>
         <tr><td><code>DASHBOARD_TOKEN</code></td><td>面板访问密码</td><td>自定义</td></tr>
         <tr><td><code>WEB_SEARCH_ENABLED</code></td><td>联网搜索开关</td><td>true</td></tr>
       </table></div>
