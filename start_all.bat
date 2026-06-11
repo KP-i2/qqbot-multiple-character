@@ -2,15 +2,21 @@
 setlocal enabledelayedexpansion
 
 set "ROOT=%~dp0"
-set "NAPCAT=%ROOT%qqbot\napcat\NapCat.44498.Shell"
+
+REM 自动查找 NapCat 目录（支持任意版本号）
+set "NAPCAT="
+for /d %%D in ("%ROOT%qqbot\napcat\NapCat.*.Shell") do (
+    if exist "%%D\NapCatWinBootMain.exe" set "NAPCAT=%%D"
+)
 
 if not exist "%ROOT%skill_qqbot\Scripts\python.exe" (
     echo [ERROR] Virtual env not found. Run setup.bat first.
     pause
     exit /b 1
 )
-if not exist "%NAPCAT%\NapCatWinBootMain.exe" (
-    echo [ERROR] NapCat not found: %NAPCAT%
+if not defined NAPCAT (
+    echo [ERROR] NapCat not found in qqbot\napcat\NapCat.*.Shell
+    echo   请下载 NapCat 解压到 qqbot\napcat\ 目录
     pause
     exit /b 1
 )

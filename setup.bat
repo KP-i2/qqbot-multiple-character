@@ -67,8 +67,11 @@ if not exist "qqbot\.env" (
 
 REM ========== 检查 NapCat ==========
 echo.
-set "NC=%~dp0qqbot\napcat\NapCat.44498.Shell\NapCatWinBootMain.exe"
-if exist "%NC%" (
+set "NC="
+for /d %%D in ("%~dp0qqbot\napcat\NapCat.*.Shell") do (
+    if exist "%%D\NapCatWinBootMain.exe" set "NC=%%D\NapCatWinBootMain.exe"
+)
+if defined NC (
     echo   NapCat: 已就绪
 ) else (
     echo   NapCat: 未安装
@@ -87,6 +90,6 @@ echo     2. 首次需运行 NapCat 扫码登录 QQ
 echo     3. 运行 setup_napcat.bat 写入连接配置
 echo     4. 运行 start_all.bat 启动 Bot
 echo.
-echo   详细步骤见 DEPLOY.md
+echo   详细步骤见 README.md
 echo.
 pause

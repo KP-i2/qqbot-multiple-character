@@ -11,10 +11,16 @@ echo   连接: ws://127.0.0.1:8080/onebot/v11/ws
 echo.
 
 set "ROOT=%~dp0"
-set "SHELL=%ROOT%qqbot\napcat\NapCat.44498.Shell"
 
-if not exist "%SHELL%\NapCatWinBootMain.exe" (
-    echo [错误] 未找到 NapCatWinBootMain.exe: %SHELL%
+REM 自动查找 NapCat 目录（支持任意版本号）
+set "SHELL="
+for /d %%D in ("%ROOT%qqbot\napcat\NapCat.*.Shell") do (
+    if exist "%%D\NapCatWinBootMain.exe" set "SHELL=%%D"
+)
+
+if not defined SHELL (
+    echo [错误] 未找到 NapCat，目录: %ROOT%qqbot\napcat\NapCat.*.Shell
+    echo   请先下载 NapCat 解压到 qqbot\napcat\ 目录
     pause
     exit /b 1
 )
@@ -30,7 +36,7 @@ for /d %%V in ("%SHELL%\versions\*") do (
 if "%CFG%"=="" (
     echo [错误] 未找到 NapCat config 目录
     echo   请先启动一次 NapCat 扫码登录，让它生成配置后再运行本脚本
-    echo   操作：双击 qqbot\napcat\NapCat.44498.Shell\NapCatWinBootMain.exe
+    echo   操作：双击 qqbot\napcat\NapCat.*.Shell\NapCatWinBootMain.exe
     pause
     exit /b 1
 )

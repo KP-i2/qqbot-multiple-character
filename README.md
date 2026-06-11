@@ -31,7 +31,7 @@ Dashboard (port 8501) ←→ 进程管理 / 语料采集 / Skill 蒸馏 / 头像
 
 ```bash
 git clone https://github.com/KP-i2/qqbot-multiple-character.git
-cd skill_communication
+cd qqbot-multiple-character
 ```
 
 **2. 运行安装脚本**
@@ -262,6 +262,16 @@ skill_communication/
 └── README.md
 ```
 
+**运行时自动创建的目录**（无需手动创建）：
+- `skill_qqbot/` - Python 虚拟环境（setup.bat 创建）
+- `qqbot/data/` - 对话历史持久化
+- `qqbot/logs/` - 运行日志
+- `qqbot/napcat/` - NapCat 程序（需手动下载解压）
+
+**需要自行添加的内容**：
+- `emoji/*/` - 表情图片（GIF/JPG/PNG）
+- `photo/角色名/avatar.*` - 角色头像
+
 ## 运行环境说明
 
 本项目设计为 Windows 本地运行：
@@ -364,6 +374,27 @@ version: 1.0.0
 
 在 `photo/角色名/` 下放入 `avatar.jpg` 或 `avatar.png`，Dashboard 角色花名册会自动展示。
 
+## 表情系统配置
+
+表情文件存放在 `emoji/` 目录下，每个情绪分类一个子目录。仓库中已包含 `keywords.txt` 触发词文件，但表情图片需要自行添加：
+
+```
+emoji/
+├── angry/
+│   ├── keywords.txt    # 触发词（已包含）
+│   ├── 1.jpg           # 需要自行添加表情图片
+│   └── 2.gif
+├── happy/
+│   ├── keywords.txt
+│   └── ...
+└── ...（共 10 种情绪分类）
+```
+
+**添加表情图片：**
+1. 准备 GIF/JPG/PNG 格式的表情图片
+2. 放入对应情绪目录（如 `emoji/angry/`）
+3. 运行 Bot 后使用 `/reloademoji` 命令热重载，或等待自动加载
+
 ## 技术栈
 
 | 组件 | 技术 |
@@ -376,6 +407,27 @@ version: 1.0.0
 | 前端 | 原生 HTML/CSS/JS, 6 套主题 |
 | 语料蒸馏 | DeepSeek API |
 | 进程监控 | psutil + asyncio 看门狗 |
+
+## 常见问题
+
+**Q: setup.bat 提示找不到 Python？**
+A: 确保安装 Python 时勾选了 "Add to PATH"，或手动将 Python 添加到系统环境变量。
+
+**Q: start_all.bat 提示找不到 NapCat？**
+A: 需要下载 NapCat 并解压到 `qqbot/napcat/` 目录，确保目录结构为 `qqbot/napcat/NapCat.xxx.Shell/NapCatWinBootMain.exe`。
+
+**Q: Bot 启动但 QQ 收不到消息？**
+A: 检查：
+1. NapCat 是否扫码登录成功（看 napcat.log）
+2. `.env` 中的 `ONEBOT_PORT` 是否为 3001
+3. 运行 `setup_napcat.bat` 写入连接配置
+
+**Q: Dashboard 打不开？**
+A: 确保运行了 `dashboard_silent.bat` 或 `dashboard.bat`，访问 http://localhost:8501
+
+**Q: API 报错 401？**
+A: 检查 `.env` 中的 `DEEPSEEK_API_KEY` 是否正确填写。
+
 ## 效果测试群
 目前运行bot效果可加群查看![群二维码](qq测试群.jpg)
 ## 致谢
