@@ -175,7 +175,7 @@ def apply_runtime_config():
     STREAM_FLUSH_INTERVAL = float(_runtime_config.get("stream_flush_interval", 8.0))
     STREAM_FLUSH_MIN_CHARS = int(_runtime_config.get("stream_flush_min_chars", 80))
     STREAM_MAX_FLUSH_SIZE = int(_runtime_config.get("stream_max_flush_size", 300))
-    MAX_HISTORY_ROUNDS = int(_runtime_config.get("max_history_rounds", 15))
+    MAX_HISTORY_ROUNDS = int(_runtime_config.get("max_history_rounds", 40))
     MAX_HISTORY_MESSAGES = MAX_HISTORY_ROUNDS * 2
     HISTORY_TTL = int(_runtime_config.get("history_ttl_hours", 6)) * 3600
     HISTORY_SAVE_INTERVAL = int(_runtime_config.get("history_save_interval", 60))

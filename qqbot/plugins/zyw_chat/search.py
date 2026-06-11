@@ -236,7 +236,7 @@ def is_high_value_url(url: str) -> bool:
 
 
 # ── 微博直搜 ──
-_WEIBO_COOKIES_FILE = Path(r"D:\agent_function\skill_communication\cookies.json")
+_WEIBO_COOKIES_FILE = cfg.QQBOT_DIR.parent / "cookies.json"
 _weibo_cookies_cache: Optional[dict] = None
 _weibo_cookies_mtime: float = 0
 
