@@ -14,6 +14,11 @@ BOT_SCRIPT = QQBOT_DIR / "bot.py"
 LOG_DIR = QQBOT_DIR / "logs"
 NAPCAT_DESKTOP_EXE = "NapCatQQ-Desktop.exe"  # NapCatQQ Desktop 进程名（外部管理）
 
+# ── 可配置常量 ──
+NONEBOT_PORT = int(os.getenv("NONEBOT_PORT", "8080"))
+WATCHDOG_INTERVAL = int(os.getenv("WATCHDOG_INTERVAL", "30"))
+STATUS_CACHE_TTL = int(os.getenv("STATUS_CACHE_TTL", "5"))
+
 # 确保日志目录存在
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -38,7 +43,7 @@ def _rotate_log(log_path: Path):
 # ── 进程状态缓存（避免高频 process_iter 调用）──
 _status_cache: dict = {}
 _status_cache_time: float = 0
-_CACHE_TTL = 5  # 5 秒缓存
+_CACHE_TTL = STATUS_CACHE_TTL  # 使用可配置的缓存TTL
 
 
 def check_port_open(port: int) -> bool:
@@ -76,7 +81,7 @@ def _format_uptime(create_time) -> str:
 
 
 def get_nonebot2_status() -> dict:
-    port_open = check_port_open(8080)
+    port_open = check_port_open(NONEBOT_PORT)
     procs = find_process_by_name("python")
     bot_procs = []
     for p in procs:
@@ -88,7 +93,7 @@ def get_nonebot2_status() -> dict:
             pass
     return {
         "running": port_open and len(bot_procs) > 0,
-        "port": 8080,
+        "port": NONEBOT_PORT,
         "port_open": port_open,
         "processes": bot_procs,
     }
@@ -116,7 +121,7 @@ def get_napcat_status() -> dict:
                 if (p["name"] or "").lower().startswith("qq")
                 and "music" not in (p["name"] or "").lower()]
     # 检测 WebSocket 连接状态
-    ws_connected = check_ws_connected(8080)
+    ws_connected = check_ws_connected(NONEBOT_PORT)
     return {
         "running": len(desktop_procs) > 0,
         "processes": desktop_procs,
@@ -191,7 +196,7 @@ def get_all_status() -> dict:
     return result
 
 
-def check_ws_connected(port: int = 8080) -> bool:
+def check_ws_connected(port: int = NONEBOT_PORT) -> bool:
     """检查是否有 WebSocket 客户端连接到 NoneBot2 端口"""
     try:
         for conn in psutil.net_connections(kind='inet'):
@@ -219,17 +224,17 @@ async def full_restart() -> dict:
     # 等待 NoneBot2 端口打开（最多15秒）
     port_ready = False
     for _ in range(15):
-        if check_port_open(8080):
+        if check_port_open(NONEBOT_PORT):
             port_ready = True
             break
         await asyncio.sleep(1)
 
     if not port_ready:
-        return {"ok": False, "msg": "NoneBot2 启动失败 (端口 8080 未就绪)"}
+        return {"ok": False, "msg": f"NoneBot2 启动失败 (端口 {NONEBOT_PORT} 未就绪)"}
 
     return {
         "ok": True,
-        "msg": f"NoneBot2 已重启，端口 8080 就绪。\nNapCatQQ Desktop 由外部管理，请确认其已运行。"
+        "msg": f"NoneBot2 已重启，端口 {NONEBOT_PORT} 就绪。\nNapCatQQ Desktop 由外部管理，请确认其已运行。"
     }
 
 
@@ -268,19 +273,19 @@ async def _watchdog_loop(interval: int = 30):
                 _ws_warn_count = 0  # 重置 WS 告警计数
                 # 等端口就绪
                 for _ in range(15):
-                    if check_port_open(8080):
+                    if check_port_open(NONEBOT_PORT):
                         break
                     await asyncio.sleep(1)
             else:
                 # NoneBot2 运行时，检查 WebSocket 连接
-                ws_ok = check_ws_connected(8080)
+                ws_ok = check_ws_connected(NONEBOT_PORT)
                 if ws_ok:
                     _ws_warn_count = 0
                 else:
                     _ws_warn_count += 1
                     if _ws_warn_count == _WS_WARN_THRESHOLD:
                         logger.warning(
-                            "[watchdog] No WebSocket client connected to port 8080 "
+                            f"[watchdog] No WebSocket client connected to port {NONEBOT_PORT} "
                             f"(checked {_WS_WARN_THRESHOLD} times). "
                             "Please ensure NapCatQQ Desktop is running with correct WS config."
                         )

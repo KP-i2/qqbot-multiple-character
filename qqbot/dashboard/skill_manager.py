@@ -142,17 +142,29 @@ def delete_skill(name: str) -> dict:
         return {"ok": False, "msg": f"Skill '{name}' not found"}
     try:
         shutil.rmtree(skill_dir)
+    except PermissionError:
+        logger.error(f"Permission denied when deleting skill dir '{name}'")
+        return {"ok": False, "msg": f"删除技能目录失败: 权限不足，请检查文件权限"}
+    except OSError as e:
+        logger.error(f"OS error when deleting skill dir '{name}': {e}")
+        return {"ok": False, "msg": f"删除技能目录失败: 系统错误 - {e}"}
     except Exception as e:
         logger.error(f"Failed to delete skill dir '{name}': {e}")
-        return {"ok": False, "msg": f"删除技能目录失败: {e}"}
+        return {"ok": False, "msg": f"删除技能目录失败: {type(e).__name__} - {e}"}
     # Also remove avatar if exists
     photo_dir = PHOTO_DIR / name
     if photo_dir.exists():
         try:
             shutil.rmtree(photo_dir)
+        except PermissionError:
+            logger.warning(f"Permission denied when deleting photo dir '{name}'")
+            return {"ok": True, "msg": f"技能已删除，但头像目录删除失败: 权限不足"}
+        except OSError as e:
+            logger.warning(f"OS error when deleting photo dir '{name}': {e}")
+            return {"ok": True, "msg": f"技能已删除，但头像目录删除失败: 系统错误 - {e}"}
         except Exception as e:
             logger.warning(f"Failed to delete photo dir '{name}': {e}")
-            return {"ok": True, "msg": f"技能已删除，但头像目录删除失败: {e}"}
+            return {"ok": True, "msg": f"技能已删除，但头像目录删除失败: {type(e).__name__} - {e}"}
     return {"ok": True, "msg": f"Skill '{name}' deleted"}
 
 
@@ -168,8 +180,14 @@ def get_skill_content(name: str) -> dict:
             # 清理可能导致 JSON 序列化问题的控制字符
             content = ''.join(c for c in content if c in '\n\r\t' or c.isprintable())
             result["files"][f.name] = content
-        except Exception:
-            result["files"][f.name] = f"[读取失败: {f.name}]"
+        except UnicodeDecodeError:
+            result["files"][f.name] = f"[读取失败: {f.name} - 文件编码错误]"
+        except PermissionError:
+            result["files"][f.name] = f"[读取失败: {f.name} - 权限不足]"
+        except OSError as e:
+            result["files"][f.name] = f"[读取失败: {f.name} - 系统错误: {e}]"
+        except Exception as e:
+            result["files"][f.name] = f"[读取失败: {f.name} - {type(e).__name__}: {e}]"
     return result
 
 
@@ -181,6 +199,13 @@ def update_skill_file(name: str, filename: str, content: str) -> dict:
     target = skill_dir / filename
     if not target.exists():
         return {"ok": False, "msg": f"File '{filename}' not found in {name}"}
-    target.write_text(content, encoding="utf-8")
+    try:
+        target.write_text(content, encoding="utf-8")
+    except PermissionError:
+        return {"ok": False, "msg": f"更新文件失败: 权限不足，请检查文件权限"}
+    except OSError as e:
+        return {"ok": False, "msg": f"更新文件失败: 系统错误 - {e}"}
+    except Exception as e:
+        return {"ok": False, "msg": f"更新文件失败: {type(e).__name__} - {e}"}
     return {"ok": True, "msg": f"{filename} updated"}
 
