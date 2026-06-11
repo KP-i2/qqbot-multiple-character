@@ -554,6 +554,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
   <div class="tab" onclick="switchTab(this,'cookie')">Cookie</div>
   <div class="tab" onclick="switchTab(this,'corpus')">语料库</div>
   <div class="tab" onclick="switchTab(this,'skills')">技能管理</div>
+  <div class="tab" onclick="switchTab(this,'logs')">日志</div>
   <div class="tab" onclick="switchTab(this,'help')">帮助文档</div>
   <div class="tab" onclick="switchTab(this,'settings')">参数设置</div>
 </div>
@@ -698,6 +699,13 @@ code{font-family:var(--font-mono);font-size:0.9em}
     <div class="flex-between mb-8" style="padding:0 24px;max-width:1060px;margin:0 auto">
       <h3 style="font-size:10px;color:var(--text2);letter-spacing:1.2px;font-weight:600;text-transform:uppercase;font-family:var(--font-ui);display:flex;align-items:center;gap:8px"><span class="icon purple">&#127917;</span> 技能列表</h3>
       <div style="display:flex;gap:6px">
+        <select id="skillSortSelect" onchange="loadSkills()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-ui);font-size:12px">
+          <option value="name">按名称排序</option>
+          <option value="created">按创建时间</option>
+          <option value="version">按版本号</option>
+          <option value="size">按大小排序</option>
+        </select>
+        <input type="text" id="skillSearchInput" placeholder="搜索技能..." oninput="filterSkills()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-ui);font-size:12px;width:120px">
         <button class="btn btn-outline btn-sm" onclick="reloadBotSkills()">重载技能</button>
         <button class="btn btn-outline btn-sm" onclick="toggleBatchMode()">批量操作</button>
         <button class="btn btn-primary btn-sm" onclick="showCreateSkill()">+ 新建技能</button>
@@ -773,6 +781,31 @@ code{font-family:var(--font-mono);font-size:0.9em}
     </div>
   </div>
 
+  <!-- ═══ 日志查看 ═══ -->
+  <div id="tab-logs" class="tab-content hidden">
+    <div class="card">
+      <div class="flex-between mb-8">
+        <h3><span class="icon cyan">&#128196;</span> 系统日志</h3>
+        <div style="display:flex;gap:6px">
+          <select id="logFileSelect" onchange="loadLogFile()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-mono);font-size:12px">
+            <option value="">-- 选择日志文件 --</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="loadLogFiles()">刷新</button>
+          <button class="btn btn-outline btn-sm" onclick="loadLogFile()">重新加载</button>
+        </div>
+      </div>
+      <div id="logContent" style="background:var(--void);border:1px solid var(--edge);border-radius:8px;padding:12px;max-height:500px;overflow-y:auto;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--text2);white-space:pre-wrap;word-break:break-all">
+        请选择日志文件...
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2)">
+          <input type="checkbox" id="logAutoScroll" checked> 自动滚动到底部
+        </label>
+        <span id="logLineCount" style="font-size:12px;color:var(--text3)"></span>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ 帮助文档 ═══ -->
   <div id="tab-help" class="tab-content hidden">
     <div class="card">
@@ -832,28 +865,56 @@ code{font-family:var(--font-mono);font-size:0.9em}
       <p class="hint" style="margin-top:10px">QQ 小程序和分享卡片也会被自动解析为可读文本，Bot 可以理解并回复。</p>
     </div>
     <div class="card">
+      <h3><span class="icon cyan">&#128196;</span> Dashboard 功能</h3>
+      <p class="desc">本面板提供可视化的管理功能，以下为常用操作说明。</p>
+      <div class="table-wrap"><table>
+        <tr><th>功能</th><th>说明</th></tr>
+        <tr><td class="c-lime fw-700">批量操作</td><td>技能管理页点击「批量操作」进入选择模式，支持全选/单选后批量删除</td></tr>
+        <tr><td class="c-neon fw-700">技能排序</td><td>支持按名称、创建时间、版本号、大小排序，输入框实时搜索筛选</td></tr>
+        <tr><td class="c-amber fw-700">日志查看</td><td>「日志」标签页可查看系统日志，自动清理颜色代码，支持自动滚动</td></tr>
+        <tr><td class="c-magenta fw-700">AI 整合</td><td>技能编辑页点击「AI 整合」，输入特征描述自动合并到 persona.md</td></tr>
+        <tr><td class="c-coral fw-700">头像上传</td><td>角色花名册点击头像可上传 JPG/PNG 图片</td></tr>
+      </table></div>
+      <p class="hint" style="margin-top:10px">面板会自动记住你上次访问的标签页，创建技能时表单内容也会自动保存为草稿。</p>
+    </div>
+    <div class="card">
       <h3><span class="icon pink">&#128194;</span> 目录结构</h3>
       <div class="fm fs-11 c-text3" style="line-height:1.8;white-space:pre;overflow-x:auto">skill_communication/
-<span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard_silent.bat  <span class="c-text4"># 启动 Dashboard（可创建桌面快捷方式）</span>
-<span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard.bat         <span class="c-text4"># 启动 Dashboard（带控制台窗口）</span>
-<span class="c-neon">&boxur;&boxh;&boxh;</span> setup.bat             <span class="c-text4"># 初始化安装脚本</span>
-<span class="c-neon">&boxur;&boxh;&boxh;</span> create_shortcut.bat   <span class="c-text4"># 创建桌面快捷方式</span>
-<span class="c-neon">&boxur;&boxh;&boxh;</span> corpus/               <span class="c-text4"># 语料 {技能}_{uid}</span>
-<span class="c-neon">&boxur;&boxh;&boxh;</span> photo/                <span class="c-text4"># 角色头像</span>
-<span class="c-neon">&boxur;&boxh;&boxh;</span> scripts/              <span class="c-text4"># 微博爬虫</span>
-<span class="c-neon">&boxur;&boxh;&boxh;</span> cookies.json          <span class="c-text4"># 微博认证</span>
-<span class="c-neon">&boxur;&boxh;&boxh;</span> skill_qqbot/          <span class="c-text4"># Python 虚拟环境</span>
-<span class="c-neon">&boxur;&boxh;&boxh;</span> emoji/                <span class="c-text4"># 情绪表情（子文件夹=情绪，含 keywords.txt + 图片）</span>
-<span class="c-magenta">&boxur;&boxh;&boxh;</span> qqbot/
-    <span class="c-neon">&boxur;&boxh;&boxh;</span> .env          <span class="c-text4"># NoneBot2 配置（API 密钥等）</span>
-    <span class="c-neon">&boxur;&boxh;&boxh;</span> bot.py        <span class="c-text4"># NoneBot2 入口文件</span>
-    <span class="c-neon">&boxur;&boxh;&boxh;</span> skills/       <span class="c-text4"># 角色技能</span>
-    <span class="c-neon">&boxur;&boxh;&boxh;</span> plugins/      <span class="c-text4"># 核心插件</span>
-    <span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard/    <span class="c-text4"># 本控制面板</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> start_all.bat           <span class="c-text4"># 一键启动 Bot + NapCat</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard_silent.bat    <span class="c-text4"># 启动 Dashboard（后台）</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard.bat           <span class="c-text4"># 启动 Dashboard（带控制台）</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> setup.bat               <span class="c-text4"># 初始化安装脚本</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> setup_napcat.bat        <span class="c-text4"># NapCat 配置写入</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> create_shortcut.bat     <span class="c-text4"># 创建桌面快捷方式</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> requirements.txt        <span class="c-text4"># Python 依赖</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> README.md               <span class="c-text4"># 项目文档</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> LICENSE                 <span class="c-text4"># MIT 许可证</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> cookies.json            <span class="c-text4"># 微博认证（gitignore）</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> corpus/                 <span class="c-text4"># 语料库 {技能名}_{uid}</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> photo/                  <span class="c-text4"># 角色头像 {角色名}/avatar.jpg</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> emoji/                  <span class="c-text4"># 情绪表情（子文件夹=情绪，含 keywords.txt + 图片）</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> normal-paper/           <span class="c-text4"># 通用背景知识（所有角色共享）</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> scripts/                <span class="c-text4"># 工具脚本</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> docs/                   <span class="c-text4"># 文档截图</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> skill_qqbot/            <span class="c-text4"># Python 虚拟环境（gitignore）</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> _cache/                 <span class="c-text4"># colleague-skill 参考项目</span>
+<span class="c-magenta">&boxur;&boxh;&boxh;</span> qqbot/                  <span class="c-text4"># QQ Bot 应用</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> .env.example    <span class="c-text4"># 配置模板</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> .env            <span class="c-text4"># 实际配置（gitignore）</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> bot.py          <span class="c-text4"># NoneBot2 入口</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> pyproject.toml  <span class="c-text4"># NoneBot2 配置</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard.py    <span class="c-text4"># Dashboard 入口</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard_watchdog.py  <span class="c-text4"># Dashboard 守护进程</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> start.bat       <span class="c-text4"># Bot 启动脚本</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> skills/         <span class="c-text4"># 角色技能目录</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> plugins/        <span class="c-text4"># 核心插件（zyw_chat）</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard/      <span class="c-text4"># Web 管理面板</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> data/           <span class="c-text4"># 运行时数据（gitignore）</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> logs/           <span class="c-text4"># 运行日志（gitignore）</span>
+    <span class="c-neon">&boxur;&boxh;&boxh;</span> napcat/         <span class="c-text4"># NapCat 程序（gitignore）</span>
 
-<span class="c-amber">外部组件：</span>
-<span class="c-amber">&boxur;&boxh;&boxh;</span> C:\Program Files\NapCatQQ Desktop\    <span class="c-text4"># NapCatQQ Desktop 应用</span>
-<span class="c-amber">&boxur;&boxh;&boxh;</span> C:\ProgramData\...\config\bot.json    <span class="c-text4"># NapCatQQ Desktop 配置（含 WS Client）</span></div>
+<span class="c-amber">外部组件（不在项目目录）：</span>
+<span class="c-amber">&boxur;&boxh;&boxh;</span> NapCatQQ Desktop    <span class="c-text4"># QQ 协议层（独立安装）</span></div>
     </div>
     <div class="card">
       <h3><span class="icon cyan">&#128295;</span> NoneBot2 配置 (.env)</h3>
@@ -1045,17 +1106,6 @@ let ws,modalData={};
 let wsRetryCount=0,wsRetryDelay=1000;
 let _lastHealthStatus='';const _activePolls={};const _toastDedup=new Map();
 
-function switchTab(el,name){
-  document.querySelectorAll('.tab-content').forEach(e=>e.classList.add('hidden'));
-  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.remove('hidden');el.classList.add('active');
-  if(name==='cookie')loadCookieStatus();if(name==='corpus')loadCorpus();
-  if(name==='skills')loadSkills();
-  if(name==='settings')loadSettings();
-  // 保存当前标签页到 localStorage
-  try{localStorage.setItem('dashboard_active_tab',name)}catch(e){}
-}
-
 // 恢复上次访问的标签页
 function restoreLastTab(){
   try{
@@ -1073,6 +1123,49 @@ function switchImportTab(el,tabId){
   document.querySelectorAll('#tab-corpus .editor-tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   ['import-weibo','import-qq','import-text'].forEach(id=>{document.getElementById(id).classList.toggle('hidden',id!==tabId)});
+}
+
+// ── 日志查看 ──
+async function loadLogFiles(){
+  try{
+    const d=await(await safeFetch('/api/logs')).json();
+    const sel=document.getElementById('logFileSelect');
+    sel.innerHTML='<option value="">-- 选择日志文件 --</option>';
+    for(const log of d.logs){
+      sel.innerHTML+='<option value="'+log.name+'">'+log.name+' ('+log.size_kb+'KB, '+log.modified+')</option>';
+    }
+  }catch(e){toast('加载日志列表失败',false)}
+}
+
+async function loadLogFile(){
+  const name=document.getElementById('logFileSelect').value;
+  if(!name){document.getElementById('logContent').textContent='请选择日志文件...';return}
+  try{
+    const d=await(await safeFetch('/api/logs/'+name+'?tail=300')).json();
+    if(!d.ok){toast(d.msg,false);return}
+    const el=document.getElementById('logContent');
+    // 清理 ANSI 颜色代码
+    const cleanLines=d.lines.map(l=>l.replace(/\x1b\[[0-9;]*m/g,''));
+    el.textContent=cleanLines.join('\n');
+    document.getElementById('logLineCount').textContent='共 '+d.total+' 行，显示最后 '+cleanLines.length+' 行';
+    // 自动滚动
+    if(document.getElementById('logAutoScroll').checked){
+      el.scrollTop=el.scrollHeight;
+    }
+  }catch(e){toast('加载日志失败',false)}
+}
+
+// 切换到日志标签页时自动加载
+function switchTab(el,name){
+  document.querySelectorAll('.tab-content').forEach(e=>e.classList.add('hidden'));
+  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.remove('hidden');el.classList.add('active');
+  if(name==='cookie')loadCookieStatus();if(name==='corpus')loadCorpus();
+  if(name==='skills')loadSkills();
+  if(name==='settings')loadSettings();
+  if(name==='logs'){loadLogFiles();loadLogFile()}
+  // 保存当前标签页到 localStorage
+  try{localStorage.setItem('dashboard_active_tab',name)}catch(e){}
 }
 
 // ── 语料列表（增强版：元信息 + 技能联动） ──
@@ -1254,42 +1347,63 @@ async function importTextFile(ev){const f=document.getElementById('textImportFil
   const btn=ev;btnLoading(btn,true,'导入中...');try{const fd=new FormData();fd.append('file',f);fd.append('uid',document.getElementById('textImportUid').value.trim());
     const d=await(await safeFetch('/api/corpus/import-text',{method:'POST',body:fd})).json();toast(d.msg,d.ok);if(d.ok)loadCorpus()}catch(e){toast('导入失败',false)}finally{btnLoading(btn,false)}}
 
+// ── 技能排序和筛选 ──
+let _allSkills=[];
+function sortSkills(list){
+  const sortBy=document.getElementById('skillSortSelect')?.value||'name';
+  return list.sort((a,b)=>{
+    if(sortBy==='name')return (a.display_name||a.name).localeCompare(b.display_name||b.name);
+    if(sortBy==='created')return (b.created||'').localeCompare(a.created||'');
+    if(sortBy==='version')return (b.version||'0').localeCompare(a.version||'0','undefined',{numeric:true});
+    if(sortBy==='size')return (b.prompt_size||0)-(a.prompt_size||0);
+    return 0;
+  });
+}
+function filterSkills(){
+  const query=(document.getElementById('skillSearchInput')?.value||'').toLowerCase();
+  const filtered=_allSkills.filter(s=>!query||s.name.toLowerCase().includes(query)||(s.display_name||'').toLowerCase().includes(query)||(s.description||'').toLowerCase().includes(query));
+  renderSkills(sortSkills(filtered));
+}
+function renderSkills(list){
+  const grid=document.getElementById('skillsGrid');
+  if(!list.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1">暂无技能</div>';return}
+  let h='';
+  for(const s of list){
+    const photo=_PHOTOS[s.name];
+    const t=Date.now();
+    const initial=(s.display_name||s.name)[0].toUpperCase();
+    const avatarHtml=photo
+      ?'<img class="skill-avatar" src="'+photo+'?t='+t+'" onerror="this.outerHTML=\'<div class=skill-fallback>'+escapeHtml(initial)+'</div>\'" />'
+      :'<div class="skill-fallback">'+escapeHtml(initial)+'</div>';
+    const versionBadge=s.version?'<span class="skill-badge">v'+escapeHtml(s.version)+'</span>':'';
+    const corpusBadge=s.corpus_ref
+      ?'<span class="skill-badge linked" onclick="navigateToCorpus(\''+escapeHtml(s.corpus_ref)+'\')">&#128194; '+escapeHtml(s.corpus_ref)+'</span>'
+      :'';
+    const retrainBtn=s.corpus_ref
+      ?'<button class="btn btn-outline btn-xs" onclick="openRetrainModal(\''+escapeHtml(s.name)+'\')">蒸馏</button>'
+      :'';
+    const checkboxHtml=_batchMode
+      ?'<input type="checkbox" class="skill-checkbox" data-name="'+escapeHtml(s.name)+'" onchange="updateSelectedCount()" style="position:absolute;top:8px;right:8px">'
+      :'';
+    h+='<div class="skill-card" style="position:relative">'+checkboxHtml+avatarHtml+
+      '<div class="skill-name">'+escapeHtml(s.display_name||s.name)+'</div>'+
+      '<div class="skill-id">'+escapeHtml(s.name)+'</div>'+
+      (s.description?'<div class="skill-desc">'+escapeHtml(s.description)+'</div>':'')+
+      '<div class="skill-badges">'+versionBadge+corpusBadge+'</div>'+
+      '<div class="skill-actions">'+
+        '<button class="btn btn-primary btn-xs" onclick="openEditor(\''+escapeHtml(s.name)+'\')">编辑</button>'+
+        retrainBtn+
+        '<button class="btn btn-danger btn-xs" onclick="deleteSkill(\''+escapeHtml(s.name)+'\')">删除</button>'+
+      '</div>'+
+    '</div>';
+  }
+  grid.innerHTML=h;
+}
+
 async function loadSkills(){
   try{
-    const list=await(await safeFetch('/api/skills')).json();
-    const grid=document.getElementById('skillsGrid');
-    if(!list.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1">暂无技能</div>';return}
-    let h='';
-    for(const s of list){
-      const photo=_PHOTOS[s.name];
-      const t=Date.now();
-      const initial=(s.display_name||s.name)[0].toUpperCase();
-      const avatarHtml=photo
-        ?'<img class="skill-avatar" src="'+photo+'?t='+t+'" onerror="this.outerHTML=\'<div class=skill-fallback>'+escapeHtml(initial)+'</div>\'" />'
-        :'<div class="skill-fallback">'+escapeHtml(initial)+'</div>';
-      const versionBadge=s.version?'<span class="skill-badge">v'+escapeHtml(s.version)+'</span>':'';
-      const corpusBadge=s.corpus_ref
-        ?'<span class="skill-badge linked" onclick="navigateToCorpus(\''+escapeHtml(s.corpus_ref)+'\')">&#128194; '+escapeHtml(s.corpus_ref)+'</span>'
-        :'';
-      const retrainBtn=s.corpus_ref
-        ?'<button class="btn btn-outline btn-xs" onclick="openRetrainModal(\''+escapeHtml(s.name)+'\')">蒸馏</button>'
-        :'';
-      const checkboxHtml=_batchMode
-        ?'<input type="checkbox" class="skill-checkbox" data-name="'+escapeHtml(s.name)+'" onchange="updateSelectedCount()" style="position:absolute;top:8px;right:8px">'
-        :'';
-      h+='<div class="skill-card" style="position:relative">'+checkboxHtml+avatarHtml+
-        '<div class="skill-name">'+escapeHtml(s.display_name||s.name)+'</div>'+
-        '<div class="skill-id">'+escapeHtml(s.name)+'</div>'+
-        (s.description?'<div class="skill-desc">'+escapeHtml(s.description)+'</div>':'')+
-        '<div class="skill-badges">'+versionBadge+corpusBadge+'</div>'+
-        '<div class="skill-actions">'+
-          '<button class="btn btn-primary btn-xs" onclick="openEditor(\''+escapeHtml(s.name)+'\')">编辑</button>'+
-          retrainBtn+
-          '<button class="btn btn-danger btn-xs" onclick="deleteSkill(\''+escapeHtml(s.name)+'\')">删除</button>'+
-        '</div>'+
-      '</div>';
-    }
-    grid.innerHTML=h;
+    _allSkills=await(await safeFetch('/api/skills')).json();
+    filterSkills();
   }catch(e){toast('技能加载失败',false)}
 }
 // ── 表单草稿保存 ──
