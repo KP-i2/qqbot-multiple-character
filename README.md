@@ -462,7 +462,8 @@ A: 检查 `.env` 中的 `DEEPSEEK_API_KEY` 是否正确填写。
 目前运行bot效果可加群查看![群二维码](qq测试群.jpg)
 ## 致谢
 
-本项目的角色 Skill 体系（`.skill` 目录结构、`SKILL.md` 元数据 + `persona.md` 七层人设 + `work.md` 工作方式）以及语料蒸馏为 AI Skill 的理念，源自 [titanwings/colleague-skill](https://github.com/titanwings/colleague-skill)（dot-skill 项目）。该项目提出了将任何人的思维模型、决策框架和表达风格蒸馏为可复用 AI Skill 的方法，本项目的角色蒸馏流程在此基础上进行了针对 QQ Bot 场景的适配与扩展（多源语料采集、微博/QQ 聊天记录导入、Dashboard 可视化蒸馏管理等）。
+- [NapCatQQ](https://github.com/NapNeko/NapCatQQ-Desktop) - 基于 QQNT 的 OneBot v11 协议实现，本项目的 QQ 协议层依赖
+- [titanwings/colleague-skill](https://github.com/titanwings/colleague-skill) - 角色 Skill 体系（`.skill` 目录结构、`SKILL.md` 元数据 + `persona.md` 七层人设 + `work.md` 工作方式）以及语料蒸馏为 AI Skill 的理念来源
 
 ## License
 
