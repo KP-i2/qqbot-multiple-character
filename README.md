@@ -218,6 +218,7 @@ skill_communication/
 │   │   └── static/                 # 前端界面
 │   ├── skills/                     # 角色 Skill 目录
 │   ├── logs/                       # 运行日志（自动轮转）
+│   ├── dashboard_watchdog.py       # Dashboard 进程守护（挂自动重启）
 │   ├── napcat_onebot_config.json   # NapCat 反向 WebSocket 配置模板
 │   ├── .env.example                # 配置模板
 │   └── pyproject.toml              # NoneBot2 配置

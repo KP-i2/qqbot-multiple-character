@@ -35,7 +35,6 @@ qqbot/skills/ytj/
 qqbot/skills/zyw/
 
 # 缓存 / 临时
-_cache/
 *.pyc
 *.pyo
 
