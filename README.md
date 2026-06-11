@@ -266,6 +266,7 @@ skill_communication/
 - `skill_qqbot/` - Python 虚拟环境（setup.bat 创建）
 - `qqbot/data/` - 对话历史持久化
 - `qqbot/logs/` - 运行日志
+- `corpus/` - 微博语料（Dashboard 抓取时自动创建）
 - `qqbot/napcat/` - NapCat 程序（需手动下载解压）
 
 **需要自行添加的内容**：
