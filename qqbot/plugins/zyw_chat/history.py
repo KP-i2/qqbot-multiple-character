@@ -66,8 +66,16 @@ def load_histories():
         data = json.loads(_HISTORY_FILE.read_text(encoding="utf-8"))
         for key, entry in data.items():
             if isinstance(entry, dict) and "messages" in entry:
-                conversation_histories[key] = entry["messages"]
-                _history_timestamps[key] = entry.get("timestamp", 0)
+                msgs = entry["messages"]
+                if isinstance(msgs, list):
+                    # 校验每条消息结构
+                    valid_msgs = [
+                        m for m in msgs
+                        if isinstance(m, dict) and "role" in m and "content" in m
+                    ]
+                    if valid_msgs:
+                        conversation_histories[key] = valid_msgs
+                        _history_timestamps[key] = entry.get("timestamp", 0)
         _history_last_save = time.time()
         logger.info(f"[history] Restored {len(data)} conversations from disk")
     except Exception as e:

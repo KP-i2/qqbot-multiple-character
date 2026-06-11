@@ -143,8 +143,11 @@ def load_runtime_config():
             saved = json.loads(_RUNTIME_CONFIG_FILE.read_text(encoding="utf-8"))
             for k, v in saved.items():
                 if k in _RUNTIME_CONFIG_DEFAULTS:
-                    expected = type(_RUNTIME_CONFIG_DEFAULTS[k])
-                    _runtime_config[k] = expected(v)
+                    try:
+                        expected = type(_RUNTIME_CONFIG_DEFAULTS[k])
+                        _runtime_config[k] = expected(v)
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"[settings] Invalid value for '{k}': {v} ({e}), using default")
         except Exception as e:
             logger.warning(f"[settings] Failed to load runtime config: {e}")
 
@@ -179,6 +182,7 @@ def apply_runtime_config():
     MAX_HISTORY_MESSAGES = MAX_HISTORY_ROUNDS * 2
     HISTORY_TTL = int(_runtime_config.get("history_ttl_hours", 6)) * 3600
     HISTORY_SAVE_INTERVAL = int(_runtime_config.get("history_save_interval", 60))
+    THINKING_TIMER_SECONDS = int(_runtime_config.get("thinking_timer_seconds", 5))
 
 
 # 流式输出默认值（apply_runtime_config 会覆盖）
@@ -192,6 +196,7 @@ STREAM_MAX_FLUSH_SIZE = 300
 # 历史相关默认值
 HISTORY_TTL = 3600 * 6
 HISTORY_SAVE_INTERVAL = 60
+THINKING_TIMER_SECONDS = 5
 
 # 启动时加载并应用
 load_runtime_config()

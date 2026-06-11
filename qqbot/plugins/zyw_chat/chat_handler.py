@@ -257,7 +257,7 @@ async def handle_chat(bot: Bot, event: Event):
 
         async def _thinking_timer():
             nonlocal _thinking_sent
-            await asyncio.sleep(40)
+            await asyncio.sleep(cfg.THINKING_TIMER_SECONDS)
             if not _timer_cancelled:
                 try:
                     await zyw_chat.send(Message("唔…让窝想想哦 (´•ω•̥`)💭"))

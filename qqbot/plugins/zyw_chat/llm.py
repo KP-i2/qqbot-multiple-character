@@ -161,7 +161,11 @@ async def _call_deepseek_inner(system_prompt: str, messages: list[dict], skill_n
 
         for tc in tool_calls:
             func_name = tc["function"]["name"]
-            func_args = json.loads(tc["function"]["arguments"])
+            try:
+                func_args = json.loads(tc["function"]["arguments"])
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"[LLM] 工具参数解析失败: {func_name} | error={e}")
+                func_args = {}
 
             if func_name == "web_search":
                 query = func_args.get("query", "")

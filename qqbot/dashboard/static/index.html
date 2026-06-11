@@ -977,7 +977,8 @@ code{font-family:var(--font-mono);font-size:0.9em}
         <div class="form-group"><label>断句字符阈值</label><input type="number" id="set-stream_flush_chars" min="20" max="300"></div>
         <div class="form-group"><label>断句等待秒数</label><input type="number" id="set-stream_flush_interval" min="1" max="15" step="0.5"></div>
       </div>
-      <div class="form-row" style="grid-template-columns:1fr">
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group"><label>最小累积字符数</label><input type="number" id="set-stream_flush_min_chars" min="20" max="300"></div>
         <div class="form-group"><label>单段最大字符数</label><input type="number" id="set-stream_max_flush_size" min="50" max="1000"></div>
       </div>
     </div>
@@ -1169,7 +1170,7 @@ function switchTab(el,name){
 }
 
 // ── 语料列表（增强版：元信息 + 技能联动） ──
-const _settingKeys=['active_hours_start','active_hours_end','web_search_enabled','multi_turn_enabled','stream_enabled','stream_flush_chars','stream_flush_interval','stream_max_flush_size','max_history_rounds','history_ttl_hours','history_save_interval','thinking_timer_seconds'];
+const _settingKeys=['active_hours_start','active_hours_end','web_search_enabled','multi_turn_enabled','stream_enabled','stream_flush_chars','stream_flush_interval','stream_flush_min_chars','stream_max_flush_size','max_history_rounds','history_ttl_hours','history_save_interval','thinking_timer_seconds'];
 
 async function loadSettings(){
   try{

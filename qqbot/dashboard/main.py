@@ -1,5 +1,5 @@
 """FastAPI Dashboard 主应用（修复版）"""
-import asyncio, json, logging, os, re, secrets, tempfile, time
+import asyncio, html, json, logging, os, re, secrets, tempfile, time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Request, HTTPException
@@ -88,8 +88,9 @@ async def index():
     global _INDEX_HTML
     if _INDEX_HTML is None:
         _INDEX_HTML = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
-    # 注入 auth token 供前端使用
-    token_script = f'<script>window._DASHBOARD_TOKEN="{DASHBOARD_TOKEN}";</script>'
+    # 注入 auth token 供前端使用（转义防止 XSS）
+    safe_token = html.escape(DASHBOARD_TOKEN, quote=True)
+    token_script = f'<script>window._DASHBOARD_TOKEN="{safe_token}";</script>'
     html = _INDEX_HTML.replace("</head>", token_script + "</head>", 1)
     return HTMLResponse(content=html, headers={"Cache-Control": "no-store"})
 
@@ -97,7 +98,7 @@ async def index():
 # ── 进程监控 ──
 @app.get("/api/status")
 async def api_status():
-    return monitor.get_all_status()
+    return await asyncio.get_event_loop().run_in_executor(None, monitor.get_all_status)
 
 
 @app.post("/api/process/start/{name}")
@@ -105,7 +106,7 @@ async def api_start_process(name: str):
     if not _safe_name(name):
         return {"ok": False, "msg": "Invalid name"}
     if name == "nonebot2":
-        result = monitor.start_nonebot2()
+        result = await asyncio.get_event_loop().run_in_executor(None, monitor.start_nonebot2)
         if result.get("ok"):
             logger.info("NoneBot2 process started")
         return result
@@ -117,7 +118,7 @@ async def api_stop_process(name: str):
     if not _safe_name(name):
         return {"ok": False, "msg": "Invalid name"}
     if name == "nonebot2":
-        result = monitor.stop_nonebot2()
+        result = await asyncio.get_event_loop().run_in_executor(None, monitor.stop_nonebot2)
         if result.get("ok"):
             logger.info("NoneBot2 process stopped")
         return result
@@ -132,8 +133,9 @@ async def api_full_restart():
 @app.get("/api/health")
 async def api_health():
     """系统健康检查（NapCatQQ Desktop 外部管理，检测进程+WS连接状态）"""
-    napcat = monitor.get_napcat_status()
-    nb = monitor.get_nonebot2_status()
+    loop = asyncio.get_event_loop()
+    napcat = await loop.run_in_executor(None, monitor.get_napcat_status)
+    nb = await loop.run_in_executor(None, monitor.get_nonebot2_status)
     watchdog = monitor.get_watchdog_status()
 
     bot_running = nb["running"]
@@ -640,11 +642,18 @@ async def api_update_settings(request: Request):
             validated[key] = val
         except (ValueError, TypeError) as e:
             return {"ok": False, "msg": f"参数 '{key}' 类型错误: {e}"}
-    # 写入配置文件
+    # 写入配置文件（先读旧值合并，避免丢失前端未发送的 key）
     try:
         _RUNTIME_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        existing = {}
+        if _RUNTIME_SETTINGS_FILE.exists():
+            try:
+                existing = json.loads(_RUNTIME_SETTINGS_FILE.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        existing.update(validated)
         _RUNTIME_SETTINGS_FILE.write_text(
-            json.dumps(validated, ensure_ascii=False, indent=2), encoding="utf-8"
+            json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8"
         )
     except PermissionError:
         return {"ok": False, "msg": "写入配置失败: 权限不足，请检查文件权限"}
