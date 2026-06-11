@@ -122,7 +122,10 @@ async def resolve_baidu_redirect(url: str, timeout_s: int = 5) -> str:
 
 
 async def fetch_page_content(url: str, timeout_s: int = _PAGE_FETCH_TIMEOUT) -> tuple[str, str]:
-    """抓取 URL 页面并提取正文文本。返回 (final_url, content)"""
+    """抓取 URL 页面并提取正文文本。返回 (final_url, content)
+    
+    对于 fandom.com 域名，优先使用 MediaWiki API 绕过 Cloudflare 反爬。
+    """
     if not url or url.startswith("/sf/") or url.startswith("javascript:"):
         return ("", "")
     headers = {
@@ -135,6 +138,44 @@ async def fetch_page_content(url: str, timeout_s: int = _PAGE_FETCH_TIMEOUT) -> 
             timeout=timeout_s, follow_redirects=True,
         ) as client:
             resp = await client.get(url, headers=headers)
+
+        # ── fandom.com Cloudflare 反爬绕过：使用 MediaWiki API ──
+        if "fandom.com" in url and (
+            resp.status_code == 403
+            or "Just a moment" in resp.text[:500]
+        ):
+            m = re.search(r'/([a-z0-9-]+)\.fandom\.com/wiki/(.+)', url)
+            if m:
+                wiki_subdomain = m.group(1)
+                page_name = m.group(2).split("#")[0].split("?")[0]
+                api_url = (
+                    f"https://{wiki_subdomain}.fandom.com/api.php"
+                    f"?action=parse&page={quote_plus(page_name)}"
+                    f"&prop=text&format=json"
+                )
+                try:
+                    async with httpx.AsyncClient(
+                        timeout=timeout_s, follow_redirects=True,
+                    ) as api_client:
+                        api_resp = await api_client.get(
+                            api_url,
+                            headers={"User-Agent": headers["User-Agent"], "Accept": "application/json"},
+                        )
+                    if api_resp.status_code == 200:
+                        data = api_resp.json()
+                        title = data.get("parse", {}).get("title", "")
+                        wiki_text = data.get("parse", {}).get("text", {}).get("*", "")
+                        # 清洗 HTML → 纯文本
+                        clean = re.sub(r'<[^>]+>', ' ', wiki_text)
+                        clean = re.sub(r'&[a-z]+;', ' ', clean)
+                        clean = re.sub(r'\s+', ' ', clean).strip()
+                        if clean:
+                            content = f"【{title}】(来自 Fandom Wiki API)\n{clean[:_PAGE_CONTENT_MAX_CHARS]}"
+                            return (str(api_resp.url), content)
+                except Exception:
+                    pass
+        # ── /fandom API 回退结束 ──
+
         if resp.status_code != 200:
             return ("", "")
         final_url = str(resp.url)
