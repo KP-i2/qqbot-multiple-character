@@ -90,6 +90,37 @@ _PAGE_FETCH_TIMEOUT = 8
 _PAGE_CONTENT_MAX_CHARS = 1500
 
 
+async def resolve_baidu_redirect(url: str, timeout_s: int = 5) -> str:
+    """解析百度重定向URL，返回实际目标URL。如果不是百度重定向则返回原URL。"""
+    if not url or "baidu.com/link" not in url:
+        return url
+    try:
+        async with httpx.AsyncClient(
+            timeout=timeout_s, follow_redirects=False,
+        ) as client:
+            resp = await client.head(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            })
+            if resp.status_code in (301, 302, 303, 307, 308):
+                location = resp.headers.get("location", "")
+                if location and "baidu.com" not in location:
+                    return location
+        # 如果HEAD请求失败，尝试GET
+        async with httpx.AsyncClient(
+            timeout=timeout_s, follow_redirects=False,
+        ) as client:
+            resp = await client.get(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            }, allow_redirects=False)
+            if resp.status_code in (301, 302, 303, 307, 308):
+                location = resp.headers.get("location", "")
+                if location and "baidu.com" not in location:
+                    return location
+    except Exception as e:
+        logger.debug(f"[baidu_redirect] 解析失败 {url[:60]}: {e}")
+    return url
+
+
 async def fetch_page_content(url: str, timeout_s: int = _PAGE_FETCH_TIMEOUT) -> tuple[str, str]:
     """抓取 URL 页面并提取正文文本。返回 (final_url, content)"""
     if not url or url.startswith("/sf/") or url.startswith("javascript:"):
@@ -203,13 +234,17 @@ def _extract_weibo_item(item: dict, results: list, max_results: int):
         text = re.sub(r'<[^>]+>', '', item.get("text", "")).strip()
     user_info = item.get("user", {})
     username = user_info.get("screen_name", "未知用户")
+    user_id = user_info.get("id", "")
     mid = item.get("mid") or item.get("id", "")
-    link = f"https://weibo.com/{user_info.get('id', '')}/{mid}" if mid and user_info.get("id") else ""
+    link = f"https://weibo.com/{user_id}/{mid}" if mid and user_id else ""
+    user_profile_url = f"https://weibo.com/u/{user_id}" if user_id else ""
     snippet = text[:200] + ("..." if len(text) > 200 else "")
     results.append({
         "title": f"@{username}: {text[:50]}...",
         "href": link,
         "url": link,
+        "user_profile_url": user_profile_url,
+        "username": username,
         "body": snippet,
     })
 
@@ -690,17 +725,55 @@ async def execute_web_search(query: str, max_results: int = 5) -> str:
     results.sort(key=_relevance_score, reverse=True)
     results = results[:max_results * 2]
 
+    # ── 解析百度重定向URL ──
+    baidu_redirect_tasks = []
+    baidu_redirect_indices = []
+    for i, (source, r) in enumerate(results):
+        if source == "百度":
+            url = r.get("href") or r.get("url", "")
+            if url and "baidu.com/link" in url:
+                baidu_redirect_indices.append(i)
+                baidu_redirect_tasks.append(resolve_baidu_redirect(url))
+
+    if baidu_redirect_tasks:
+        resolved_urls = await asyncio.gather(*baidu_redirect_tasks)
+        for idx, resolved_url in zip(baidu_redirect_indices, resolved_urls):
+            if resolved_url and "baidu.com/link" not in resolved_url:
+                source, r = results[idx]
+                # 检查是否是微博用户ID格式（https://weibo.com/数字ID），转换为用户主页URL
+                weibo_user_match = re.match(r'^https?://weibo\.com/(\d+)/?$', resolved_url)
+                if weibo_user_match:
+                    user_id = weibo_user_match.group(1)
+                    resolved_url = f"https://weibo.com/u/{user_id}"
+                    logger.info(f"[search] 转换微博用户主页URL: {user_id} -> {resolved_url}")
+                r["href"] = resolved_url
+                r["url"] = resolved_url
+                logger.info(f"[search] 解析百度重定向: 原URL -> {resolved_url[:80]}")
+
     # ── 格式化输出 ──
     lines = [f"## 网络搜索结果（百度 {baidu_total} + 微博 {weibo_total}）\n"]
 
     if _weibo_cookie_expired and weibo_total == 0:
         lines.append("⚠️ 微博搜索不可用（Cookie 可能已过期，请在 Dashboard 上传新的 cookies.json）\n")
 
+    # ── 收集微博用户主页URL ──
+    weibo_user_profiles = {}
+    for source, r in results:
+        if source == "微博":
+            user_profile_url = r.get("user_profile_url", "")
+            username = r.get("username", "")
+            if user_profile_url and username:
+                weibo_user_profiles[username] = user_profile_url
+
     for i, (source, r) in enumerate(results, 1):
         title = r.get("title", "无标题")
         url = r.get("href") or r.get("url", "")
         body = r.get("body") or r.get("snippet", "")
         tag = f" [{source}]" if source != "百度" else ""
+
+        # 记录URL信息用于调试
+        if url:
+            logger.info(f"[search] 结果[{i}] source={source} url={url[:80]}")
 
         page_text = page_contents.get(i - 1, "")
         if page_text:
@@ -712,13 +785,48 @@ async def execute_web_search(query: str, max_results: int = 5) -> str:
         else:
             lines.append(f"[{i}] {title}{tag}\n    链接: {url}\n    摘要: {body}\n")
 
+    # ── 添加微博用户主页链接汇总 ──
+    if weibo_user_profiles:
+        lines.append("\n## 微博用户主页链接\n")
+        for username, profile_url in weibo_user_profiles.items():
+            lines.append(f"- @{username}: {profile_url}")
+
     return "\n".join(lines)
 
 
-def execute_corpus_search(skill_name: str, keywords: str) -> str:
-    """在指定 skill 目录下搜索 .md 和 corpus_ref/ 下的文本文件。"""
+def _resolve_corpus_dir(skill_name: str) -> Optional[Path]:
+    """根据 skill 名称解析 corpus 目录（如 ytj → corpus/ytj_7841140689/）。
+
+    优先级：
+    1. corpus/{skill_name}_{uid}/ — 正式语料库目录
+    2. skills/{skill_name}/corpus_ref/ — 回退到旧的 corpus_ref 快照
+    返回 None 表示无可用语料库目录。
+    """
+    if cfg.CORPUS_DIR.is_dir():
+        for d in sorted(cfg.CORPUS_DIR.iterdir(), reverse=True):
+            if d.is_dir() and d.name.startswith(skill_name + "_"):
+                return d
+    # fallback: corpus_ref
     skill_dir = cfg.SKILLS_DIR / skill_name
-    if not skill_dir.exists():
+    fallback = skill_dir / "corpus_ref"
+    if fallback.is_dir():
+        return fallback
+    return None
+
+
+def execute_corpus_search(skill_name: str, keywords: str) -> str:
+    """在 skill 人设文件、corpus 语料库中搜索关键词相关内容。
+
+    搜索来源（按优先级）：
+    1. skills/{name}/*.md — 角色人设/工作能力等结构化参考
+    2. corpus/{name}_{uid}/*.txt — 正式语料库（微博帖子原文）
+    3. corpus/{name}_{uid}/*.md — 语料库中的附加参考文档
+    4. corpus/{name}_{uid}/weibo_profile_detail.json — 微博账号档案
+    """
+    skill_dir = cfg.SKILLS_DIR / skill_name
+    corpus_dir = _resolve_corpus_dir(skill_name)
+
+    if not skill_dir.exists() and corpus_dir is None:
         return f"角色 '{skill_name}' 的语料库不存在"
 
     kw_list = [k.strip().lower() for k in keywords.split() if k.strip()]
@@ -741,32 +849,37 @@ def execute_corpus_search(skill_name: str, keywords: str) -> str:
     def _match_line(line_lower: str) -> bool:
         return any(kw in line_lower for kw in kw_list)
 
-    # ── 1) 根目录 *.md 文件 ──
-    for md_file in sorted(skill_dir.glob("*.md")):
-        if len(results) >= _MAX_SNIPPETS:
-            break
-        try:
-            content = md_file.read_text(encoding="utf-8")
-        except Exception:
-            continue
-        lines = content.split("\n")
-        for i, line in enumerate(lines):
-            if _match_line(line.lower()):
-                start = max(0, i - 2)
-                end = min(len(lines), i + 3)
-                snippet = "\n".join(lines[start:end]).strip()
-                results.append(f"[{md_file.name} 第{i+1}行]\n{snippet}")
-                if len(results) >= _MAX_SNIPPETS:
-                    break
+    # ── 1) skill 根目录 *.md 文件（人设/工作能力等） ──
+    _MD_MAX = 4
+    _md_added = 0
+    if skill_dir.exists():
+        for md_file in sorted(skill_dir.glob("*.md")):
+            if len(results) >= _MAX_SNIPPETS or _md_added >= _MD_MAX:
+                break
+            try:
+                content = md_file.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            lines = content.split("\n")
+            for i, line in enumerate(lines):
+                if _match_line(line.lower()):
+                    start = max(0, i - 2)
+                    end = min(len(lines), i + 3)
+                    snippet = "\n".join(lines[start:end]).strip()
+                    results.append(f"[{md_file.name} 第{i+1}行]\n{snippet}")
+                    _md_added += 1
+                    if len(results) >= _MAX_SNIPPETS or _md_added >= _MD_MAX:
+                        break
 
-    # ── 2) corpus_ref/*.txt 文件 ──
-    corpus_ref_dir = skill_dir / "corpus_ref"
+    # ── 2) corpus 语料库 *.txt 文件（微博帖子原文等，TF-IDF 评分） ──
     txt_hits: list[tuple[float, int, str]] = []
-    if corpus_ref_dir.is_dir():
-        for txt_file in sorted(corpus_ref_dir.glob("*.txt")):
+    if corpus_dir is not None and corpus_dir.is_dir():
+        for txt_file in sorted(corpus_dir.glob("*.txt")):
             try:
                 content = txt_file.read_text(encoding="utf-8")
             except Exception:
+                continue
+            if len(content) < 100:
                 continue
             lines = content.split("\n")
             total_lines = max(len(lines), 1)
@@ -794,9 +907,20 @@ def execute_corpus_search(skill_name: str, keywords: str) -> str:
                     context_lower = "\n".join(lines[start:end]).lower()
                     score = _score_line_idf(context_lower)
                     snippet = "\n".join(lines[start:end]).strip()
-                    txt_hits.append((score, i, f"[{txt_file.name} 第{i+1}行]\n{snippet}"))
+                    # 标签：文件名 → 简化显示名
+                    label = txt_file.stem
+                    short_labels = {
+                        "corpus_full": "微博语料",
+                        "corpus_extended": "微博语料(扩展)",
+                        "corpus": "微博语料",
+                        "weibo_corpus": "微博语料",
+                        "qq_group_msgs": "QQ群消息",
+                        "raw_msgs": "原始消息",
+                    }
+                    display = short_labels.get(label, label)
+                    txt_hits.append((score, i, f"[{display} 第{i+1}行]\n{snippet}"))
 
-    _MAX_TXT_SNIPPETS = 6
+    _MAX_TXT_SNIPPETS = 8
     txt_hits.sort(key=lambda x: x[0], reverse=True)
     _seen_line_idxs: list[int] = []
     _txt_added = 0
@@ -809,9 +933,40 @@ def execute_corpus_search(skill_name: str, keywords: str) -> str:
         results.append(snippet)
         _txt_added += 1
 
-    # ── 3) 微博账号简介 ──
-    profile_file = corpus_ref_dir / "weibo_profile_detail.json" if corpus_ref_dir.is_dir() else None
-    if profile_file and profile_file.exists():
+    # ── 3) corpus 语料库 *.md 文件（附加参考文档） ──
+    if corpus_dir is not None and corpus_dir.is_dir():
+        for md_file in sorted(corpus_dir.glob("*.md")):
+            if len(results) >= _MAX_SNIPPETS:
+                break
+            try:
+                content = md_file.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            lines = content.split("\n")
+            for i, line in enumerate(lines):
+                if _match_line(line.lower()):
+                    start = max(0, i - 2)
+                    end = min(len(lines), i + 3)
+                    snippet = "\n".join(lines[start:end]).strip()
+                    results.append(f"[{md_file.name} 第{i+1}行]\n{snippet}")
+                    if len(results) >= _MAX_SNIPPETS:
+                        break
+
+    # ── 4) 微博账号档案 ──
+    profile_files = []
+    if corpus_dir is not None and corpus_dir.is_dir():
+        pf = corpus_dir / "weibo_profile_detail.json"
+        if pf.exists():
+            profile_files.append(pf)
+    # fallback: corpus_ref
+    if not profile_files:
+        corpus_ref_dir = skill_dir / "corpus_ref" if skill_dir.exists() else None
+        if corpus_ref_dir and corpus_ref_dir.is_dir():
+            pf = corpus_ref_dir / "weibo_profile_detail.json"
+            if pf.exists():
+                profile_files.append(pf)
+
+    for profile_file in profile_files:
         try:
             pdata = json.loads(profile_file.read_text(encoding="utf-8"))
             user_info = pdata.get("data", {}).get("user", {})
@@ -836,4 +991,9 @@ def execute_corpus_search(skill_name: str, keywords: str) -> str:
     if not results:
         return f"在角色 '{skill_name}' 的语料库中未找到与「{keywords}」相关的内容"
 
-    return f"## 语料库搜索结果（{skill_name}）\n\n" + "\n\n---\n\n".join(results)
+    # 添加 corpus 目录来源提示
+    source_hint = ""
+    if corpus_dir is not None:
+        source_hint = f" (来源: corpus/{corpus_dir.name}/)"
+
+    return f"## 语料库搜索结果（{skill_name}）{source_hint}\n\n" + "\n\n---\n\n".join(results)

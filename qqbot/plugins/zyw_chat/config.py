@@ -20,6 +20,7 @@ from nonebot import get_driver, logger
 PLUGIN_DIR = Path(__file__).parent
 QQBOT_DIR = PLUGIN_DIR.parent.parent
 SKILLS_DIR = QQBOT_DIR / "skills"
+CORPUS_DIR = QQBOT_DIR.parent / "corpus"
 PHOTO_DIR = QQBOT_DIR.parent / "photo"
 NORMAL_PAPER_DIR = QQBOT_DIR.parent / "normal-paper"
 
@@ -60,7 +61,7 @@ WEB_SEARCH_ENABLED: bool = str(_web_search_raw).lower() == "true" if _web_search
 SEARCH_AVAILABLE = True
 
 # 历史与超时
-MAX_HISTORY_ROUNDS = 15
+MAX_HISTORY_ROUNDS = 40
 REQUEST_TIMEOUT = 60
 MAX_HISTORY_MESSAGES = MAX_HISTORY_ROUNDS * 2
 
@@ -89,6 +90,9 @@ SEARCH_INTENT_KEYWORDS = [
     "其他人", "别人呢", "队友呢", "队员呢",
     "几月", "几号", "多大", "多高", "哪里人",
     "关于", "说说", "讲讲",
+    # 链接/网站相关
+    "链接", "网址", "网站", "url", "主页", "官网",
+    "给我链接", "给我网址", "发链接", "发网址",
 ]
 _URL_PATTERN_INTENT = re.compile(r'https?://\S+')
 
@@ -120,7 +124,7 @@ _RUNTIME_CONFIG_DEFAULTS = {
     "stream_flush_interval": 8.0,
     "stream_flush_min_chars": 80,
     "stream_max_flush_size": 300,
-    "max_history_rounds": 15,
+    "max_history_rounds": 40,
     "history_ttl_hours": 6,
     "history_save_interval": 60,
     "thinking_timer_seconds": 5,
