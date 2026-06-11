@@ -37,6 +37,7 @@ qqbot/skills/zyw/
 # 缓存 / 临时
 *.pyc
 *.pyo
+_cache/
 
 # 备份
 **/backup_*/
