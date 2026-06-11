@@ -45,8 +45,8 @@ _INDEX_HTML: str | None = None
 async def _api_auth_middleware(request: Request, call_next):
     """对 /api/ 路径强制 Token 认证；静态资源和页面放行"""
     path = request.url.path
-    # 放行：首页、静态文件、CORS 预检
-    if path == "/" or path.startswith("/static/") or request.method == "OPTIONS":
+    # 放行：首页、静态文件、健康检查、CORS 预检
+    if path == "/" or path.startswith("/static/") or path == "/api/health" or request.method == "OPTIONS":
         return await call_next(request)
     # /api/ 路径需要 token
     if _AUTH_ENABLED and path.startswith("/api/"):
