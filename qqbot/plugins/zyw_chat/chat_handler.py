@@ -318,14 +318,29 @@ async def handle_chat(bot: Bot, event: Event):
                     full_reply += token
                     now = time.time()
 
+                    # 断句触发条件（三选一）:
+                    # 1) 字数达标 + 句末标点
+                    # 2) 硬上限（强制截断）
+                    # 3) 时间间隔达标 + 最小字数
+                    _time_elapsed = now - last_flush_time
+                    _time_trigger = (
+                        _time_elapsed >= cfg.STREAM_FLUSH_INTERVAL
+                        and len(current_segment) >= cfg.STREAM_FLUSH_MIN_CHARS
+                    )
                     should_flush = (
                         (len(current_segment) >= cfg.STREAM_FLUSH_CHARS
                          and current_segment[-1] in _sentence_end)
                         or len(current_segment) >= cfg.STREAM_MAX_FLUSH_SIZE
+                        or _time_trigger
                     )
 
                     if should_flush:
-                        _flush_reason = "max_size" if len(current_segment) >= cfg.STREAM_MAX_FLUSH_SIZE else "sentence_end"
+                        if len(current_segment) >= cfg.STREAM_MAX_FLUSH_SIZE:
+                            _flush_reason = "max_size"
+                        elif _time_trigger:
+                            _flush_reason = f"time({_time_elapsed:.1f}s)"
+                        else:
+                            _flush_reason = "sentence_end"
                         seg_text = strip_dsml_markup(normalize_qq_faces(current_segment.strip()))
                         current_segment = ""
                         last_flush_time = time.time()
