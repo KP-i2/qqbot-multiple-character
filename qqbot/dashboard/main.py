@@ -574,7 +574,7 @@ _SETTINGS_SCHEMA = {
     "stream_flush_interval": {"type": "float", "label": "断句等待秒数",            "default": 8.0,   "category": "stream", "min": 1, "max": 15},
     "stream_flush_min_chars":{"type": "int",   "label": "最小累积字符数",          "default": 80,    "category": "stream", "min": 20, "max": 300},
     "stream_max_flush_size": {"type": "int",   "label": "单段最大字符",            "default": 300,   "category": "stream", "min": 50, "max": 1000},
-    "max_history_rounds":    {"type": "int",   "label": "最大对话轮数",            "default": 15,    "category": "history", "min": 1, "max": 100},
+    "max_history_rounds":    {"type": "int",   "label": "最大对话轮数",            "default": 40,    "category": "history", "min": 1, "max": 100},
     "history_ttl_hours":     {"type": "int",   "label": "历史过期时间 (小时)",     "default": 6,     "category": "history", "min": 1, "max": 168},
     "history_save_interval": {"type": "int",   "label": "保存间隔 (秒)",           "default": 60,    "category": "history", "min": 10, "max": 600},
     "thinking_timer_seconds":{"type": "int",   "label": "等待提示秒数",            "default": 5,     "category": "timing", "min": 1, "max": 30},
