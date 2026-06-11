@@ -123,8 +123,16 @@ def get_cookie_status() -> dict:
             "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(stat.st_mtime)),
             "path": str(COOKIES_FILE),
         }
+    except json.JSONDecodeError as e:
+        return {"exists": True, "error": f"JSON 格式错误: {e}"}
+    except UnicodeDecodeError as e:
+        return {"exists": True, "error": f"文件编码错误: {e}"}
+    except PermissionError:
+        return {"exists": True, "error": "权限不足，无法读取文件"}
+    except OSError as e:
+        return {"exists": True, "error": f"系统错误: {e}"}
     except Exception as e:
-        return {"exists": True, "error": str(e)}
+        return {"exists": True, "error": f"{type(e).__name__}: {e}"}
 
 
 async def fetch_weibo(uid: str, progress_callback=None) -> dict:
@@ -190,8 +198,16 @@ async def fetch_weibo(uid: str, progress_callback=None) -> dict:
             last_lines = output.strip().split("\n")[-5:] if output else ["No output"]
             return {"ok": False, "msg": f"Corpus file not created.\n" + "\n".join(last_lines)}
 
+    except asyncio.TimeoutError:
+        return {"ok": False, "msg": "微博抓取超时（超过 2 分钟），请检查网络连接或减少抓取数量"}
+    except FileNotFoundError as e:
+        return {"ok": False, "msg": f"文件未找到: {e}"}
+    except PermissionError:
+        return {"ok": False, "msg": "权限不足，请检查文件和目录权限"}
+    except OSError as e:
+        return {"ok": False, "msg": f"系统错误: {e}"}
     except Exception as e:
-        return {"ok": False, "msg": f"Error: {e}"}
+        return {"ok": False, "msg": f"Error: {type(e).__name__}: {e}"}
 
 
 def extract_qq_messages(json_path: str, target_uid: str, dir_name: str = "", target_name: str = "") -> dict:
@@ -204,8 +220,18 @@ def extract_qq_messages(json_path: str, target_uid: str, dir_name: str = "", tar
     try:
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
+    except json.JSONDecodeError as e:
+        return {"ok": False, "msg": f"JSON 格式错误: {e}"}
+    except UnicodeDecodeError as e:
+        return {"ok": False, "msg": f"文件编码错误: {e}"}
+    except FileNotFoundError:
+        return {"ok": False, "msg": f"文件未找到: {json_path}"}
+    except PermissionError:
+        return {"ok": False, "msg": f"权限不足，无法读取文件: {json_path}"}
+    except OSError as e:
+        return {"ok": False, "msg": f"系统错误: {e}"}
     except Exception as e:
-        return {"ok": False, "msg": f"Failed to read JSON: {e}"}
+        return {"ok": False, "msg": f"Failed to read JSON: {type(e).__name__}: {e}"}
 
     # Try to find UID by name if not direct UID
     messages = []
@@ -279,10 +305,20 @@ def _resolve_corpus_dir(uid_input: str) -> Path:
 def import_text_file(content: bytes, filename: str, uid: str = "", name: str = "") -> dict:
     """导入 MD/TXT 文本文件到语料库"""
     uid_dir = _resolve_corpus_dir(uid)
-    uid_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        uid_dir.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        return {"ok": False, "msg": f"创建目录失败: 权限不足 - {uid_dir}"}
+    except OSError as e:
+        return {"ok": False, "msg": f"创建目录失败: 系统错误 - {e}"}
 
     target = uid_dir / filename
-    target.write_bytes(content)
+    try:
+        target.write_bytes(content)
+    except PermissionError:
+        return {"ok": False, "msg": f"写入文件失败: 权限不足 - {target}"}
+    except OSError as e:
+        return {"ok": False, "msg": f"写入文件失败: 系统错误 - {e}"}
 
     lines = _count_lines(target)
     size_kb = round(len(content) / 1024, 1)
@@ -299,8 +335,18 @@ def list_senders(json_path: str) -> dict:
     try:
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
+    except json.JSONDecodeError as e:
+        return {"ok": False, "msg": f"JSON 格式错误: {e}"}
+    except UnicodeDecodeError as e:
+        return {"ok": False, "msg": f"文件编码错误: {e}"}
+    except FileNotFoundError:
+        return {"ok": False, "msg": f"文件未找到: {json_path}"}
+    except PermissionError:
+        return {"ok": False, "msg": f"权限不足，无法读取文件: {json_path}"}
+    except OSError as e:
+        return {"ok": False, "msg": f"系统错误: {e}"}
     except Exception as e:
-        return {"ok": False, "msg": str(e)}
+        return {"ok": False, "msg": f"{type(e).__name__}: {e}"}
 
     senders = {}
     for m in data.get("messages", []):

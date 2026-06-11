@@ -105,7 +105,10 @@ async def api_start_process(name: str):
     if not _safe_name(name):
         return {"ok": False, "msg": "Invalid name"}
     if name == "nonebot2":
-        return monitor.start_nonebot2()
+        result = monitor.start_nonebot2()
+        if result.get("ok"):
+            logger.info("NoneBot2 process started")
+        return result
     return {"ok": False, "msg": f"Unknown process: {name} (NapCat 由 NapCatQQ Desktop 外部管理)"}
 
 
@@ -114,7 +117,10 @@ async def api_stop_process(name: str):
     if not _safe_name(name):
         return {"ok": False, "msg": "Invalid name"}
     if name == "nonebot2":
-        return monitor.stop_nonebot2()
+        result = monitor.stop_nonebot2()
+        if result.get("ok"):
+            logger.info("NoneBot2 process stopped")
+        return result
     return {"ok": False, "msg": f"Unknown process: {name} (NapCat 由 NapCatQQ Desktop 外部管理)"}
 
 
@@ -191,6 +197,7 @@ async def api_upload_cookie(file: UploadFile = File(...)):
         return {"ok": False, "msg": "Invalid JSON file"}
     COOKIES_FILE.parent.mkdir(parents=True, exist_ok=True)
     COOKIES_FILE.write_bytes(content)
+    logger.info(f"Cookie file uploaded: {file.filename} ({len(content)} bytes)")
     return {"ok": True, "msg": f"Cookie saved ({len(content)} bytes)"}
 
 
@@ -226,7 +233,10 @@ async def api_corpus_detail(uid: str):
 async def api_fetch_weibo(uid: str = Form(...)):
     if not _safe_path_component(uid):
         return {"ok": False, "msg": "Invalid UID"}
-    return await weibo_fetcher.fetch_weibo(uid)
+    result = await weibo_fetcher.fetch_weibo(uid)
+    if result.get("ok"):
+        logger.info(f"Weibo corpus fetched: uid={uid}")
+    return result
 
 
 @app.post("/api/corpus/qq-import")
@@ -250,7 +260,10 @@ async def api_qq_import(
         tmp.write(content)
         tmp_path = tmp.name
     try:
-        return weibo_fetcher.extract_qq_messages(tmp_path, qq_uid, dir_uid, name)
+        result = weibo_fetcher.extract_qq_messages(tmp_path, qq_uid, dir_uid, name)
+        if result.get("ok"):
+            logger.info(f"QQ corpus imported: qq_uid={qq_uid}, dir_uid={dir_uid}")
+        return result
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
@@ -280,7 +293,10 @@ async def api_import_text(
     content = await file.read()
     _check_upload_size(content, 10)
     filename = file.filename or "import.txt"
-    return weibo_fetcher.import_text_file(content, filename, uid, name)
+    result = weibo_fetcher.import_text_file(content, filename, uid, name)
+    if result.get("ok"):
+        logger.info(f"Text corpus imported: {filename}")
+    return result
 
 
 @app.post("/api/corpus/generate-skill")
@@ -300,6 +316,7 @@ async def api_generate_skill(
     if result.get("ok"):
         trigger = PROJECT_ROOT / ".reload_skills_trigger"
         trigger.write_text(f"generate from dashboard at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"Skill generated from corpus: {skill_name} (uid={uid}, character={character})")
     return result
 
 
@@ -329,7 +346,10 @@ async def api_create_skill(
         return {"ok": False, "msg": "Invalid name"}
     if not display_name:
         display_name = name
-    return skill_manager.create_skill(name, display_name, description, persona, work, version)
+    result = skill_manager.create_skill(name, display_name, description, persona, work, version)
+    if result.get("ok"):
+        logger.info(f"Skill created: {name} ({display_name})")
+    return result
 
 
 # ── 蒸馏管理（带并发保护）──
@@ -345,6 +365,7 @@ async def api_retrain_skill(name: str, character: str = "celebrity", research_pr
         return {"ok": False, "msg": f"蒸馏正在进行中，请等待完成后再试"}
     _running_retrains.add(name)
     asyncio.create_task(_run_retrain(name, character, research_profile))
+    logger.info(f"Retrain started: {name} ({character}/{research_profile})")
     return {"ok": True, "msg": f"蒸馏已启动 ({character}/{research_profile})，请在进度面板查看"}
 
 
@@ -381,6 +402,7 @@ async def api_bot_reload():
     """触发 bot 重新加载 skill"""
     trigger = PROJECT_ROOT / ".reload_skills_trigger"
     trigger.write_text(f"manual reload at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info("Manual bot reload triggered")
     return {"ok": True, "msg": "Reload trigger sent. Bot will reload skills on next message."}
 
 
@@ -398,6 +420,7 @@ async def api_update_skill_file(name: str, filename: str, request: Request):
         trigger = PROJECT_ROOT / ".reload_skills_trigger"
         trigger.write_text(f"auto reload after {name}/{filename} saved at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         result["reloaded"] = True
+        logger.info(f"Skill file updated: {name}/{filename}")
     return result
 
 
@@ -465,6 +488,7 @@ async def api_integrate_trait(name: str, request: Request):
     # 自动重载
     trigger = PROJECT_ROOT / ".reload_skills_trigger"
     trigger.write_text(f"auto reload after trait integrate on {name}/{target_file} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"Trait integrated into {name}/{target_file}")
     return {
         "ok": True,
         "msg": f"特征已整合到 {name}/{target_file}，bot 已自动重载",
@@ -523,6 +547,7 @@ async def api_upload_avatar(name: str, file: UploadFile = File(...)):
         if old.is_file() and old.suffix.lower() in ('.jpg', '.jpeg', '.png'):
             old.unlink()
     (static_photo_dir / f"avatar{suffix}").write_bytes(content)
+    logger.info(f"Avatar uploaded for skill: {name} ({len(content)} bytes)")
     return {"ok": True, "msg": f"头像上传成功 ({len(content)} bytes)"}
 
 
@@ -530,7 +555,10 @@ async def api_upload_avatar(name: str, file: UploadFile = File(...)):
 async def api_delete_skill(name: str):
     if not _safe_name(name):
         return {"ok": False, "msg": "Invalid name"}
-    return skill_manager.delete_skill(name)
+    result = skill_manager.delete_skill(name)
+    if result.get("ok"):
+        logger.info(f"Skill deleted: {name}")
+    return result
 
 
 # ── 参数设置 ──
@@ -618,13 +646,21 @@ async def api_update_settings(request: Request):
         _RUNTIME_SETTINGS_FILE.write_text(
             json.dumps(validated, ensure_ascii=False, indent=2), encoding="utf-8"
         )
+    except PermissionError:
+        return {"ok": False, "msg": "写入配置失败: 权限不足，请检查文件权限"}
+    except OSError as e:
+        return {"ok": False, "msg": f"写入配置失败: 系统错误 - {e}"}
     except Exception as e:
-        return {"ok": False, "msg": f"写入配置失败: {e}"}
+        return {"ok": False, "msg": f"写入配置失败: {type(e).__name__} - {e}"}
     # 触发 bot 热加载
     _SETTINGS_RELOAD_TRIGGER.write_text(f"settings updated at {time.strftime('%Y-%m-%d %H:%M:%S')}")
     changed = ", ".join(validated.keys())
     logger.info(f"Settings updated: {changed}")
     return {"ok": True, "msg": f"已保存 {len(validated)} 项参数，Bot 将在下一条消息时生效"}
+
+
+# ── WebSocket 配置 ──
+WS_PUSH_INTERVAL = int(os.getenv("WS_PUSH_INTERVAL", "5"))  # WebSocket 推送间隔（秒）
 
 
 # ── WebSocket 实时状态（带错误恢复）──
@@ -638,10 +674,15 @@ async def ws_status(websocket: WebSocket):
                 # 附加看门狗状态
                 status["watchdog"] = monitor.get_watchdog_status()
                 await websocket.send_json(status)
-            except Exception as e:
-                logger.error(f"WebSocket send error: {e}")
+            except WebSocketDisconnect:
+                raise  # 重新抛出，由外层处理
+            except ConnectionError as e:
+                logger.warning(f"WebSocket connection error: {e}")
                 break
-            await asyncio.sleep(3)
+            except Exception as e:
+                logger.error(f"WebSocket send error: {type(e).__name__}: {e}")
+                break
+            await asyncio.sleep(WS_PUSH_INTERVAL)
     except WebSocketDisconnect:
         pass
     except Exception as e:

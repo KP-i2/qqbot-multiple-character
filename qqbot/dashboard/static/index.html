@@ -699,8 +699,16 @@ code{font-family:var(--font-mono);font-size:0.9em}
       <h3 style="font-size:10px;color:var(--text2);letter-spacing:1.2px;font-weight:600;text-transform:uppercase;font-family:var(--font-ui);display:flex;align-items:center;gap:8px"><span class="icon purple">&#127917;</span> 技能列表</h3>
       <div style="display:flex;gap:6px">
         <button class="btn btn-outline btn-sm" onclick="reloadBotSkills()">重载技能</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleBatchMode()">批量操作</button>
         <button class="btn btn-primary btn-sm" onclick="showCreateSkill()">+ 新建技能</button>
       </div>
+    </div>
+    <div id="batchToolbar" class="hidden" style="max-width:1060px;margin:0 auto 10px;padding:0 24px;display:flex;gap:8px;align-items:center">
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+        <input type="checkbox" id="selectAllSkills" onchange="toggleSelectAll(this.checked)"> 全选
+      </label>
+      <button class="btn btn-danger btn-sm" onclick="batchDeleteSkills()">批量删除</button>
+      <span id="selectedCount" style="color:var(--text2);font-size:13px">已选 0 项</span>
     </div>
     <div class="roster-grid skills-grid" id="skillsGrid"><div class="empty" style="grid-column:1/-1">加载技能中...</div></div>
     <div id="retrainProgressPanels" style="max-width:1060px;margin:14px auto 0;padding:0 24px"></div>
@@ -1044,7 +1052,22 @@ function switchTab(el,name){
   if(name==='cookie')loadCookieStatus();if(name==='corpus')loadCorpus();
   if(name==='skills')loadSkills();
   if(name==='settings')loadSettings();
+  // 保存当前标签页到 localStorage
+  try{localStorage.setItem('dashboard_active_tab',name)}catch(e){}
 }
+
+// 恢复上次访问的标签页
+function restoreLastTab(){
+  try{
+    const lastTab=localStorage.getItem('dashboard_active_tab');
+    if(lastTab){
+      const tabEl=document.querySelector('.tab[onclick*="'+lastTab+'"]');
+      if(tabEl)switchTab(tabEl,lastTab);
+    }
+  }catch(e){}
+}
+// 页面加载后恢复标签页
+document.addEventListener('DOMContentLoaded',restoreLastTab);
 
 function switchImportTab(el,tabId){
   document.querySelectorAll('#tab-corpus .editor-tab').forEach(t=>t.classList.remove('active'));
@@ -1156,7 +1179,8 @@ async function startAll(){
   catch(e){toast('启动出错: '+e.message,false)}
 }
 async function restartNonebot(btn){
-  if(!confirm('重启 NoneBot2？'))return;
+  const msg='⚠️ 确认重启 NoneBot2\n\n此操作将：\n• 停止当前运行的 NoneBot2 进程\n• 等待 2 秒后重新启动\n• 等待端口就绪（最多 15 秒）\n\n重启期间 Bot 将暂时不可用';
+  if(!confirm(msg))return;
   btnLoading(btn,true,'重启中...');toast('正在重启 NoneBot2...',true);
   try{const d=await(await safeFetch('/api/process/full-restart',{method:'POST'},30000)).json();toast(d.msg,d.ok)}
   catch(e){toast('重启出错: '+e.message,false)}finally{btnLoading(btn,false)}
@@ -1250,7 +1274,10 @@ async function loadSkills(){
       const retrainBtn=s.corpus_ref
         ?'<button class="btn btn-outline btn-xs" onclick="openRetrainModal(\''+escapeHtml(s.name)+'\')">蒸馏</button>'
         :'';
-      h+='<div class="skill-card">'+avatarHtml+
+      const checkboxHtml=_batchMode
+        ?'<input type="checkbox" class="skill-checkbox" data-name="'+escapeHtml(s.name)+'" onchange="updateSelectedCount()" style="position:absolute;top:8px;right:8px">'
+        :'';
+      h+='<div class="skill-card" style="position:relative">'+checkboxHtml+avatarHtml+
         '<div class="skill-name">'+escapeHtml(s.display_name||s.name)+'</div>'+
         '<div class="skill-id">'+escapeHtml(s.name)+'</div>'+
         (s.description?'<div class="skill-desc">'+escapeHtml(s.description)+'</div>':'')+
@@ -1265,14 +1292,43 @@ async function loadSkills(){
     grid.innerHTML=h;
   }catch(e){toast('技能加载失败',false)}
 }
-function showCreateSkill(){document.getElementById('createSkillCard').classList.remove('hidden');loadCorpusOptions()}
+// ── 表单草稿保存 ──
+const _SKILL_FORM_FIELDS=['newSkillName','newSkillDisplay','newSkillDesc','newSkillVer','newSkillPersona','newSkillWork'];
+function saveSkillFormDraft(){
+  try{
+    const draft={};
+    _SKILL_FORM_FIELDS.forEach(id=>{const el=document.getElementById(id);if(el)draft[id]=el.value});
+    localStorage.setItem('skill_form_draft',JSON.stringify(draft));
+  }catch(e){}
+}
+function loadSkillFormDraft(){
+  try{
+    const raw=localStorage.getItem('skill_form_draft');
+    if(!raw)return;
+    const draft=JSON.parse(raw);
+    _SKILL_FORM_FIELDS.forEach(id=>{const el=document.getElementById(id);if(el&&draft[id]!==undefined)el.value=draft[id]});
+  }catch(e){}
+}
+function clearSkillFormDraft(){
+  try{localStorage.removeItem('skill_form_draft')}catch(e){}
+}
+// 监听表单输入，自动保存草稿
+function initSkillFormAutoSave(){
+  _SKILL_FORM_FIELDS.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.addEventListener('input',saveSkillFormDraft);
+  });
+}
+document.addEventListener('DOMContentLoaded',initSkillFormAutoSave);
+
+function showCreateSkill(){document.getElementById('createSkillCard').classList.remove('hidden');loadCorpusOptions();loadSkillFormDraft()}
 function hideCreateSkill(){document.getElementById('createSkillCard').classList.add('hidden')}
 async function loadCorpusOptions(){try{const list=await(await safeFetch('/api/corpus')).json();const sel=document.getElementById('newSkillCorpus');
   sel.innerHTML='<option value="">-- 手动创建 --</option>';
   for(const c of list)sel.innerHTML+='<option value="'+c.uid+'">'+c.uid+' ('+c.total_kb+'KB)'+(c.linked_skill?' ['+c.linked_skill+']':'')+'</option>'}catch(e){}}
 function onCorpusSelect(){const uid=document.getElementById('newSkillCorpus').value;if(uid){const n=uid.split('_')[0];if(!document.getElementById('newSkillName').value)document.getElementById('newSkillName').value=n;if(!document.getElementById('newSkillDisplay').value)document.getElementById('newSkillDisplay').value=n}}
 async function createSkill(ev){const fd=new FormData();fd.append('name',document.getElementById('newSkillName').value);fd.append('display_name',document.getElementById('newSkillDisplay').value);fd.append('description',document.getElementById('newSkillDesc').value);fd.append('version',document.getElementById('newSkillVer').value);fd.append('persona',document.getElementById('newSkillPersona').value);fd.append('work',document.getElementById('newSkillWork').value);
-  const btn=ev;btnLoading(btn,true,'创建中...');try{const d=await(await safeFetch('/api/skills/create',{method:'POST',body:fd})).json();toast(d.msg,d.ok);if(d.ok){loadSkills();loadSkillCount();hideCreateSkill()}}catch(e){toast('创建失败',false)}finally{btnLoading(btn,false)}}
+  const btn=ev;btnLoading(btn,true,'创建中...');try{const d=await(await safeFetch('/api/skills/create',{method:'POST',body:fd})).json();toast(d.msg,d.ok);if(d.ok){loadSkills();loadSkillCount();hideCreateSkill();clearSkillFormDraft()}}catch(e){toast('创建失败',false)}finally{btnLoading(btn,false)}}
 async function createSkillFromCorpus(ev){
   const uid=document.getElementById('newSkillCorpus').value,name=document.getElementById('newSkillName').value.trim(),display=document.getElementById('newSkillDisplay').value.trim();
   const desc=document.getElementById('newSkillDesc').value.trim(),ver=document.getElementById('newSkillVer').value.trim();
@@ -1285,7 +1341,41 @@ async function createSkillFromCorpus(ev){
     toast('蒸馏已开始',true);startProgressPoll(name);loadSkills();loadSkillCount()}
   catch(e){toast('生成失败: '+e.message,false)}finally{btnLoading(btn,false)}}
 function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
-async function deleteSkill(name){if(!confirm('确定删除 "'+name+'"？'))return;try{const d=await(await safeFetch('/api/skills/'+name,{method:'DELETE'})).json();toast(d.msg,d.ok);if(d.ok){loadSkills();loadSkillCount();loadRoster()}}catch(e){toast('删除失败',false)}}
+async function deleteSkill(name){
+  const msg='确定删除技能 "'+name+'"？\n\n⚠️ 此操作将删除：\n• 技能目录及所有文件（persona.md, work.md, SKILL.md）\n• 关联的头像图片\n• 操作不可撤销';
+  if(!confirm(msg))return;
+  try{const d=await(await safeFetch('/api/skills/'+name,{method:'DELETE'})).json();toast(d.msg,d.ok);if(d.ok){loadSkills();loadSkillCount();loadRoster()}}catch(e){toast('删除失败',false)}
+}
+
+// ── 批量操作 ──
+let _batchMode=false;
+function toggleBatchMode(){
+  _batchMode=!_batchMode;
+  document.getElementById('batchToolbar').classList.toggle('hidden',!_batchMode);
+  if(!_batchMode){document.getElementById('selectAllSkills').checked=false}
+  loadSkills();
+}
+function toggleSelectAll(checked){
+  document.querySelectorAll('.skill-checkbox').forEach(cb=>{cb.checked=checked});
+  updateSelectedCount();
+}
+function updateSelectedCount(){
+  const count=document.querySelectorAll('.skill-checkbox:checked').length;
+  document.getElementById('selectedCount').textContent='已选 '+count+' 项';
+}
+async function batchDeleteSkills(){
+  const checked=document.querySelectorAll('.skill-checkbox:checked');
+  if(!checked.length){toast('请先选择要删除的技能',false);return}
+  const names=Array.from(checked).map(cb=>cb.dataset.name);
+  const msg='⚠️ 批量删除确认\n\n即将删除以下 '+names.length+' 个技能：\n\n'+names.map(n=>'• '+n).join('\n')+'\n\n此操作将删除：\n• 每个技能的目录及所有文件\n• 关联的头像图片\n• 操作不可撤销';
+  if(!confirm(msg))return;
+  let success=0,fail=0;
+  for(const name of names){
+    try{const d=await(await safeFetch('/api/skills/'+name,{method:'DELETE'})).json();if(d.ok)success++;else fail++}catch(e){fail++}
+  }
+  toast('删除完成：成功 '+success+' 个，失败 '+fail+' 个',success>0);
+  loadSkills();loadSkillCount();loadRoster();
+}
 
 let _retrainTarget='';
 function openRetrainModal(name){_retrainTarget=name;document.getElementById('retrainModalTitle').textContent='蒸馏配置：'+name;document.getElementById('retrainModal').style.display='flex'}
