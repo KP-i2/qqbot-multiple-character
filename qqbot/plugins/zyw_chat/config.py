@@ -169,6 +169,7 @@ def apply_runtime_config():
     global STREAM_ENABLED, STREAM_FLUSH_CHARS, STREAM_FLUSH_INTERVAL, STREAM_FLUSH_MIN_CHARS, STREAM_MAX_FLUSH_SIZE
     global MAX_HISTORY_ROUNDS, MAX_HISTORY_MESSAGES
     global HISTORY_TTL, HISTORY_SAVE_INTERVAL
+    global THINKING_TIMER_SECONDS, MULTI_TURN_ENABLED
 
     ACTIVE_HOURS_START = int(_runtime_config.get("active_hours_start", 0))
     ACTIVE_HOURS_END = int(_runtime_config.get("active_hours_end", 23))
@@ -183,6 +184,7 @@ def apply_runtime_config():
     HISTORY_TTL = int(_runtime_config.get("history_ttl_hours", 6)) * 3600
     HISTORY_SAVE_INTERVAL = int(_runtime_config.get("history_save_interval", 60))
     THINKING_TIMER_SECONDS = int(_runtime_config.get("thinking_timer_seconds", 5))
+    MULTI_TURN_ENABLED = bool(_runtime_config.get("multi_turn_enabled", True))
 
 
 # 流式输出默认值（apply_runtime_config 会覆盖）
@@ -197,6 +199,7 @@ STREAM_MAX_FLUSH_SIZE = 300
 HISTORY_TTL = 3600 * 6
 HISTORY_SAVE_INTERVAL = 60
 THINKING_TIMER_SECONDS = 5
+MULTI_TURN_ENABLED = True
 
 # 启动时加载并应用
 load_runtime_config()

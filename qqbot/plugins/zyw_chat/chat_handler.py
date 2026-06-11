@@ -243,6 +243,9 @@ async def handle_chat(bot: Bot, event: Event):
         # 添加到历史
         hist.add_to_history(history_key, "user", text)
 
+        # 多轮对话开关：关闭时只保留当前消息，不传历史上下文
+        _effective_history = hist.conversation_histories[history_key] if cfg.MULTI_TURN_ENABLED else []
+
         # 记录收到的消息
         chat_type = "GROUP" if isinstance(event, GroupMessageEvent) else "PRIVATE"
         gid = getattr(event, "group_id", "-")
@@ -275,7 +278,7 @@ async def handle_chat(bot: Bot, event: Event):
                 cfg.chat_logger.info(f"[PROBE] 检测到搜索意图关键词，跳过探测，直接走工具调用")
             else:
                 needs_tools = await llm.probe_tool_usage(
-                    effective_prompt, hist.conversation_histories[history_key], active_name
+                    effective_prompt, _effective_history, active_name
                 )
                 if not needs_tools:
                     use_stream = True
@@ -305,7 +308,7 @@ async def handle_chat(bot: Bot, event: Event):
                     "frequency_penalty": 0.3,
                     "presence_penalty": 0.2,
                     "messages": [{"role": "system", "content": effective_prompt}]
-                                + hist.conversation_histories[history_key],
+                                + _effective_history,
                 }):
                     if not _timer_cancelled:
                         _timer_cancelled = True
@@ -359,13 +362,13 @@ async def handle_chat(bot: Bot, event: Event):
             if not reply and not _stream_already_sent:
                 cfg.chat_logger.warning("[STREAM] 流式输出清洗后为空（可能是工具调用泄露），回退到非流式")
                 try:
-                    reply = await llm.call_deepseek(effective_prompt, hist.conversation_histories[history_key], skill_name=active_name)
+                    reply = await llm.call_deepseek(effective_prompt, _effective_history, skill_name=active_name)
                 except Exception as e:
                     logger.warning(f"[STREAM] fallback error: {e}")
         else:
             # ── 非流式调用 ──
             try:
-                reply = await llm.call_deepseek(effective_prompt, hist.conversation_histories[history_key], skill_name=active_name)
+                reply = await llm.call_deepseek(effective_prompt, _effective_history, skill_name=active_name)
             finally:
                 _timer_cancelled = True
                 timer_task.cancel()
