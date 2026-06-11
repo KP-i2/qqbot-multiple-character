@@ -351,7 +351,7 @@ version: 1.0.0
 | 语料蒸馏 | DeepSeek API |
 | 进程监控 | psutil + asyncio 看门狗 |
 ## 效果测试群
-目前运行bot效果可加群查看(docs/qq测试群.png)
+目前运行bot效果可加群查看![群二维码](qq测试群.jpg)
 ## 致谢
 
 本项目的角色 Skill 体系（`.skill` 目录结构、`SKILL.md` 元数据 + `persona.md` 七层人设 + `work.md` 工作方式）以及语料蒸馏为 AI Skill 的理念，源自 [titanwings/colleague-skill](https://github.com/titanwings/colleague-skill)（dot-skill 项目）。该项目提出了将任何人的思维模型、决策框架和表达风格蒸馏为可复用 AI Skill 的方法，本项目的角色蒸馏流程在此基础上进行了针对 QQ Bot 场景的适配与扩展（多源语料采集、微博/QQ 聊天记录导入、Dashboard 可视化蒸馏管理等）。
