@@ -220,23 +220,32 @@ def parse_qq_faces(text: str) -> Message:
     """
     text = normalize_qq_faces(text)
     msg = Message()
-    pattern = re.compile(r'\[([^\[\]]{1,8})\]')
-    last_end = 0
-    for m in pattern.finditer(text):
-        # 添加匹配前的纯文本
-        before = text[last_end:m.start()]
-        if before:
-            msg += MessageSegment.text(before)
-        face_name = m.group(1)
-        face_id = QQ_FACE_ID_MAP.get(face_name)
-        if face_id is not None:
-            msg += MessageSegment.face(face_id)
+
+    # 先提取 URL，避免 URL 中的方括号被误解析为表情
+    url_pattern = re.compile(r'(https?://[^\s<>]+)')
+    parts = url_pattern.split(text)
+
+    for part in parts:
+        if url_pattern.match(part):
+            # URL 部分直接作为文本发送，确保可点击
+            msg += MessageSegment.text(part)
         else:
-            # 未映射的表情名保留原样（QQ 客户端可能本地识别）
-            msg += MessageSegment.text(m.group(0))
-        last_end = m.end()
-    # 添加尾部文本
-    remaining = text[last_end:]
-    if remaining:
-        msg += MessageSegment.text(remaining)
+            # 非 URL 部分按原逻辑解析表情
+            pattern = re.compile(r'\[([^\[\]]{1,8})\]')
+            last_end = 0
+            for m in pattern.finditer(part):
+                before = part[last_end:m.start()]
+                if before:
+                    msg += MessageSegment.text(before)
+                face_name = m.group(1)
+                face_id = QQ_FACE_ID_MAP.get(face_name)
+                if face_id is not None:
+                    msg += MessageSegment.face(face_id)
+                else:
+                    msg += MessageSegment.text(m.group(0))
+                last_end = m.end()
+            remaining = part[last_end:]
+            if remaining:
+                msg += MessageSegment.text(remaining)
+
     return msg if msg else Message(text)
