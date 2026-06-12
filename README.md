@@ -81,6 +81,26 @@ DEFAULT_SKILL=761
 3. 最终目录结构应为：`qqbot/napcat/NapCat.xxxxx.Shell/NapCatWinBootMain.exe`（`xxxxx` 为版本号，如 `44498`）
 4. 运行 `setup_napcat.bat`，脚本会自动写入反向 WebSocket 连接配置
 
+> **NapCat Desktop WebSocket 配置说明**
+>
+> `setup_napcat.bat` 已自动完成以下配置，通常无需手动操作。如果自动配置失败或需要手动设置，按以下步骤操作：
+>
+> 1. 启动 NapCat 后，在 NapCat Desktop 界面中点击左侧 **网络配置**
+> 2. 点击 **新建** → 选择 **反向 WebSocket**
+> 3. 填写以下参数：
+>
+> | 参数 | 值 |
+> |---|---|
+> | 名称 | 随意填写（如 `zyw`） |
+> | URL | `ws://127.0.0.1:8080/onebot/v11/ws` |
+> | Token | 留空 |
+> | 上报自身消息 | 关闭 |
+> | 消息格式 | array |
+>
+> 4. 保存后确保该条配置处于 **启用** 状态
+>
+> 对应的配置文件位于 `qqbot/napcat/NapCat.xxxxx.Shell/versions/*/resources/app/napcat/config/onebot11_{QQ号}.json`，`setup_napcat.bat` 实际上是自动写入了这份 JSON。
+
 **第五步：首次扫码登录 QQ**
 
 ```bat
