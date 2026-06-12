@@ -13,11 +13,12 @@ from . import config as cfg
 
 
 def _load_normal_paper() -> str:
-    """加载 normal-paper/ 目录下所有 .md 文件作为通用背景知识"""
-    if not cfg.NORMAL_PAPER_DIR.exists():
+    """加载 normal-paper/basic/ 目录下的 .md 文件作为通用背景知识（全量注入 prompt）"""
+    basic_dir = cfg.NORMAL_PAPER_DIR / "basic"
+    if not basic_dir.exists():
         return ""
     parts = []
-    for md_file in sorted(cfg.NORMAL_PAPER_DIR.glob("*.md")):
+    for md_file in sorted(basic_dir.glob("*.md")):
         content = md_file.read_text(encoding="utf-8").strip()
         if content:
             title = md_file.stem  # 文件名去 .md 后缀
@@ -89,6 +90,7 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
         "- 当用户明确提到「查」「搜」「找」「看看」「帮我查」「帮我搜」「了解一下」等查询意图时，必须使用 web_search\n"
         "- 当用户提到具体的团体名、人名、作品名、活动名等你不完全确定的专有名词时，必须先用 web_search 查证\n"
         "- 当用户问到与角色背景、经历、设定相关的问题时，应使用 search_corpus 查询角色资料\n"
+        "- 当用户问到通用背景知识中未涵盖的领域知识（如团体信息、人物关系等）时，也应使用 search_corpus 查询共享资料库\n"
         "- 绝对不要编造搜索结果的口吻（如'搜了一下''查到了'），如果没调用搜索工具就不能假装有搜索结果\n"
         "- 宁可多搜一次也不要编造信息，保持回答的真实性和角色一致性\n"
         "- 搜索结果要自然融入回复，不要暴露搜索过程\n"

@@ -856,13 +856,14 @@ def _resolve_corpus_dir(skill_name: str) -> Optional[Path]:
 
 
 def execute_corpus_search(skill_name: str, keywords: str) -> str:
-    """在 skill 人设文件、corpus 语料库中搜索关键词相关内容。
+    """在 skill 人设文件、corpus 语料库、normal-paper 共享资料库中搜索关键词相关内容。
 
     搜索来源（按优先级）：
     1. skills/{name}/*.md — 角色人设/工作能力等结构化参考
     2. corpus/{name}_{uid}/*.txt — 正式语料库（微博帖子原文）
     3. corpus/{name}_{uid}/*.md — 语料库中的附加参考文档
-    4. corpus/{name}_{uid}/weibo_profile_detail.json — 微博账号档案
+    4. normal-paper/*.md — 所有角色共享的领域资料库
+    5. corpus/{name}_{uid}/weibo_profile_detail.json — 微博账号档案
     """
     skill_dir = cfg.SKILLS_DIR / skill_name
     corpus_dir = _resolve_corpus_dir(skill_name)
@@ -993,7 +994,27 @@ def execute_corpus_search(skill_name: str, keywords: str) -> str:
                     if len(results) >= _MAX_SNIPPETS:
                         break
 
-    # ── 4) 微博账号档案 ──
+    # ── 4) normal-paper 根目录共享资料库（所有角色通用） ──
+    normal_paper_dir = cfg.NORMAL_PAPER_DIR
+    if normal_paper_dir.is_dir():
+        for md_file in sorted(normal_paper_dir.glob("*.md")):
+            if len(results) >= _MAX_SNIPPETS:
+                break
+            try:
+                content = md_file.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            lines = content.split("\n")
+            for i, line in enumerate(lines):
+                if _match_line(line.lower()):
+                    start = max(0, i - 2)
+                    end = min(len(lines), i + 3)
+                    snippet = "\n".join(lines[start:end]).strip()
+                    results.append(f"[资料库:{md_file.name} 第{i+1}行]\n{snippet}")
+                    if len(results) >= _MAX_SNIPPETS:
+                        break
+
+    # ── 5) 微博账号档案 ──
     profile_files = []
     if corpus_dir is not None and corpus_dir.is_dir():
         pf = corpus_dir / "weibo_profile_detail.json"
