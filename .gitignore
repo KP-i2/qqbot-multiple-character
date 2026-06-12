@@ -23,6 +23,9 @@ qqbot/data/
 corpus/
 **/corpus_ref/
 
+# 敏感资料（含真实人物信息，仅本地使用）
+normal-paper/*人物分析*
+
 # Skill 数据（仅保留 761 作为示例）
 qqbot/skills/aoyi/
 qqbot/skills/guuo/
