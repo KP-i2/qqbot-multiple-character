@@ -23,7 +23,7 @@ from . import url_fetcher
 from .rich_message import parse_rich_message
 from .rules import respond_rule
 from .dsml_cleaner import strip_dsml_markup
-from .message_utils import normalize_qq_faces, parse_qq_faces, split_message
+from .message_utils import normalize_qq_faces, parse_qq_faces, split_message, clean_chat_output
 
 
 # --- 消息处理器 ---
@@ -341,7 +341,7 @@ async def handle_chat(bot: Bot, event: Event):
                             _flush_reason = f"time({_time_elapsed:.1f}s)"
                         else:
                             _flush_reason = "sentence_end"
-                        seg_text = strip_dsml_markup(normalize_qq_faces(current_segment.strip()))
+                        seg_text = clean_chat_output(strip_dsml_markup(normalize_qq_faces(current_segment.strip())))
                         current_segment = ""
                         last_flush_time = time.time()
                         if seg_text:
@@ -362,7 +362,7 @@ async def handle_chat(bot: Bot, event: Event):
 
             # 处理尾部残留内容
             if current_segment.strip():
-                seg_text = strip_dsml_markup(normalize_qq_faces(current_segment.strip()))
+                seg_text = clean_chat_output(strip_dsml_markup(normalize_qq_faces(current_segment.strip())))
                 if seg_text:
                     try:
                         await zyw_chat.send(parse_qq_faces(seg_text))
@@ -370,7 +370,7 @@ async def handle_chat(bot: Bot, event: Event):
                     except Exception:
                         pass
 
-            reply = strip_dsml_markup(full_reply.strip()) if full_reply.strip() else None
+            reply = clean_chat_output(strip_dsml_markup(full_reply.strip())) if full_reply.strip() else None
             _stream_already_sent = sent_count > 0
 
             # 流式输出清洗后为空，回退到非流式
@@ -392,9 +392,9 @@ async def handle_chat(bot: Bot, event: Event):
         if reply is None:
             reply = "啊啊窝的脑袋当机惹 [抓狂] 让窝休息一下下再来陪泥聊天好不好 ꒰ᐢ⸝⸝⸝⸝⸝⸝ᐢ꒱"
 
-        # 规范化 QQ 表情格式
+        # 规范化 QQ 表情格式 + 清理空白
         if not use_stream:
-            reply = normalize_qq_faces(reply)
+            reply = clean_chat_output(normalize_qq_faces(reply))
 
         # 添加到历史
         hist.add_to_history(history_key, "assistant", reply)

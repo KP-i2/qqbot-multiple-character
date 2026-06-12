@@ -162,6 +162,19 @@ QQ_FACE_ALIASES: dict[str, str] = {
 }
 
 
+def clean_chat_output(text: str) -> str:
+    """清理聊天输出：压缩多余空行、去除每行首尾空白。
+    用于将 LLM 的 Markdown 风格输出转换为适合 QQ 聊天的紧凑格式。
+    """
+    # 压缩连续换行（\n\n → \n）
+    text = re.sub(r'\n{2,}', '\n', text)
+    # 去除每行首尾空白
+    lines = [line.strip() for line in text.split('\n')]
+    # 去除空行
+    lines = [line for line in lines if line]
+    return '\n'.join(lines)
+
+
 def normalize_qq_faces(text: str) -> str:
     """将 AI 回复中的表情文本规范化为 NTQQ 可识别的格式。
     处理 [微笑]、【微笑】、（微笑）等变体，统一为 [标准名]。
