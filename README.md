@@ -103,6 +103,8 @@ DEFAULT_SKILL=761
 >
 > 4. 点击 **OK** 保存，确保该条配置处于 **启用** 状态
 >
+> ![NapCat WebSocket 客户端配置](docs/napcat-websocket-config.png)
+>
 > 对应的配置文件位于 `qqbot/napcat/NapCat.xxxxx.Shell/versions/*/resources/app/napcat/config/onebot11_{QQ号}.json`，`setup_napcat.bat` 实际上是自动写入了这份 JSON。
 
 **第五步：首次扫码登录 QQ**
