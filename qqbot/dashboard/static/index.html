@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>QQ Bot</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.8em' font-size='90'>Q</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -229,9 +230,11 @@ body::after{
 .tabs::-webkit-scrollbar{display:none}
 .tab{
   padding:10px 18px;cursor:pointer;color:var(--text3);font-size:12px;font-weight:500;
-  border-bottom:1px solid transparent;transition:all 0.25s var(--ease);white-space:nowrap;
+  border:none;border-bottom:1px solid transparent;background:transparent;outline:none;
+  transition:all 0.25s var(--ease);white-space:nowrap;
   position:relative;user-select:none;font-family:var(--font-ui);letter-spacing:0.3px;
 }
+.tab:focus-visible{box-shadow:inset 0 -2px 0 var(--neon)}
 .tab::after{content:'';position:absolute;bottom:-1px;left:50%;width:0;height:1px;background:var(--neon);transition:all 0.3s var(--ease);transform:translateX(-50%)}
 .tab:hover{color:var(--text2)}
 .tab.active{color:var(--neon)}
@@ -549,14 +552,14 @@ code{font-family:var(--font-mono);font-size:0.9em}
 </div>
 
 <!-- ═══ 标签页 ═══ -->
-<div class="tabs">
-  <div class="tab active" onclick="switchTab(this,'process')">进程管理</div>
-  <div class="tab" onclick="switchTab(this,'cookie')">Cookie</div>
-  <div class="tab" onclick="switchTab(this,'corpus')">语料库</div>
-  <div class="tab" onclick="switchTab(this,'skills')">技能管理</div>
-  <div class="tab" onclick="switchTab(this,'logs')">日志</div>
-  <div class="tab" onclick="switchTab(this,'help')">帮助文档</div>
-  <div class="tab" onclick="switchTab(this,'settings')">参数设置</div>
+<div class="tabs" role="tablist" aria-label="管理面板">
+  <button class="tab active" role="tab" aria-selected="true" aria-controls="tab-process" tabindex="0" onclick="switchTab(this,'process')">进程管理</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-cookie" tabindex="-1" onclick="switchTab(this,'cookie')">Cookie</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-corpus" tabindex="-1" onclick="switchTab(this,'corpus')">语料库</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-skills" tabindex="-1" onclick="switchTab(this,'skills')">技能管理</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-logs" tabindex="-1" onclick="switchTab(this,'logs')">日志</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-help" tabindex="-1" onclick="switchTab(this,'help')">帮助文档</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-settings" tabindex="-1" onclick="switchTab(this,'settings')">参数设置</button>
 </div>
 
 <div class="content">
@@ -570,7 +573,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
   </div>
 
   <!-- ═══ 进程管理 ═══ -->
-  <div id="tab-process" class="tab-content">
+  <div id="tab-process" class="tab-content" role="tabpanel">
     <div class="card">
       <div class="flex-between">
         <h3><span class="icon green">&#9889;</span> 服务控制</h3>
@@ -625,7 +628,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
   </div>
 
   <!-- ═══ Cookie ═══ -->
-  <div id="tab-cookie" class="tab-content hidden">
+  <div id="tab-cookie" class="tab-content hidden" role="tabpanel">
     <div class="card">
       <h3><span class="icon yellow">&#127850;</span> 微博 Cookie</h3>
       <div class="stat-grid mb-8">
@@ -642,7 +645,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
   </div>
 
   <!-- ═══ 语料库 ═══ -->
-  <div id="tab-corpus" class="tab-content hidden">
+  <div id="tab-corpus" class="tab-content hidden" role="tabpanel">
     <div class="card">
       <h3><span class="icon pink">&#128228;</span> 数据导入</h3>
       <div class="editor-tabs" style="margin-bottom:14px">
@@ -695,7 +698,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
   </div>
 
   <!-- ═══ 技能管理 ═══ -->
-  <div id="tab-skills" class="tab-content hidden">
+  <div id="tab-skills" class="tab-content hidden" role="tabpanel">
     <div class="flex-between mb-8" style="padding:0 24px;max-width:1060px;margin:0 auto">
       <h3 style="font-size:10px;color:var(--text2);letter-spacing:1.2px;font-weight:600;text-transform:uppercase;font-family:var(--font-ui);display:flex;align-items:center;gap:8px"><span class="icon purple">&#127917;</span> 技能列表</h3>
       <div style="display:flex;gap:6px">
@@ -782,7 +785,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
   </div>
 
   <!-- ═══ 日志查看 ═══ -->
-  <div id="tab-logs" class="tab-content hidden">
+  <div id="tab-logs" class="tab-content hidden" role="tabpanel">
     <div class="card">
       <div class="flex-between mb-8">
         <h3><span class="icon cyan">&#128196;</span> 系统日志</h3>
@@ -807,7 +810,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
   </div>
 
   <!-- ═══ 帮助文档 ═══ -->
-  <div id="tab-help" class="tab-content hidden">
+  <div id="tab-help" class="tab-content hidden" role="tabpanel">
     <div class="card">
       <h3><span class="icon green">&#128640;</span> 快速上手</h3>
       <div style="font-size:12px;color:var(--text2);line-height:2.2;font-family:var(--font-ui)">
@@ -955,7 +958,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
   </div>
 
   <!-- ═══ 参数设置 ═══ -->
-  <div id="tab-settings" class="tab-content hidden">
+  <div id="tab-settings" class="tab-content hidden" role="tabpanel">
     <div class="card">
       <h3><span class="icon cyan">&#9881;</span> Bot 行为</h3>
       <p class="desc">调整机器人基础行为参数，保存后即时生效（无需重启）。</p>
@@ -1159,15 +1162,24 @@ async function loadLogFile(){
 // 切换到日志标签页时自动加载
 function switchTab(el,name){
   document.querySelectorAll('.tab-content').forEach(e=>e.classList.add('hidden'));
-  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.remove('hidden');el.classList.add('active');
+  document.querySelectorAll('[role="tab"]').forEach(t=>{t.classList.remove('active');t.setAttribute('aria-selected','false');t.tabIndex=-1});
+  document.getElementById('tab-'+name).classList.remove('hidden');el.classList.add('active');el.setAttribute('aria-selected','true');el.tabIndex=0;el.focus();
   if(name==='cookie')loadCookieStatus();if(name==='corpus')loadCorpus();
   if(name==='skills')loadSkills();
   if(name==='settings')loadSettings();
   if(name==='logs'){loadLogFiles();loadLogFile()}
-  // 保存当前标签页到 localStorage
   try{localStorage.setItem('dashboard_active_tab',name)}catch(e){}
 }
+// 键盘导航：← → 切换标签页，Home/End 跳首尾
+document.querySelector('[role="tablist"]').addEventListener('keydown',function(e){
+  const tabs=[...this.querySelectorAll('[role="tab"]')];const i=tabs.indexOf(document.activeElement);if(i<0)return;
+  let next=-1;
+  if(e.key==='ArrowRight')next=(i+1)%tabs.length;
+  else if(e.key==='ArrowLeft')next=(i-1+tabs.length)%tabs.length;
+  else if(e.key==='Home')next=0;
+  else if(e.key==='End')next=tabs.length-1;
+  if(next>=0){e.preventDefault();tabs[next].click()}
+});
 
 // ── 语料列表（增强版：元信息 + 技能联动） ──
 const _settingKeys=['active_hours_start','active_hours_end','web_search_enabled','multi_turn_enabled','stream_enabled','stream_flush_chars','stream_flush_interval','stream_flush_min_chars','stream_max_flush_size','max_history_rounds','history_ttl_hours','history_save_interval','thinking_timer_seconds'];
@@ -1207,7 +1219,7 @@ async function saveSettings(btn){
 function toast(msg,ok=true,type=null){
   const dk=msg+(type||(ok?'ok':'err')),now=Date.now();
   if(_toastDedup.has(dk)&&now-_toastDedup.get(dk)<5000)return;_toastDedup.set(dk,now);
-  const cls=type==='warn'?'toast-warn':(ok?'toast-ok':'toast-err'),el=document.createElement('div');el.className='toast '+cls;
+  const cls=type==='warn'?'toast-warn':(ok?'toast-ok':'toast-err'),el=document.createElement('div');el.className='toast '+cls;el.setAttribute('role','alert');el.setAttribute('aria-live','polite');
   const ex=document.querySelectorAll('.toast');let top=16;ex.forEach(t=>{top=Math.max(top,t.offsetTop+t.offsetHeight+6)});el.style.top=top+'px';
   const sp=document.createElement('span');sp.textContent=msg;sp.style.flex='1';el.appendChild(sp);
   const cb=document.createElement('button');cb.className='toast-close';cb.textContent='\u2715';cb.onclick=()=>el.remove();el.appendChild(cb);
@@ -1489,10 +1501,8 @@ async function batchDeleteSkills(){
   const names=Array.from(checked).map(cb=>cb.dataset.name);
   const msg='⚠️ 批量删除确认\n\n即将删除以下 '+names.length+' 个技能：\n\n'+names.map(n=>'• '+n).join('\n')+'\n\n此操作将删除：\n• 每个技能的目录及所有文件\n• 关联的头像图片\n• 操作不可撤销';
   if(!confirm(msg))return;
-  let success=0,fail=0;
-  for(const name of names){
-    try{const d=await(await safeFetch('/api/skills/'+name,{method:'DELETE'})).json();if(d.ok)success++;else fail++}catch(e){fail++}
-  }
+  const results=await Promise.allSettled(names.map(name=>safeFetch('/api/skills/'+name,{method:'DELETE'}).then(r=>r.json())));
+  let success=0,fail=0;results.forEach(r=>{if(r.status==='fulfilled'&&r.value.ok)success++;else fail++});
   toast('删除完成：成功 '+success+' 个，失败 '+fail+' 个',success>0);
   loadSkills();loadSkillCount();loadRoster();
 }
