@@ -263,22 +263,22 @@ async def _watchdog_loop(interval: int = 30):
 
     while _watchdog_running:
         try:
-            nb_status = get_nonebot2_status()
+            nb_status = await asyncio.get_event_loop().run_in_executor(None, get_nonebot2_status)
 
             # NoneBot2 挂了 → 自动重启
             if not nb_status["running"]:
                 logger.warning("[watchdog] NoneBot2 is down, auto-restarting...")
-                result = start_nonebot2()
+                result = await asyncio.get_event_loop().run_in_executor(None, start_nonebot2)
                 logger.info(f"[watchdog] NoneBot2 restart: {result['msg']}")
                 _ws_warn_count = 0  # 重置 WS 告警计数
                 # 等端口就绪
                 for _ in range(15):
-                    if check_port_open(NONEBOT_PORT):
+                    if await asyncio.get_event_loop().run_in_executor(None, check_port_open, NONEBOT_PORT):
                         break
                     await asyncio.sleep(1)
             else:
                 # NoneBot2 运行时，检查 WebSocket 连接
-                ws_ok = check_ws_connected(NONEBOT_PORT)
+                ws_ok = await asyncio.get_event_loop().run_in_executor(None, check_ws_connected, NONEBOT_PORT)
                 if ws_ok:
                     _ws_warn_count = 0
                 else:

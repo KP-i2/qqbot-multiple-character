@@ -32,6 +32,7 @@ async def handle_reset(event: Event):
         key = hist.get_history_key(event)
         hist.clear_history(key)
         await cmd_reset.finish("好叭！窝把之前聊的都忘光光啦 (◍•ᴗ•◍)❤ 重新开始叭～")
+    api_client.release_user_lock(uid)
 
 
 @cmd_skills.handle()
@@ -87,6 +88,7 @@ async def handle_switch(bot: Bot, event: Event):
             f"{skill.description or ''}\n"
             f"之后大家聊天都会用这个角色辽～"
         )
+    api_client.release_user_lock(uid)
 
 
 @cmd_current.handle()

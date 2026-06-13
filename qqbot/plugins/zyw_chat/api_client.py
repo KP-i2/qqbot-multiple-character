@@ -25,6 +25,13 @@ def get_user_lock(uid: str) -> asyncio.Lock:
     return _user_processing[uid]
 
 
+def release_user_lock(uid: str):
+    """释放用户锁（无竞争时清理，防止内存泄漏）"""
+    lock = _user_processing.get(uid)
+    if lock and not lock.locked():
+        _user_processing.pop(uid, None)
+
+
 # ── 持久化 HTTP 客户端 ──
 _http_client: Optional[httpx.AsyncClient] = None
 

@@ -206,7 +206,7 @@ async def api_upload_cookie(file: UploadFile = File(...)):
 # ── 语料管理 ──
 @app.get("/api/corpus")
 async def api_list_corpora():
-    return weibo_fetcher.list_corpora()
+    return await asyncio.get_event_loop().run_in_executor(None, weibo_fetcher.list_corpora)
 
 
 @app.get("/api/corpus/{uid}")
@@ -279,7 +279,9 @@ async def api_qq_senders(file: UploadFile = File(...)):
         tmp.write(content)
         tmp_path = tmp.name
     try:
-        return weibo_fetcher.list_senders(tmp_path)
+        return await asyncio.get_event_loop().run_in_executor(
+            None, weibo_fetcher.list_senders, tmp_path
+        )
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
@@ -294,8 +296,12 @@ async def api_import_text(
         return {"ok": False, "msg": "Invalid UID"}
     content = await file.read()
     _check_upload_size(content, 10)
-    filename = file.filename or "import.txt"
-    result = weibo_fetcher.import_text_file(content, filename, uid, name)
+    filename = Path(file.filename or "import.txt").name  # 去掉目录组件，防路径穿越
+    if not _safe_path_component(filename):
+        return {"ok": False, "msg": "Invalid filename"}
+    result = await asyncio.get_event_loop().run_in_executor(
+        None, weibo_fetcher.import_text_file, content, filename, uid, name
+    )
     if result.get("ok"):
         logger.info(f"Text corpus imported: {filename}")
     return result
@@ -356,6 +362,7 @@ async def api_create_skill(
 
 # ── 蒸馏管理（带并发保护）──
 _running_retrains: set[str] = set()
+_retrain_tasks: dict[str, asyncio.Task] = {}  # 保持强引用，防止 GC 销毁
 
 
 @app.post("/api/skills/{name}/retrain")
@@ -366,7 +373,9 @@ async def api_retrain_skill(name: str, character: str = "celebrity", research_pr
     if name in _running_retrains:
         return {"ok": False, "msg": f"蒸馏正在进行中，请等待完成后再试"}
     _running_retrains.add(name)
-    asyncio.create_task(_run_retrain(name, character, research_profile))
+    task = asyncio.create_task(_run_retrain(name, character, research_profile))
+    _retrain_tasks[name] = task
+    task.add_done_callback(lambda t, n=name: _retrain_tasks.pop(n, None))
     logger.info(f"Retrain started: {name} ({character}/{research_profile})")
     return {"ok": True, "msg": f"蒸馏已启动 ({character}/{research_profile})，请在进度面板查看"}
 
@@ -415,6 +424,11 @@ async def api_update_skill_file(name: str, filename: str, request: Request):
     # 文件名允许包含点（如 persona.md）
     if not re.match(r'^[a-zA-Z0-9_\-\.]+$', filename) or '..' in filename:
         return {"ok": False, "msg": "Invalid filename"}
+    # 路径包含检查：确保解析后仍在 skill 目录内
+    skill_dir = (PROJECT_ROOT / "qqbot" / "skills" / name).resolve()
+    target = (skill_dir / filename).resolve()
+    if not str(target).startswith(str(skill_dir)):
+        return {"ok": False, "msg": "Invalid file path"}
     body = await request.json()
     result = skill_manager.update_skill_file(name, filename, body.get("content", ""))
     if result.get("ok"):
@@ -712,7 +726,7 @@ async def ws_status(websocket: WebSocket):
     try:
         while True:
             try:
-                status = monitor.get_all_status()
+                status = await asyncio.get_event_loop().run_in_executor(None, monitor.get_all_status)
                 # 附加看门狗状态
                 status["watchdog"] = monitor.get_watchdog_status()
                 await websocket.send_json(status)

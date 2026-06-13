@@ -177,7 +177,9 @@ async def _call_deepseek_inner(system_prompt: str, messages: list[dict], skill_n
             elif func_name == "search_corpus":
                 kw = func_args.get("keywords", "")
                 cfg.chat_logger.info(f"[CORPUS] 语料库搜索: skill='{skill_name}', keywords='{kw}'")
-                search_text = search.execute_corpus_search(skill_name, kw)
+                search_text = await asyncio.get_event_loop().run_in_executor(
+                    None, search.execute_corpus_search, skill_name, kw
+                )
 
             else:
                 search_text = f"未知工具: {func_name}"

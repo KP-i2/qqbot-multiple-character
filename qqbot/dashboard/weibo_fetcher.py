@@ -176,15 +176,24 @@ async def fetch_weibo(uid: str, progress_callback=None) -> dict:
         temp_script = output_dir / "_fetch_temp.py"
         temp_script.write_text(source, encoding="utf-8")
 
-        # Run the script
-        proc = await asyncio.create_subprocess_exec(
-            sys.executable, "-X", "utf8", str(temp_script),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-        )
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=120)
-        output = stdout.decode("utf-8", errors="ignore")
-        temp_script.unlink(missing_ok=True)
+        try:
+            # Run the script
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, "-X", "utf8", str(temp_script),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=120)
+            output = stdout.decode("utf-8", errors="ignore")
+        except asyncio.TimeoutError:
+            try:
+                proc.kill()
+                await proc.wait()
+            except ProcessLookupError:
+                pass
+            return {"ok": False, "msg": "微博抓取超时（超过 2 分钟），请检查网络连接或减少抓取数量"}
+        finally:
+            temp_script.unlink(missing_ok=True)
 
         # Check for corpus file
         corpus_file = output_dir / "weibo_corpus.txt"
@@ -200,8 +209,6 @@ async def fetch_weibo(uid: str, progress_callback=None) -> dict:
             last_lines = output.strip().split("\n")[-5:] if output else ["No output"]
             return {"ok": False, "msg": f"Corpus file not created.\n" + "\n".join(last_lines)}
 
-    except asyncio.TimeoutError:
-        return {"ok": False, "msg": "微博抓取超时（超过 2 分钟），请检查网络连接或减少抓取数量"}
     except FileNotFoundError as e:
         return {"ok": False, "msg": f"文件未找到: {e}"}
     except PermissionError:

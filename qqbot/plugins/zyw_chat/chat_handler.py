@@ -370,7 +370,7 @@ async def handle_chat(bot: Bot, event: Event):
                     except Exception:
                         pass
 
-            reply = clean_chat_output(strip_dsml_markup(full_reply.strip())) if full_reply.strip() else None
+            reply = clean_chat_output(strip_dsml_markup(normalize_qq_faces(full_reply.strip()))) if full_reply.strip() else None
             _stream_already_sent = sent_count > 0
 
             # 流式输出清洗后为空，回退到非流式
@@ -380,10 +380,22 @@ async def handle_chat(bot: Bot, event: Event):
                     reply = await llm.call_deepseek(effective_prompt, _effective_history, skill_name=active_name)
                 except Exception as e:
                     logger.warning(f"[STREAM] fallback error: {e}")
+            # 流式输出被截断（已发送部分内容但总回复极短），尝试非流式补救
+            elif _stream_already_sent and full_reply.strip() and len(full_reply.strip()) < 20:
+                cfg.chat_logger.warning(f"[STREAM] 流式输出疑似截断（len={len(full_reply.strip())}），尝试非流式补救")
+                try:
+                    reply = await llm.call_deepseek(effective_prompt, _effective_history, skill_name=active_name)
+                    if reply and len(reply) > len(full_reply.strip()):
+                        _stream_already_sent = False  # 用完整回复替代已发送的截断内容
+                except Exception as e:
+                    logger.warning(f"[STREAM] truncation fallback error: {e}")
         else:
             # ── 非流式调用 ──
             try:
                 reply = await llm.call_deepseek(effective_prompt, _effective_history, skill_name=active_name)
+            except Exception as e:
+                logger.error(f"[CHAT] LLM call failed: {e}")
+                reply = None
             finally:
                 _timer_cancelled = True
                 timer_task.cancel()
@@ -452,3 +464,6 @@ async def handle_chat(bot: Bot, event: Event):
                 await emoji_system.maybe_send_emoji(bot, event, text, reply, uid)
             except Exception as e:
                 logger.debug(f"[EMOJI] error: {e}")
+
+    # 用户锁释放后清理（防止内存泄漏）
+    api_client.release_user_lock(uid)

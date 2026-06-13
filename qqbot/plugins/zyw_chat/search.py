@@ -17,6 +17,22 @@ from nonebot import logger
 from . import config as cfg
 
 
+# ── 共享 HTTP 客户端（避免每次搜索都新建连接） ──
+_search_client: Optional[httpx.AsyncClient] = None
+
+
+def _get_search_client() -> httpx.AsyncClient:
+    """获取或创建搜索专用的持久化 HTTP 客户端"""
+    global _search_client
+    if _search_client is None or _search_client.is_closed:
+        _search_client = httpx.AsyncClient(
+            timeout=15,
+            follow_redirects=True,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+    return _search_client
+
+
 # ── Function Calling 工具定义 ──
 SEARCH_TOOLS = [
     {
@@ -95,27 +111,23 @@ async def resolve_baidu_redirect(url: str, timeout_s: int = 5) -> str:
     if not url or "baidu.com/link" not in url:
         return url
     try:
-        async with httpx.AsyncClient(
-            timeout=timeout_s, follow_redirects=False,
-        ) as client:
-            resp = await client.head(url, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            })
-            if resp.status_code in (301, 302, 303, 307, 308):
-                location = resp.headers.get("location", "")
-                if location and "baidu.com" not in location:
-                    return location
+        client = _get_search_client()
+        resp = await client.head(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        }, follow_redirects=False)
+        if resp.status_code in (301, 302, 303, 307, 308):
+            location = resp.headers.get("location", "")
+            if location and "baidu.com" not in location:
+                return location
         # 如果HEAD请求失败，尝试GET
-        async with httpx.AsyncClient(
-            timeout=timeout_s, follow_redirects=False,
-        ) as client:
-            resp = await client.get(url, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            }, allow_redirects=False)
-            if resp.status_code in (301, 302, 303, 307, 308):
-                location = resp.headers.get("location", "")
-                if location and "baidu.com" not in location:
-                    return location
+        client = _get_search_client()
+        resp = await client.get(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        }, follow_redirects=False, allow_redirects=False)
+        if resp.status_code in (301, 302, 303, 307, 308):
+            location = resp.headers.get("location", "")
+            if location and "baidu.com" not in location:
+                return location
     except Exception as e:
         logger.debug(f"[baidu_redirect] 解析失败 {url[:60]}: {e}")
     return url
@@ -134,10 +146,8 @@ async def fetch_page_content(url: str, timeout_s: int = _PAGE_FETCH_TIMEOUT) -> 
         "Accept-Language": "zh-CN,zh;q=0.9",
     }
     try:
-        async with httpx.AsyncClient(
-            timeout=timeout_s, follow_redirects=True,
-        ) as client:
-            resp = await client.get(url, headers=headers)
+        client = _get_search_client()
+        resp = await client.get(url, headers=headers)
 
         # ── fandom.com Cloudflare 反爬绕过：使用 MediaWiki API ──
         if "fandom.com" in url and (
@@ -154,13 +164,11 @@ async def fetch_page_content(url: str, timeout_s: int = _PAGE_FETCH_TIMEOUT) -> 
                     f"&prop=text&format=json"
                 )
                 try:
-                    async with httpx.AsyncClient(
-                        timeout=timeout_s, follow_redirects=True,
-                    ) as api_client:
-                        api_resp = await api_client.get(
-                            api_url,
-                            headers={"User-Agent": headers["User-Agent"], "Accept": "application/json"},
-                        )
+                    api_client = _get_search_client()
+                    api_resp = await api_client.get(
+                        api_url,
+                        headers={"User-Agent": headers["User-Agent"], "Accept": "application/json"},
+                    )
                     if api_resp.status_code == 200:
                         data = api_resp.json()
                         title = data.get("parse", {}).get("title", "")
@@ -312,8 +320,8 @@ async def search_weibo_direct(query: str, max_results: int = 5, timeout_s: float
         headers["X-XSRF-TOKEN"] = cookie_data["xsrf"]
 
     try:
-        async with httpx.AsyncClient(timeout=timeout_s, follow_redirects=False) as client:
-            resp = await client.get(url, headers=headers)
+        client = _get_search_client()
+        resp = await client.get(url, headers=headers, follow_redirects=False)
 
         if resp.status_code in (301, 302, 303):
             logger.warning(f"[weibo] cookie 已过期 (HTTP {resp.status_code})，需要更新 cookies.json")
@@ -384,8 +392,8 @@ async def search_sogou(query: str, max_results: int = 10, timeout_s: float = 12)
     }
 
     try:
-        async with httpx.AsyncClient(timeout=timeout_s, follow_redirects=True) as client:
-            resp = await client.get(url, headers=headers)
+        client = _get_search_client()
+        resp = await client.get(url, headers=headers)
         resp.raise_for_status()
         html = resp.text
     except httpx.TimeoutException:
@@ -455,8 +463,8 @@ async def search_baidu(query: str, max_results: int = 10, timeout_s: float = 15)
     }
 
     try:
-        async with httpx.AsyncClient(timeout=timeout_s, follow_redirects=True) as client:
-            resp = await client.get(url, headers=headers)
+        client = _get_search_client()
+        resp = await client.get(url, headers=headers)
         resp.raise_for_status()
         html = resp.text
     except httpx.TimeoutException:
@@ -544,8 +552,8 @@ async def search_ddg_instant(query: str, timeout_s: float = 8) -> list:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     }
     try:
-        async with httpx.AsyncClient(timeout=timeout_s) as client:
-            resp = await client.get(url, headers=headers)
+        client = _get_search_client()
+        resp = await client.get(url, headers=headers)
         if resp.status_code != 200:
             return []
         data = resp.json()
