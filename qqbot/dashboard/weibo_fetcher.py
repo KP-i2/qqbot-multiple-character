@@ -164,8 +164,10 @@ async def fetch_weibo(uid: str, progress_callback=None) -> dict:
             source
         )
         # 修复 cookies.json 路径：指向项目根目录
+        # 注意：原始脚本可能是 COOKIES_FILE = os.path.join(...) 而非字符串赋值，
+        # 所以用 .+ 匹配整行而非只匹配字符串字面量
         source = re.sub(
-            r"COOKIES_FILE\s*=\s*r?(['\"]).*?\1",
+            r"COOKIES_FILE\s*=\s*.+",
             f"COOKIES_FILE = r'{COOKIES_FILE}'".replace("\\", "\\\\"),
             source
         )
