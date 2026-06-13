@@ -1056,7 +1056,7 @@ async function loadRoster(){
   for(const id of allNames){
     const display=nameMap[id]||id;const photo=_PHOTOS[id];
     const avatarHtml=photo
-      ?'<img class="roster-avatar" src="'+photo+'?t='+t+'" onerror="this.outerHTML=\'<div class=roster-fallback>'+escapeHtml(id[0].toUpperCase())+'</div>\'" />'
+      ?'<img class="roster-avatar" src="'+photo+'?t='+t+'" onerror="_imgError(this,\'roster-fallback\',\''+escapeHtml(id[0].toUpperCase())+'\')" />'
       :'<div class="roster-fallback">'+escapeHtml(id[0].toUpperCase())+'</div>';
     html+='<div class="roster-card">'+avatarHtml+
       '<div class="roster-name">'+escapeHtml(display)+'</div>'+
@@ -1219,7 +1219,9 @@ async function safeFetch(url,opts={},timeoutMs=120000){
   const hdrs={'X-Dashboard-Token':window._DASHBOARD_TOKEN||''};
   // 仅当 body 非 FormData 时加 Content-Type（FormData 自动处理 boundary）
   if(opts.body&&!(opts.body instanceof FormData))hdrs['Content-Type']='application/json';
-  try{const r=await fetch(url,{...opts,headers:{...hdrs,...(opts.headers||{})},signal:c.signal});clearTimeout(t);return r}
+  try{const r=await fetch(url,{...opts,headers:{...hdrs,...(opts.headers||{})},signal:c.signal});clearTimeout(t);
+    if(!r.ok){let msg=r.statusText;try{const j=await r.json();if(j.msg)msg=j.msg}catch(_e){}throw new Error('HTTP '+r.status+': '+msg)}
+    return r}
   catch(e){clearTimeout(t);throw e.name==='AbortError'?new Error('请求超时'):e}
 }
 function btnLoading(btn,loading,text=''){
@@ -1229,11 +1231,12 @@ function btnLoading(btn,loading,text=''){
 
 function connectWS(){
   const p=location.protocol==='https:'?'wss:':'ws:';
-  try{ws=new WebSocket(p+'//'+location.host+'/ws/status')}catch(e){setTimeout(connectWS,wsRetryDelay);return}
+  const token=encodeURIComponent(window._DASHBOARD_TOKEN||'');
+  try{ws=new WebSocket(p+'//'+location.host+'/ws/status?token='+token)}catch(e){setTimeout(connectWS,wsRetryDelay);return}
   ws.onopen=()=>{const el=document.getElementById('wsStatus');el.textContent='已连接';el.className='ws-badge connected';wsRetryCount=0;wsRetryDelay=1000};
   ws.onclose=()=>{const el=document.getElementById('wsStatus');el.className='ws-badge disconnected';
     wsRetryCount++;wsRetryDelay=Math.min(wsRetryDelay*1.5,30000);el.textContent='重连('+wsRetryCount+')';setTimeout(connectWS,wsRetryDelay)};
-  ws.onerror=()=>{};ws.onmessage=(e)=>{try{updateStatus(JSON.parse(e.data))}catch(err){}};
+  ws.onerror=()=>{};ws.onmessage=(e)=>{try{const d=JSON.parse(e.data);if(d&&typeof d==='object'&&d.nonebot2)updateStatus(d)}catch(err){}};
 }
 
 function updateStatus(s){
@@ -1326,7 +1329,8 @@ async function generateSkill(ev){const fd=new FormData();fd.append('uid',documen
 async function viewCorpus(uid){try{const d=await(await safeFetch('/api/corpus/'+uid)).json();if(!d.ok){toast(d.msg,false);return}
   let c=uid+'\n'+'='.repeat(50)+'\n\n';for(const f of d.files)c+='--- '+f.name+' ('+f.size_kb+'KB) ---\n'+f.preview+'\n...\n\n';
   const w=window.open('','_blank');if(!w){toast('弹窗被阻止',false);return}
-  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+escapeHtml(uid)+'</title></head><body style="margin:0;background:#1a1a2e;color:#e0e0e0"><pre style="font-family:monospace;font-size:13px;padding:20px;white-space:pre-wrap">'+escapeHtml(c)+'</pre></body></html>')}catch(e){toast('查看失败',false)}}
+  const cs=getComputedStyle(document.documentElement);const bg=cs.getPropertyValue('--void').trim()||'#0a0a1a';const fg=cs.getPropertyValue('--text').trim()||'#c8d6e5';const mono=cs.getPropertyValue('--font-mono').trim()||'monospace';
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+escapeHtml(uid)+'</title></head><body style="margin:0;background:'+bg+';color:'+fg+'"><pre style="font-family:'+mono+';font-size:13px;padding:20px;white-space:pre-wrap">'+escapeHtml(c)+'</pre></body></html>')}catch(e){toast('查看失败',false)}}
 async function fetchWeibo(ev){const uid=document.getElementById('weiboUid').value.trim();if(!uid){toast('请输入 UID',false);return}
   const btn=ev;btnLoading(btn,true,'抓取中...');document.getElementById('weiboLog').style.display='block';
   document.getElementById('weiboLog').textContent='> 正在抓取...';
@@ -1374,7 +1378,7 @@ function renderSkills(list){
     const t=Date.now();
     const initial=(s.display_name||s.name)[0].toUpperCase();
     const avatarHtml=photo
-      ?'<img class="skill-avatar" src="'+photo+'?t='+t+'" onerror="this.outerHTML=\'<div class=skill-fallback>'+escapeHtml(initial)+'</div>\'" />'
+      ?'<img class="skill-avatar" src="'+photo+'?t='+t+'" onerror="_imgError(this,\'skill-fallback\',\''+escapeHtml(initial)+'\')" />'
       :'<div class="skill-fallback">'+escapeHtml(initial)+'</div>';
     const versionBadge=s.version?'<span class="skill-badge">v'+escapeHtml(s.version)+'</span>':'';
     const corpusBadge=s.corpus_ref
@@ -1456,6 +1460,7 @@ async function createSkillFromCorpus(ev){
     toast('蒸馏已开始',true);startProgressPoll(name);loadSkills();loadSkillCount()}
   catch(e){toast('生成失败: '+e.message,false)}finally{btnLoading(btn,false)}}
 function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function _imgError(img,fallbackClass,letter){var d=document.createElement('div');d.className=fallbackClass;d.textContent=letter;img.replaceWith(d)}
 async function deleteSkill(name){
   const msg='确定删除技能 "'+name+'"？\n\n⚠️ 此操作将删除：\n• 技能目录及所有文件（persona.md, work.md, SKILL.md）\n• 关联的头像图片\n• 操作不可撤销';
   if(!confirm(msg))return;
