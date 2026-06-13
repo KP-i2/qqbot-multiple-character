@@ -155,7 +155,7 @@ async def fetch_weibo(uid: str, progress_callback=None) -> dict:
         source = fetcher_path.read_text(encoding="utf-8")
         source = re.sub(
             r"OUTPUT_DIR\s*=\s*r?(['\"]).*?\1",
-            f"OUTPUT_DIR = r'{output_dir}'",
+            f"OUTPUT_DIR = r'{output_dir}'".replace("\\", "\\\\"),
             source
         )
         source = re.sub(
@@ -166,7 +166,7 @@ async def fetch_weibo(uid: str, progress_callback=None) -> dict:
         # 修复 cookies.json 路径：指向项目根目录
         source = re.sub(
             r"COOKIES_FILE\s*=\s*r?(['\"]).*?\1",
-            f"COOKIES_FILE = r'{COOKIES_FILE}'",
+            f"COOKIES_FILE = r'{COOKIES_FILE}'".replace("\\", "\\\\"),
             source
         )
 
