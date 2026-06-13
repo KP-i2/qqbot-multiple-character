@@ -91,8 +91,8 @@ async def index():
     # 注入 auth token 供前端使用（转义防止 XSS）
     safe_token = html.escape(DASHBOARD_TOKEN, quote=True)
     token_script = f'<script>window._DASHBOARD_TOKEN="{safe_token}";</script>'
-    html = _INDEX_HTML.replace("</head>", token_script + "</head>", 1)
-    return HTMLResponse(content=html, headers={"Cache-Control": "no-store"})
+    page_html = _INDEX_HTML.replace("</head>", token_script + "</head>", 1)
+    return HTMLResponse(content=page_html, headers={"Cache-Control": "no-store"})
 
 
 # ── 进程监控 ──
