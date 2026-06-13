@@ -2,6 +2,7 @@
 import json, os, re, time, asyncio
 import httpx
 from pathlib import Path
+from typing import Optional
 from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -13,6 +14,19 @@ DOT_SKILL_DIR = PROJECT_ROOT / "_cache" / "colleague-skill"
 _env_file = PROJECT_ROOT / "qqbot" / ".env"
 if _env_file.exists():
     load_dotenv(_env_file)
+
+# ── 共享 HTTP 客户端（蒸馏管线复用连接） ──
+_deepseek_client: Optional[httpx.AsyncClient] = None
+
+
+def _get_deepseek_client() -> httpx.AsyncClient:
+    global _deepseek_client
+    if _deepseek_client is None or _deepseek_client.is_closed:
+        _deepseek_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(300, connect=15.0),
+            limits=httpx.Limits(max_connections=5, max_keepalive_connections=3),
+        )
+    return _deepseek_client
 
 
 # ── 蒸馏进度追踪 ──
@@ -42,21 +56,20 @@ async def _deepseek_call(messages: list, temperature: float = 0.7, max_tokens: i
     if not api_key:
         return False, "DEEPSEEK_API_KEY not configured in .env"
     try:
-        _timeout = httpx.Timeout(timeout, connect=10.0)
-        async with httpx.AsyncClient(timeout=_timeout) as client:
-            resp = await client.post(
-                f"{base_url}/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={
-                    "model": model,
-                    "messages": messages,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return True, data["choices"][0]["message"]["content"]
+        client = _get_deepseek_client()
+        resp = await client.post(
+            f"{base_url}/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return True, data["choices"][0]["message"]["content"]
     except httpx.TimeoutException:
         return False, "DeepSeek API timeout (超过 5 分钟)"
     except httpx.HTTPStatusError as e:
@@ -176,6 +189,7 @@ async def fetch_weibo(uid: str, progress_callback=None) -> dict:
         temp_script = output_dir / "_fetch_temp.py"
         temp_script.write_text(source, encoding="utf-8")
 
+        proc = None
         try:
             # Run the script
             proc = await asyncio.create_subprocess_exec(
@@ -186,11 +200,12 @@ async def fetch_weibo(uid: str, progress_callback=None) -> dict:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=120)
             output = stdout.decode("utf-8", errors="ignore")
         except asyncio.TimeoutError:
-            try:
-                proc.kill()
-                await proc.wait()
-            except ProcessLookupError:
-                pass
+            if proc is not None:
+                try:
+                    proc.kill()
+                    await proc.wait()
+                except ProcessLookupError:
+                    pass
             return {"ok": False, "msg": "微博抓取超时（超过 2 分钟），请检查网络连接或减少抓取数量"}
         finally:
             temp_script.unlink(missing_ok=True)

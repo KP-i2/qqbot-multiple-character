@@ -75,13 +75,6 @@ def _check_upload_size(content: bytes, max_mb: int = 10):
         raise HTTPException(status_code=413, detail=f"File too large (max {max_mb}MB)")
 
 
-def verify_token(request: Request):
-    """简单 token 认证：通过 header 或 query 参数（供外部调用）"""
-    token = request.headers.get("X-Dashboard-Token") or request.query_params.get("token")
-    if token != DASHBOARD_TOKEN:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-
 # ── 前端 ──
 @app.get("/", response_class=HTMLResponse)
 async def index():
@@ -186,7 +179,7 @@ async def api_watchdog_status():
 # ── Cookie 管理 ──
 @app.get("/api/cookies")
 async def api_cookie_status():
-    return weibo_fetcher.get_cookie_status()
+    return await asyncio.get_event_loop().run_in_executor(None, weibo_fetcher.get_cookie_status)
 
 
 @app.post("/api/cookies/upload")
@@ -262,7 +255,9 @@ async def api_qq_import(
         tmp.write(content)
         tmp_path = tmp.name
     try:
-        result = weibo_fetcher.extract_qq_messages(tmp_path, qq_uid, dir_uid, name)
+        result = await asyncio.get_event_loop().run_in_executor(
+            None, weibo_fetcher.extract_qq_messages, tmp_path, qq_uid, dir_uid, name
+        )
         if result.get("ok"):
             logger.info(f"QQ corpus imported: qq_uid={qq_uid}, dir_uid={dir_uid}")
         return result
@@ -320,7 +315,9 @@ async def api_generate_skill(
         return {"ok": False, "msg": "Invalid skill name"}
     if not display_name:
         display_name = skill_name
-    result = weibo_fetcher.generate_skill_from_corpus(uid, skill_name, display_name, description, version, character)
+    result = await asyncio.get_event_loop().run_in_executor(
+        None, weibo_fetcher.generate_skill_from_corpus, uid, skill_name, display_name, description, version, character
+    )
     if result.get("ok"):
         trigger = PROJECT_ROOT / ".reload_skills_trigger"
         trigger.write_text(f"generate from dashboard at {time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -429,7 +426,10 @@ async def api_update_skill_file(name: str, filename: str, request: Request):
     target = (skill_dir / filename).resolve()
     if not str(target).startswith(str(skill_dir)):
         return {"ok": False, "msg": "Invalid file path"}
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        return {"ok": False, "msg": "Invalid JSON body"}
     result = skill_manager.update_skill_file(name, filename, body.get("content", ""))
     if result.get("ok"):
         # 保存即重载：写入 trigger 文件让 bot 热加载
@@ -445,7 +445,10 @@ async def api_integrate_trait(name: str, request: Request):
     """AI 智能整合：输入特征描述，调用 DeepSeek 合并到 persona.md"""
     if not _safe_name(name):
         return {"ok": False, "msg": "无效的技能名称"}
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        return {"ok": False, "msg": "无效的 JSON 请求"}
     trait = (body.get("trait") or "").strip()
     target_file = body.get("target", "persona.md")
     if target_file not in ("persona.md", "work.md"):
@@ -571,7 +574,7 @@ async def api_upload_avatar(name: str, file: UploadFile = File(...)):
 async def api_delete_skill(name: str):
     if not _safe_name(name):
         return {"ok": False, "msg": "Invalid name"}
-    result = skill_manager.delete_skill(name)
+    result = await asyncio.get_event_loop().run_in_executor(None, skill_manager.delete_skill, name)
     if result.get("ok"):
         logger.info(f"Skill deleted: {name}")
     return result
@@ -627,7 +630,10 @@ async def api_get_settings():
 @app.put("/api/settings")
 async def api_update_settings(request: Request):
     """更新运行时参数并触发 bot 热加载"""
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        return {"ok": False, "msg": "无效的 JSON 请求"}
     if not isinstance(body, dict):
         return {"ok": False, "msg": "请求体必须为 JSON 对象"}
     # 校验 + 类型转换

@@ -210,27 +210,28 @@ def check_ws_connected(port: int = NONEBOT_PORT) -> bool:
 async def full_restart() -> dict:
     """重启 NoneBot2（NapCatQQ Desktop 由外部管理，不干预）"""
     global _status_cache_time
-    _status_cache_time = 0
+    async with _restart_lock:
+        _status_cache_time = 0
 
-    # 停止 NoneBot2
-    stop_nonebot2()
-    await asyncio.sleep(2)
+        # 停止 NoneBot2
+        await asyncio.get_event_loop().run_in_executor(None, stop_nonebot2)
+        await asyncio.sleep(2)
 
-    # 启动 NoneBot2，等待端口就绪
-    nb_result = start_nonebot2()
-    if not nb_result.get("ok"):
-        return {"ok": False, "msg": f"NoneBot2 启动失败: {nb_result['msg']}"}
+        # 启动 NoneBot2，等待端口就绪
+        nb_result = await asyncio.get_event_loop().run_in_executor(None, start_nonebot2)
+        if not nb_result.get("ok"):
+            return {"ok": False, "msg": f"NoneBot2 启动失败: {nb_result['msg']}"}
 
-    # 等待 NoneBot2 端口打开（最多15秒）
-    port_ready = False
-    for _ in range(15):
-        if check_port_open(NONEBOT_PORT):
-            port_ready = True
-            break
-        await asyncio.sleep(1)
+        # 等待 NoneBot2 端口打开（最多15秒）
+        port_ready = False
+        for _ in range(15):
+            if await asyncio.get_event_loop().run_in_executor(None, check_port_open, NONEBOT_PORT):
+                port_ready = True
+                break
+            await asyncio.sleep(1)
 
-    if not port_ready:
-        return {"ok": False, "msg": f"NoneBot2 启动失败 (端口 {NONEBOT_PORT} 未就绪)"}
+        if not port_ready:
+            return {"ok": False, "msg": f"NoneBot2 启动失败 (端口 {NONEBOT_PORT} 未就绪)"}
 
     return {
         "ok": True,
@@ -241,6 +242,9 @@ async def full_restart() -> dict:
 # ── 进程看门狗 ──
 _watchdog_task: Optional[asyncio.Task] = None
 _watchdog_running = False
+
+# ── 重启互斥锁（防止看门狗与手动重启冲突） ──
+_restart_lock = asyncio.Lock()
 
 
 async def _watchdog_loop(interval: int = 30):
@@ -265,17 +269,21 @@ async def _watchdog_loop(interval: int = 30):
         try:
             nb_status = await asyncio.get_event_loop().run_in_executor(None, get_nonebot2_status)
 
-            # NoneBot2 挂了 → 自动重启
+            # NoneBot2 挂了 → 自动重启（加锁防止与手动重启冲突）
             if not nb_status["running"]:
-                logger.warning("[watchdog] NoneBot2 is down, auto-restarting...")
-                result = await asyncio.get_event_loop().run_in_executor(None, start_nonebot2)
-                logger.info(f"[watchdog] NoneBot2 restart: {result['msg']}")
-                _ws_warn_count = 0  # 重置 WS 告警计数
-                # 等端口就绪
-                for _ in range(15):
-                    if await asyncio.get_event_loop().run_in_executor(None, check_port_open, NONEBOT_PORT):
-                        break
-                    await asyncio.sleep(1)
+                if _restart_lock.locked():
+                    logger.info("[watchdog] Restart already in progress, skipping")
+                else:
+                    async with _restart_lock:
+                        logger.warning("[watchdog] NoneBot2 is down, auto-restarting...")
+                        result = await asyncio.get_event_loop().run_in_executor(None, start_nonebot2)
+                        logger.info(f"[watchdog] NoneBot2 restart: {result['msg']}")
+                        _ws_warn_count = 0  # 重置 WS 告警计数
+                        # 等端口就绪
+                        for _ in range(15):
+                            if await asyncio.get_event_loop().run_in_executor(None, check_port_open, NONEBOT_PORT):
+                                break
+                            await asyncio.sleep(1)
             else:
                 # NoneBot2 运行时，检查 WebSocket 连接
                 ws_ok = await asyncio.get_event_loop().run_in_executor(None, check_ws_connected, NONEBOT_PORT)
