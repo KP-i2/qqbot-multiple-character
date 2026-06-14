@@ -579,7 +579,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
         <h3><span class="icon green">&#9889;</span> 服务控制</h3>
         <div id="wdStatus" class="wd-indicator off"><span id="wdDot">&#9679;</span> <span id="wdText">看门狗 关闭</span></div>
       </div>
-      <p class="desc">管理 NoneBot2 服务。NapCatQQ Desktop 由外部独立管理。看门狗每 30 秒检测，自动重启崩溃的 NoneBot2，并监控 WebSocket 连接状态。</p>
+      <p class="desc">管理 NoneBot2 和 Dashboard 服务。启动/重启前会自动清理占用端口的旧进程，不再出现端口冲突。NapCatQQ Desktop 由外部独立管理。看门狗每 30 秒检测，自动重启崩溃的 NoneBot2。</p>
       <div class="btn-group">
         <button class="btn btn-success btn-lg" onclick="startAll()">启动 NoneBot2</button>
         <button class="btn btn-accent btn-lg" onclick="restartNonebot(this)">重启 NoneBot2</button>
@@ -587,6 +587,20 @@ code{font-family:var(--font-mono);font-size:0.9em}
         <span style="border-left:1px solid var(--edge);margin:0 6px;height:20px"></span>
         <button class="btn btn-accent btn-sm" onclick="toggleWatchdog(true)">开启看门狗</button>
         <button class="btn btn-outline btn-sm" onclick="toggleWatchdog(false)">关闭看门狗</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex-between mb-8">
+        <h3><span class="icon blue">&#128421;</span> Dashboard</h3>
+        <button class="btn btn-accent btn-sm" onclick="restartDashboard(this)">重启 Dashboard</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="stat"><div class="label">状态</div><div class="value ok" id="dashStatus">&#9679; 运行</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">端口</div><div class="value" id="dashPort" style="color:var(--text2)">8501</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">PID</div><div class="value" id="dashPid" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">内存</div><div class="value" id="dashMem" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">运行时间</div><div class="value" id="dashUptime" style="color:var(--text2)">-</div></div></div>
       </div>
     </div>
 
@@ -1166,6 +1180,7 @@ function switchTab(el,name){
   document.getElementById('tab-'+name).classList.remove('hidden');el.classList.add('active');el.setAttribute('aria-selected','true');el.tabIndex=0;el.focus();
   if(name==='cookie')loadCookieStatus();if(name==='corpus')loadCorpus();
   if(name==='skills')loadSkills();
+  if(name==='process')loadDashboardStatus();
   if(name==='settings')loadSettings();
   if(name==='logs'){loadLogFiles();loadLogFile()}
   try{localStorage.setItem('dashboard_active_tab',name)}catch(e){}
@@ -1295,6 +1310,39 @@ async function restartNonebot(btn){
   catch(e){toast('重启出错: '+e.message,false)}finally{btnLoading(btn,false)}
 }
 async function toggleWatchdog(start){try{const url=start?'/api/watchdog/start':'/api/watchdog/stop';const d=await(await safeFetch(url,{method:'POST'})).json();toast(d.msg,d.ok)}catch(e){toast('出错: '+e.message,false)}}
+
+// ── Dashboard 自身管理 ──
+async function loadDashboardStatus(){
+  try{
+    const d=await(await safeFetch('/api/dashboard/status')).json();
+    const sEl=document.getElementById('dashStatus');
+    if(d.running){sEl.textContent='\u25cf 运行';sEl.className='value ok'}
+    else{sEl.textContent='\u25cb 停止';sEl.className='value err'}
+    document.getElementById('dashPort').textContent=d.port||8501;
+    document.getElementById('dashPid').textContent=d.pid||'-';
+    document.getElementById('dashMem').textContent=d.memory_mb?d.memory_mb+' MB':'-';
+    document.getElementById('dashUptime').textContent=d.uptime||'-';
+  }catch(e){}
+}
+async function restartDashboard(btn){
+  const msg='\u26a0\ufe0f 确认重启 Dashboard？\n\nDashboard 将在几秒后自动重启，页面需要手动刷新。';
+  if(!confirm(msg))return;
+  btnLoading(btn,true,'重启中...');toast('正在重启 Dashboard...',true);
+  try{
+    const d=await(await safeFetch('/api/dashboard/restart',{method:'POST'},10000)).json();
+    toast(d.msg,d.ok);
+    if(d.ok){
+      // 等待几秒后尝试刷新页面
+      setTimeout(()=>{
+        toast('Dashboard 重启中，5 秒后刷新页面...',true,'warn');
+        setTimeout(()=>location.reload(),5000);
+      },2000);
+    }
+  }catch(e){
+    toast('重启请求已发送，请稍后刷新页面',true,'warn');
+    setTimeout(()=>location.reload(),8000);
+  }finally{btnLoading(btn,false)}
+}
 
 async function loadCookieStatus(){try{const d=await(await safeFetch('/api/cookies')).json();const el=document.getElementById('cookieStatus');el.textContent=d.exists?'\u2713 已设置':'\u2717 未设置';el.className='value '+(d.exists?'ok':'err');document.getElementById('cookieCount').textContent=d.count||'-';document.getElementById('cookieSize').textContent=d.size_kb?d.size_kb+' KB':'-';document.getElementById('cookieModified').textContent=d.modified||'-'}catch(e){}}
 async function uploadCookie(){const f=document.getElementById('cookieFile').files[0];if(!f)return;const fd=new FormData();fd.append('file',f);try{const d=await(await safeFetch('/api/cookies/upload',{method:'POST',body:fd})).json();toast(d.msg,d.ok);if(d.ok)loadCookieStatus()}catch(e){toast('上传失败',false)}}
@@ -1651,6 +1699,7 @@ async function integrateTrait(){
    初始化
    ================================================================ */
 connectWS();checkHealth();setInterval(checkHealth,30000);
+loadDashboardStatus();setInterval(loadDashboardStatus,30000);
 loadRoster();loadSkillCount();
 // 定期清理 toast 去重缓存（防止内存泄漏）
 setInterval(()=>{const now=Date.now();for(const[k,v]of _toastDedup)if(now-v>10000)_toastDedup.delete(k)},60000);

@@ -16,8 +16,10 @@ NAPCAT_DESKTOP_EXE = "NapCatQQ-Desktop.exe"  # NapCatQQ Desktop 进程名（外�
 
 # ── 可配置常量 ──
 NONEBOT_PORT = int(os.getenv("NONEBOT_PORT", "8080"))
+DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8501"))
 WATCHDOG_INTERVAL = int(os.getenv("WATCHDOG_INTERVAL", "30"))
 STATUS_CACHE_TTL = int(os.getenv("STATUS_CACHE_TTL", "5"))
+_STOP_GRACE = 5  # 优雅退出等待（秒）
 
 # 确保日志目录存在
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -50,6 +52,34 @@ def check_port_open(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(1)
         return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def clean_stale_port(port: int, exclude_pid: int = 0) -> int:
+    """清理占用指定端口的旧进程，返回清理数量（排除自身 PID）"""
+    killed = 0
+    try:
+        for conn in psutil.net_connections(kind="inet"):
+            if conn.laddr and conn.laddr.port == port and conn.status in (
+                "LISTEN", "ESTABLISHED", "FIN_WAIT_1", "FIN_WAIT_2"
+            ):
+                pid = conn.pid
+                if pid and pid > 0 and pid != exclude_pid and pid != os.getpid():
+                    try:
+                        p = psutil.Process(pid)
+                        p.terminate()
+                        try:
+                            p.wait(timeout=_STOP_GRACE)
+                        except psutil.TimeoutExpired:
+                            p.kill()
+                            p.wait(timeout=3)
+                        killed += 1
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+    except (psutil.AccessDenied, OSError) as e:
+        logger.warning(f"clean_stale_port({port}): {e}")
+    if killed:
+        time.sleep(2)  # 等待端口释放
+    return killed
 
 
 def find_process_by_name(name: str) -> list[dict]:
@@ -135,6 +165,10 @@ def get_napcat_status() -> dict:
 def start_nonebot2() -> dict:
     if get_nonebot2_status()["running"]:
         return {"ok": False, "msg": "NoneBot2 already running"}
+    # 启动前清理端口残留进程（解决旧进程端口冲突）
+    cleared = clean_stale_port(NONEBOT_PORT)
+    if cleared:
+        logger.info(f"Cleaned {cleared} stale process(es) on port {NONEBOT_PORT}")
     try:
         log_file = LOG_DIR / "nonebot2.log"
         _rotate_log(log_file)
@@ -177,6 +211,12 @@ def stop_nonebot2() -> dict:
                 pass
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
+    # 端口兜底清理（防止残留）
+    time.sleep(1)
+    cleared = clean_stale_port(NONEBOT_PORT)
+    if cleared:
+        stopped += cleared
+        logger.info(f"stop_nonebot2: cleaned {cleared} stale process(es) on port {NONEBOT_PORT}")
     return {"ok": stopped > 0, "msg": f"Stopped {stopped} process(es)"}
 
 
@@ -333,3 +373,86 @@ def get_watchdog_status() -> dict:
     return {
         "running": _watchdog_running and _watchdog_task is not None and not _watchdog_task.done(),
     }
+
+
+# ── Dashboard 自身管理 ──
+
+def get_dashboard_status() -> dict:
+    """获取 Dashboard 进程自身的状态"""
+    pid = os.getpid()
+    try:
+        p = psutil.Process(pid)
+        mem = p.memory_info().rss
+        ct = p.create_time()
+        delta = time.time() - ct
+        hours, minutes = int(delta // 3600), int((delta % 3600) // 60)
+        uptime = f"{hours}h {minutes}m" if hours else f"{minutes}m"
+        return {
+            "running": True,
+            "pid": pid,
+            "port": DASHBOARD_PORT,
+            "port_open": check_port_open(DASHBOARD_PORT),
+            "memory_mb": round(mem / 1024 / 1024, 1),
+            "uptime": uptime,
+        }
+    except Exception as e:
+        logger.error(f"get_dashboard_status error: {e}")
+        return {"running": False, "pid": pid, "port": DASHBOARD_PORT}
+
+
+def restart_dashboard() -> dict:
+    """重启 Dashboard 自身（spawn 独立进程：杀旧 → 等端口 → 启新）"""
+    import sys
+    pid_file = PROJECT_ROOT / ".pids" / "dashboard.pid"
+    log_file = LOG_DIR / "dashboard.log"
+    current_pid = os.getpid()
+
+    # 构建重启脚本（Python one-liner）
+    restart_script = (
+        f"import time, subprocess, socket, os, sys\n"
+        f"def port_free(p):\n"
+        f"    s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)\n"
+        f"    s.settimeout(1)\n"
+        f"    r=s.connect_ex(('127.0.0.1',p))!=0\n"
+        f"    s.close()\n"
+        f"    return r\n"
+        f"time.sleep(2)\n"  # 等待当前进程退出
+        f"# 如果旧进程还在，强制终止\n"
+        f"try:\n"
+        f"    import psutil\n"
+        f"    p=psutil.Process({current_pid})\n"
+        f"    if p.is_running(): p.kill()\n"
+        f"except: pass\n"
+        f"time.sleep(2)\n"
+        f"# 等待端口释放\n"
+        f"for _ in range(10):\n"
+        f"    if port_free({DASHBOARD_PORT}): break\n"
+        f"    time.sleep(1)\n"
+        f"# 启动新 Dashboard\n"
+        f"logf=open(r'{log_file}','a',encoding='utf-8')\n"
+        f"logf.write(f'\\n--- Dashboard restarted at {{}}\\n'.format(__import__('datetime').datetime.now().isoformat()))\n"
+        f"proc=subprocess.Popen(\n"
+        f"    [r'{VENV_PYTHON}','-m','uvicorn','qqbot.dashboard.main:app','--host','0.0.0.0','--port','{DASHBOARD_PORT}'],\n"
+        f"    cwd=r'{PROJECT_ROOT}',\n"
+        f"    stdout=logf,stderr=subprocess.STDOUT,\n"
+        f"    creationflags=0x00000200 if sys.platform=='win32' else 0\n"
+        f")\n"
+        f"# 写 PID 文件\n"
+        f"pid_dir=os.path.dirname(r'{pid_file}')\n"
+        f"os.makedirs(pid_dir,exist_ok=True)\n"
+        f"open(r'{pid_file}','w').write(str(proc.pid))\n"
+    )
+
+    # Spawn 独立重启进程（detached，不受当前进程影响）
+    try:
+        creation_flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS if sys.platform == "win32" else 0
+        subprocess.Popen(
+            [str(VENV_PYTHON), "-c", restart_script],
+            creationflags=creation_flags,
+            close_fds=True,
+        )
+        logger.info("Dashboard restart subprocess spawned")
+        return {"ok": True, "msg": "Dashboard 正在重启，页面将在几秒后自动刷新"}
+    except Exception as e:
+        logger.error(f"Failed to spawn dashboard restart: {e}")
+        return {"ok": False, "msg": f"重启失败: {e}"}

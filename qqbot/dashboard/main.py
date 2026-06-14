@@ -1,5 +1,5 @@
 """FastAPI Dashboard 主应用（修复版）"""
-import asyncio, html, json, logging, os, re, secrets, tempfile, time
+import asyncio, html, json, logging, os, re, secrets, signal, tempfile, time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Request, HTTPException
@@ -174,6 +174,31 @@ async def api_watchdog_stop():
 @app.get("/api/watchdog/status")
 async def api_watchdog_status():
     return monitor.get_watchdog_status()
+
+
+# ── Dashboard 自身管理 ──
+@app.get("/api/dashboard/status")
+async def api_dashboard_status():
+    return await asyncio.get_event_loop().run_in_executor(None, monitor.get_dashboard_status)
+
+
+@app.post("/api/dashboard/restart")
+async def api_dashboard_restart():
+    """重启 Dashboard（spawn 独立进程，当前进程随后退出）"""
+    result = await asyncio.get_event_loop().run_in_executor(None, monitor.restart_dashboard)
+    if result.get("ok"):
+        logger.info("Dashboard restart initiated, shutting down current instance...")
+        # 延迟关闭当前实例，让 response 先返回
+        asyncio.get_event_loop().call_later(1, lambda: asyncio.create_task(_shutdown_self()))
+    return result
+
+
+async def _shutdown_self():
+    """优雅关闭当前 Dashboard 进程"""
+    import signal
+    logger.info("Dashboard self-shutdown...")
+    monitor.stop_watchdog()
+    os.kill(os.getpid(), signal.SIGTERM)
 
 
 # ── Cookie 管理 ──
