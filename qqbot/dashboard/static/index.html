@@ -843,7 +843,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
         <tr><td class="c-neon fw-700">重启 NoneBot2</td><td>关闭并重新启动 NoneBot2（NapCatQQ Desktop 会自动重连）</td></tr>
         <tr><td class="c-coral fw-700">关闭 NoneBot2</td><td>停止 NoneBot2 服务</td></tr>
         <tr><td class="c-magenta fw-700">重载技能</td><td>热重载技能文件，无需重启</td></tr>
-        <tr><td class="c-lime fw-700">看门狗</td><td>自动重启崩溃的 NoneBot2，监控 WebSocket 连接状态（30 秒间隔）</td></tr>
+        <tr><td class="c-lime fw-700">看门狗</td><td>自动重启崩溃的 NoneBot2，监控 WebSocket 连接状态（30 秒间隔，内置于 Dashboard）</td></tr>
       </table></div>
       <p class="hint" style="margin-top:10px">NapCatQQ Desktop 由外部独立管理，不在本面板控制。它具有 <code>autoStart</code> 和 <code>offlineAutoRestart</code> 功能，启动后会自动登录 QQ 并通过 WebSocket Client 连接到 NoneBot2。</p>
     </div>
@@ -898,6 +898,7 @@ code{font-family:var(--font-mono);font-size:0.9em}
       <h3><span class="icon pink">&#128194;</span> 目录结构</h3>
       <div class="fm fs-11 c-text3" style="line-height:1.8;white-space:pre;overflow-x:auto">skill_communication/
 <span class="c-neon">&boxur;&boxh;&boxh;</span> start_all.bat           <span class="c-text4"># 一键启动 Bot + NapCat</span>
+<span class="c-neon">&boxur;&boxh;&boxh;</span> manage.py              <span class="c-text4"># 统一管理脚本 (start/stop/restart/status)</span>
 <span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard_silent.bat    <span class="c-text4"># 启动 Dashboard（后台）</span>
 <span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard.bat           <span class="c-text4"># 启动 Dashboard（带控制台）</span>
 <span class="c-neon">&boxur;&boxh;&boxh;</span> setup.bat               <span class="c-text4"># 初始化安装脚本</span>
@@ -921,7 +922,6 @@ code{font-family:var(--font-mono);font-size:0.9em}
     <span class="c-neon">&boxur;&boxh;&boxh;</span> bot.py          <span class="c-text4"># NoneBot2 入口</span>
     <span class="c-neon">&boxur;&boxh;&boxh;</span> pyproject.toml  <span class="c-text4"># NoneBot2 配置</span>
     <span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard.py    <span class="c-text4"># Dashboard 入口</span>
-    <span class="c-neon">&boxur;&boxh;&boxh;</span> dashboard_watchdog.py  <span class="c-text4"># Dashboard 守护进程</span>
     <span class="c-neon">&boxur;&boxh;&boxh;</span> start.bat       <span class="c-text4"># Bot 启动脚本</span>
     <span class="c-neon">&boxur;&boxh;&boxh;</span> skills/         <span class="c-text4"># 角色技能目录</span>
     <span class="c-neon">&boxur;&boxh;&boxh;</span> plugins/        <span class="c-text4"># 核心插件（zyw_chat）</span>
