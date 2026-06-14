@@ -42,6 +42,7 @@ qqbot/skills/zyw/
 *.pyc
 *.pyo
 _cache/
+nul
 
 # 备份
 **/backup_*/
@@ -60,6 +61,7 @@ memory/
 .idea/
 
 # 运行时文件
+.pids/
 .egg-info/
 *.egg
 .reload_skills_trigger
