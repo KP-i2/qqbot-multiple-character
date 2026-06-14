@@ -616,10 +616,6 @@ code{font-family:var(--font-mono);font-size:0.9em}
         <div class="stat-item"><div class="stat"><div class="label">内存</div><div class="value" id="nb2Mem" style="color:var(--text2)">-</div></div></div>
         <div class="stat-item"><div class="stat"><div class="label">运行时间</div><div class="value" id="nb2Uptime" style="color:var(--text2)">-</div></div></div>
       </div>
-      <div class="btn-group">
-        <button class="btn btn-primary btn-sm" onclick="startProc('nonebot2')">启动</button>
-        <button class="btn btn-danger btn-sm" onclick="stopProc('nonebot2')">停止</button>
-      </div>
     </div>
 
     <div class="card">
@@ -1285,8 +1281,6 @@ function updateStatus(s){
     else{wdEl.className='wd-indicator off';document.getElementById('wdDot').textContent='\u25cf';document.getElementById('wdText').textContent='看门狗 关闭'}}
 }
 
-async function startProc(n){try{const d=(await(await safeFetch('/api/process/start/'+n,{method:'POST'})).json());toast(d.msg,d.ok)}catch(e){toast('启动失败: '+e.message,false)}}
-async function stopProc(n){if(!confirm('确定停止 '+n+'？'))return;try{const d=(await(await safeFetch('/api/process/stop/'+n,{method:'POST'})).json());toast(d.msg,d.ok)}catch(e){toast('停止失败: '+e.message,false)}}
 async function reloadBotSkills(){try{const d=await(await safeFetch('/api/bot/reload',{method:'POST'})).json();toast(d.msg,d.ok)}catch(e){toast('重载失败: '+e.message,false)}}
 async function shutdownProject(){
   if(!confirm('确定关闭 NoneBot2？'))return;toast('正在关闭...',true);

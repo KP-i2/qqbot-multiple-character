@@ -48,6 +48,12 @@ _status_cache_time: float = 0
 _CACHE_TTL = STATUS_CACHE_TTL  # 使用可配置的缓存TTL
 
 
+def invalidate_status_cache():
+    """手动刷新状态缓存（start/stop 后立即生效）"""
+    global _status_cache_time
+    _status_cache_time = 0
+
+
 def check_port_open(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(1)

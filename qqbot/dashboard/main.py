@@ -99,7 +99,12 @@ async def api_start_process(name: str):
     if not _safe_name(name):
         return {"ok": False, "msg": "Invalid name"}
     if name == "nonebot2":
-        result = await asyncio.get_event_loop().run_in_executor(None, monitor.start_nonebot2)
+        # 加锁防止与 full_restart / 看门狗冲突
+        if monitor._restart_lock.locked():
+            return {"ok": False, "msg": "重启操作进行中，请稍后再试"}
+        async with monitor._restart_lock:
+            result = await asyncio.get_event_loop().run_in_executor(None, monitor.start_nonebot2)
+            monitor.invalidate_status_cache()
         if result.get("ok"):
             logger.info("NoneBot2 process started")
         return result
@@ -111,7 +116,12 @@ async def api_stop_process(name: str):
     if not _safe_name(name):
         return {"ok": False, "msg": "Invalid name"}
     if name == "nonebot2":
-        result = await asyncio.get_event_loop().run_in_executor(None, monitor.stop_nonebot2)
+        # 加锁防止与 full_restart / 看门狗冲突
+        if monitor._restart_lock.locked():
+            return {"ok": False, "msg": "重启操作进行中，请稍后再试"}
+        async with monitor._restart_lock:
+            result = await asyncio.get_event_loop().run_in_executor(None, monitor.stop_nonebot2)
+            monitor.invalidate_status_cache()
         if result.get("ok"):
             logger.info("NoneBot2 process stopped")
         return result
@@ -120,7 +130,9 @@ async def api_stop_process(name: str):
 
 @app.post("/api/process/full-restart")
 async def api_full_restart():
-    return await monitor.full_restart()
+    result = await monitor.full_restart()
+    monitor.invalidate_status_cache()
+    return result
 
 
 @app.get("/api/health")
