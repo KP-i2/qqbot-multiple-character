@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# 虚拟环境
+skill_qqbot/
+
+# API Key / 秘钥
+.env
+cookies.json
+**/key.json
+
+# 日志
+*.log
+logs/
+
+# 对话数据 / 语料
+qqbot/data/
+corpus/
+**/corpus_ref/
+
+# 敏感资料（含真实人物信息，仅本地使用）
+normal-paper/*人物分析*
+
+# Skill 数据（默认忽略所有 skill，仅白名单内的会被追踪）
+qqbot/skills/*
+!qqbot/skills/761/
+
+# 缓存 / 临时
+*.pyc
+*.pyo
+_cache/
+nul
+
+# 备份
+**/backup_*/
+
+# NapCat / QQ 运行时
+qqbot/napcat/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.claude/
+memory/
+.vscode/
+.idea/
+
+# 运行时文件
+.pids/
+.egg-info/
+*.egg
+.reload_skills_trigger
+.reload_settings_trigger
+
+# 静态资源缓存
+*.bak
+
+# 表情/头像图片（仅上传文本关键词）
+emoji/*/*.jpg
+emoji/*/*.jpeg
+emoji/*/*.png
+emoji/*/*.gif
+emoji/*/*.webp
+photo/*/*.jpg
+photo/*/*.jpeg
+photo/*/*.png
+qqbot/dashboard/static/photo/
