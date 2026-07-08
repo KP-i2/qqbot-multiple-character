@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>QQ Bot</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.8em' font-size='90'>Q</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- marked.js: 实时帮助文档渲染 -->
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<!-- 主题（必须最先加载，因为其他 CSS 都用主题变量） -->
+<link rel="stylesheet" href="/static/css/themes.css">
+<!-- 地基：重置 + 字体 + 动画 -->
+<link rel="stylesheet" href="/static/css/base.css">
+<!-- 骨架：头部 + 标签 + 卡片 + KPI + 花名册 + 技能卡 -->
+<link rel="stylesheet" href="/static/css/layout.css">
+<!-- 组件：按钮 + 表单 + 状态 + Toast + Modal + 进度 -->
+<link rel="stylesheet" href="/static/css/components.css">
+<!-- 编辑面板 -->
+<link rel="stylesheet" href="/static/css/editor.css">
+<!-- 帮助文档 -->
+<link rel="stylesheet" href="/static/css/help.css">
+<!-- 增量视觉优化（ABCE 调整；最后加载以覆盖） -->
+<link rel="stylesheet" href="/static/css/tweaks.css">
+</head>
+<body>
+
+<!-- ═══ 顶栏 ═══ -->
+<div class="header">
+  <div class="header-brand">
+    <div class="header-logo">Q</div>
+    <div><h1>QQ_BOT</h1><div class="sub">控制面板 v2.1</div></div>
+  </div>
+  <div class="header-right">
+    <div class="health-pills">
+      <span class="health-pill off" id="healthBot" title="NoneBot2"><span id="healthBotDot">&#9679;</span> 机器人</span>
+      <span class="health-pill off" id="healthNc" title="snowluma"><span id="healthNcDot">&#9679;</span> 协议端</span>
+      <span class="health-pill off" id="healthWs" title="WebSocket 连接"><span id="healthWsDot">&#9679;</span> WS</span>
+      <span class="health-time" id="healthTime">--:--</span>
+    </div>
+    <div class="ws-badge disconnected" id="wsStatus">连接中...</div>
+    <div class="theme-wrap">
+      <button class="theme-btn" onclick="toggleThemeMenu(event)"><span class="theme-dot"></span>主题</button>
+      <div class="theme-dropdown hidden" id="themeDropdown">
+        <div class="theme-dropdown-title">选择主题</div>
+        <div class="theme-grid">
+          <button class="theme-card active" data-theme="sakura-biyori" onclick="applyTheme('sakura-biyori')">
+            <div class="theme-card-preview" style="--p1:#fff8f1;--p2:#ff8a65;--p3:#ff6b9d"></div>
+            <div class="theme-card-name">桜日和</div>
+          </button>
+          <button class="theme-card" data-theme="peach-soda" onclick="applyTheme('peach-soda')">
+            <div class="theme-card-preview" style="--p1:#fff0eb;--p2:#ff7e8b;--p3:#d87093"></div>
+            <div class="theme-card-name">蜜桃气泡</div>
+          </button>
+          <button class="theme-card" data-theme="neon-terminal" onclick="applyTheme('neon-terminal')">
+            <div class="theme-card-preview" style="--p1:#050810;--p2:#00d4ff;--p3:#ff2d78"></div>
+            <div class="theme-card-name">霓虹终端</div>
+          </button>
+          <button class="theme-card" data-theme="midnight-galaxy" onclick="applyTheme('midnight-galaxy')">
+            <div class="theme-card-preview" style="--p1:#0d0a1a;--p2:#a490c2;--p3:#e06090"></div>
+            <div class="theme-card-name">午夜银河</div>
+          </button>
+          <button class="theme-card" data-theme="arctic-frost" onclick="applyTheme('arctic-frost')">
+            <div class="theme-card-preview" style="--p1:#eef2f7;--p2:#2b6cb0;--p3:#9b2c5e"></div>
+            <div class="theme-card-name">极地霜白</div>
+          </button>
+          <button class="theme-card" data-theme="scarlet-mecha" onclick="applyTheme('scarlet-mecha')">
+            <div class="theme-card-preview" style="--p1:#0a0608;--p2:#ff6b9d;--p3:#e03050"></div>
+            <div class="theme-card-name">绯红机甲</div>
+          </button>
+          <button class="theme-card" data-theme="amber-black" onclick="applyTheme('amber-black')">
+            <div class="theme-card-preview" style="--p1:#0a0a00;--p2:#ffc107;--p3:#ff6f00"></div>
+            <div class="theme-card-name">琥珀暗夜</div>
+          </button>
+          <button class="theme-card" data-theme="arctic-green" onclick="applyTheme('arctic-green')">
+            <div class="theme-card-preview" style="--p1:#f0f8f0;--p2:#2e7d32;--p3:#c62828"></div>
+            <div class="theme-card-name">翡翠霜白</div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 标签页 ═══ -->
+<div class="tabs" role="tablist" aria-label="管理面板">
+  <button class="tab active" role="tab" aria-selected="true" aria-controls="tab-process" tabindex="0" onclick="switchTab(this,'process')">进程管理</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-cookie" tabindex="-1" onclick="switchTab(this,'cookie')">Cookie</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-corpus" tabindex="-1" onclick="switchTab(this,'corpus')">语料库</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-skills" tabindex="-1" onclick="switchTab(this,'skills')">技能管理</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-logs" tabindex="-1" onclick="switchTab(this,'logs')">日志</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-help" tabindex="-1" onclick="switchTab(this,'help')">帮助文档</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-settings" tabindex="-1" onclick="switchTab(this,'settings')">参数设置</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="tab-turns" tabindex="-1" onclick="switchTab(this,'turns')">对话流水</button>
+</div>
+
+<div class="content">
+
+  <!-- ═══ KPI 总览 ═══ -->
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">系统状态</div><div class="kpi-value" id="kpiSystem">--</div><div class="kpi-sub" id="kpiSystemSub">检测中...</div></div>
+    <div class="kpi-card"><div class="kpi-label">机器人</div><div class="kpi-value" id="kpiBot">--</div><div class="kpi-sub" id="kpiBotSub">端口 8080</div></div>
+    <div class="kpi-card"><div class="kpi-label">WS 连接</div><div class="kpi-value" id="kpiNapcat">--</div><div class="kpi-sub" id="kpiNapcatSub">--</div></div>
+    <div class="kpi-card"><div class="kpi-label">技能</div><div class="kpi-value" id="kpiSkills">--</div><div class="kpi-sub" id="kpiSkillsSub">个角色</div></div>
+    <!-- 2026-06-28 双轨 LLM 状态卡 -->
+    <div class="kpi-card"><div class="kpi-label">主对话 LLM</div><div class="kpi-value" id="kpiChatLLM">--</div><div class="kpi-sub" id="kpiChatLLMSub">检测中...</div></div>
+    <div class="kpi-card"><div class="kpi-label">图片描述 LLM</div><div class="kpi-value" id="kpiVisionLLM">--</div><div class="kpi-sub" id="kpiVisionLLMSub">检测中...</div></div>
+  </div>
+
+  <!-- ═══ 进程管理 ═══ -->
+  <div id="tab-process" class="tab-content" role="tabpanel">
+    <div class="card">
+      <div class="flex-between">
+        <h3><span class="icon green">&#9889;</span> 服务控制</h3>
+        <div id="wdStatus" class="wd-indicator off"><span id="wdDot">&#9679;</span> <span id="wdText">看门狗 关闭</span></div>
+      </div>
+      <p class="desc">管理 NoneBot2、snowluma 和 Dashboard 服务。启动/重启前会自动清理占用端口的旧进程，不再出现端口冲突。看门狗每 30 秒检测，自动重启崩溃的 NoneBot2 或 snowluma。</p>
+      <div class="btn-group">
+        <button class="btn btn-success btn-lg" onclick="startAll()">启动 NoneBot2</button>
+        <button class="btn btn-accent btn-lg" onclick="restartNonebot(this)">重启 NoneBot2</button>
+        <button class="btn btn-danger btn-lg" onclick="shutdownProject()">关闭 NoneBot2</button>
+        <span style="border-left:1px solid var(--edge);margin:0 6px;height:20px"></span>
+        <button class="btn btn-accent btn-sm" onclick="toggleWatchdog(true)">开启看门狗</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleWatchdog(false)">关闭看门狗</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex-between mb-8">
+        <h3><span class="icon blue">&#128421;</span> Dashboard</h3>
+        <button class="btn btn-accent btn-sm" onclick="restartDashboard(this)">重启 Dashboard</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="stat"><div class="label">状态</div><div class="value ok" id="dashStatus">&#9679; 运行</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">端口</div><div class="value" id="dashPort" style="color:var(--text2)">8501</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">PID</div><div class="value" id="dashPid" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">内存</div><div class="value" id="dashMem" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">运行时间</div><div class="value" id="dashUptime" style="color:var(--text2)">-</div></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex-between mb-8">
+        <h3><span class="icon purple">&#9881;</span> NoneBot2</h3>
+        <button class="btn btn-outline btn-sm" onclick="reloadBotSkills()">重载技能</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="stat"><div class="label">状态</div><div class="value neutral" id="nb2Status">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">端口</div><div class="value" id="nb2Port" style="color:var(--text2)">8080</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">PID</div><div class="value" id="nb2Pid" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">内存</div><div class="value" id="nb2Mem" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">运行时间</div><div class="value" id="nb2Uptime" style="color:var(--text2)">-</div></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex-between mb-8"><h3><span class="icon cyan">&#128268;</span> snowluma <span style="font-size:9px;color:var(--text4);font-weight:400;letter-spacing:0.3px">(Dashboard 管理)</span></h3>
+        <div class="btn-group">
+          <button class="btn btn-success btn-sm" id="snowlumaStartBtn" onclick="toggleSnowluma('start', this)">启动</button>
+          <button class="btn btn-danger btn-sm" id="snowlumaStopBtn" onclick="toggleSnowluma('stop', this)" disabled>停止</button>
+          <button class="btn btn-outline btn-sm" onclick="toggleSnowlumaLog(this)" id="snowLogToggleBtn">展开日志 ▾</button>
+        </div>
+      </div>
+      <p class="desc">snowluma 提供 OneBot v11 WS 协议，负责 QQ 登录与消息上行下行。WebUI 在 http://localhost:5099 仅用于配置 QQ 连接和协议参数；进程启停请用本页按钮，看门狗会在进程崩溃时自动拉起。</p>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="stat"><div class="label">Desktop</div><div class="value neutral" id="ncStatus">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">QQ 客户端</div><div class="value neutral" id="qqStatus">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">WebSocket</div><div class="value neutral" id="wsConnStatus">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">PID</div><div class="value" id="ncPid" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">内存</div><div class="value" id="ncMem" style="color:var(--text2)">-</div></div></div>
+      </div>
+      <div id="snowLogPanel" class="log-panel hidden">
+        <div class="log-panel-header">
+          <span class="log-panel-title">实时日志 · <code>snowluma/start.out</code></span>
+          <div class="log-panel-actions">
+            <label class="log-panel-check"><input type="checkbox" id="snowLogAutoScroll" checked /> 自动滚动</label>
+            <button class="btn btn-xs btn-outline" onclick="clearSnowlumaLog()">清屏</button>
+          </div>
+        </div>
+        <div class="log-panel-body" id="snowLogBody"><div class="log-panel-empty">连接中...</div></div>
+      </div>
+    </div>
+
+    <!-- 角色花名册 -->
+    <div class="card">
+      <h3><span class="icon pink">&#127917;</span> 角色花名册</h3>
+      <div class="roster-grid" id="rosterGrid"><div class="empty" style="grid-column:1/-1">加载角色中...</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ Cookie ═══ -->
+  <div id="tab-cookie" class="tab-content hidden" role="tabpanel">
+    <div class="card">
+      <h3><span class="icon yellow">&#127850;</span> 微博 Cookie</h3>
+      <div class="stat-grid mb-8">
+        <div class="stat-item"><div class="stat"><div class="label">状态</div><div class="value neutral" id="cookieStatus">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">数量</div><div class="value" id="cookieCount" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">大小</div><div class="value" id="cookieSize" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">更新时间</div><div class="value" id="cookieModified" style="color:var(--text2)">-</div></div></div>
+      </div>
+      <div class="btn-group">
+        <input type="file" id="cookieFile" accept=".json" style="display:none" onchange="uploadCookie()">
+        <button class="btn btn-accent btn-sm" onclick="document.getElementById('cookieFile').click()">上传</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="icon blue">&#128038;</span> 推特 (X) Cookie</h3>
+      <div class="stat-grid mb-8" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-item"><div class="stat"><div class="label">状态</div><div class="value neutral" id="twCookieStatus">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">条数</div><div class="value" id="twCookieCount" style="color:var(--text2)">-</div></div></div>
+        <div class="stat-item"><div class="stat"><div class="label">更新时间</div><div class="value" id="twCookieModified" style="color:var(--text2)">-</div></div></div>
+      </div>
+      <div class="btn-group">
+        <input type="file" id="twCookieFile2" accept=".json" style="display:none" onchange="uploadTwitterCookie()">
+        <button class="btn btn-accent btn-sm" onclick="document.getElementById('twCookieFile2').click()">上传</button>
+        <button class="btn btn-outline btn-sm" onclick="loadTwitterCookieStatus()">刷新状态</button>
+      </div>
+      <p class="desc">文件路径: <code>private/twitter_cookies.json</code>。语料库 → 推特抓取里也有同款入口,改一处即可。</p>
+    </div>
+  </div>
+
+  <!-- ═══ 语料库 ═══ -->
+  <div id="tab-corpus" class="tab-content hidden" role="tabpanel">
+    <div class="card">
+      <h3><span class="icon pink">&#128228;</span> 数据导入</h3>
+      <div class="editor-tabs" style="margin-bottom:14px">
+        <button class="editor-tab active" onclick="switchImportTab(this,'import-weibo')">微博抓取</button>
+        <button class="editor-tab" onclick="switchImportTab(this,'import-qq')">QQ 聊天记录</button>
+        <button class="editor-tab" onclick="switchImportTab(this,'import-text')">文本导入</button>
+        <button class="editor-tab" onclick="switchImportTab(this,'import-twitter')">推特抓取</button>
+      </div>
+      <div id="import-weibo">
+        <div class="form-group"><label>微博 UID</label><input type="text" id="weiboUid" placeholder="例：1234567890"></div>
+        <button class="btn btn-primary btn-sm" onclick="fetchWeibo(this)">抓取</button>
+        <div class="log-box mt-8" id="weiboLog" style="display:none"></div>
+      </div>
+      <div id="import-qq" class="hidden">
+        <div class="form-group"><label>QQChatExporter JSON 文件</label><input type="file" id="qqJsonFile" accept=".json" onchange="previewSenders()"></div>
+        <div id="sendersList" class="mt-8"></div>
+        <div class="form-row mt-8">
+          <div class="form-group"><label>发送者 QQ 号</label><input type="text" id="qqTargetUid" placeholder="选择或输入"></div>
+          <div class="form-group"><label>目标语料 UID</label><input type="text" id="qqDirUid" placeholder="例：9876543210"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="importQQ(this)">导入</button>
+      </div>
+      <div id="import-text" class="hidden">
+        <p class="desc">支持 .md / .txt / .log 文件。</p>
+        <div class="form-row">
+          <div class="form-group"><label>目标 UID</label><input type="text" id="textImportUid" placeholder="留空则使用文件名"></div>
+          <div class="form-group"><label>文件</label><input type="file" id="textImportFile" accept=".md,.txt,.log,.markdown,.text"></div>
+        </div>
+        <button class="btn btn-accent btn-sm" onclick="importTextFile(this)">导入</button>
+      </div>
+      <div id="import-twitter" class="hidden">
+        <p class="desc">通过 <code>twikit</code> 直接走 HTTP 抓取推文，无需浏览器。需先在 <code>qqbot/.env</code> 配置 <code>TWITTER_USERNAME</code> / <code>TWITTER_PASSWORD</code> / <code>TWITTER_EMAIL</code>，或上传浏览器导出的 cookies。</p>
+        <div class="stat-grid mb-8" style="grid-template-columns:repeat(3,1fr)">
+          <div class="stat-item"><div class="stat"><div class="label">Cookie 状态</div><div class="value neutral" id="twCookieStatus">-</div></div></div>
+          <div class="stat-item"><div class="stat"><div class="label">Cookie 条数</div><div class="value" id="twCookieCount" style="color:var(--text2)">-</div></div></div>
+          <div class="stat-item"><div class="stat"><div class="label">更新时间</div><div class="value" id="twCookieModified" style="color:var(--text2)">-</div></div></div>
+        </div>
+        <div class="btn-group mb-8">
+          <input type="file" id="twCookieFile" accept=".json" style="display:none" onchange="uploadTwitterCookie()">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('twCookieFile').click()">上传 Cookies</button>
+          <button class="btn btn-outline btn-sm" onclick="loadTwitterCookieStatus()">刷新状态</button>
+          <button class="btn btn-outline btn-sm" onclick="loadTwitterCorpora()">已抓取列表</button>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Screen Name</label><input type="text" id="twScreenName" placeholder="如 elonmusk / jiemei_rose"></div>
+          <div class="form-group"><label>抓取条数</label><input type="number" id="twCount" value="200" min="1" max="5000"></div>
+        </div>
+        <div class="form-group" style="display:flex;gap:14px;align-items:center">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="twAll"> 抓取全部（忽略条数）</label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="twReplies"> 同时抓取本人回复</label>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary btn-sm" onclick="fetchTwitter(this)">抓取推文</button>
+        </div>
+        <div class="log-box mt-8" id="twLog" style="display:none"></div>
+        <div id="twCorporaList" class="mt-8"></div>
+      </div>
+    </div>
+    <div class="card"><h3><span class="icon purple">&#128194;</span> 语料库</h3><div id="corpusList"></div></div>
+    <div class="card hidden" id="genSkillCard">
+      <h3><span class="icon pink">&#10024;</span> 从语料生成技能</h3>
+      <div class="form-group"><label>语料 UID</label><input type="text" id="genSkillUid" readonly></div>
+      <div class="form-row">
+        <div class="form-group"><label>技能名称</label><input type="text" id="genSkillName" placeholder="my_character"></div>
+        <div class="form-group"><label>显示名称</label><input type="text" id="genSkillDisplay" placeholder="角色名"></div>
+        <div class="form-group"><label>版本</label><input type="text" id="genSkillVer" value="1.0.0"></div>
+      </div>
+      <div class="form-group"><label>描述</label><input type="text" id="genSkillDesc" placeholder="一行描述"></div>
+      <div class="form-row">
+        <div class="form-group"><label>角色类型</label><select id="genSkillCharacter" style="padding:7px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-ui)"><option value="celebrity">名人</option><option value="colleague">同事</option><option value="relationship">亲密关系</option></select></div>
+        <div class="form-group" id="genResearchProfileGroup"><label>调研深度</label><select id="genResearchProfile" style="padding:7px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-ui)"><option value="budget-friendly">标准</option><option value="budget-unfriendly">深度</option></select></div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary btn-sm" onclick="generateSkill(this)">生成</button>
+        <button class="btn btn-outline btn-sm" onclick="hideGenerateSkill()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 技能管理 ═══ -->
+  <div id="tab-skills" class="tab-content hidden" role="tabpanel">
+    <div class="flex-between mb-8" style="padding:0 24px;max-width:1060px;margin:0 auto">
+      <h3 style="font-size:10px;color:var(--text2);letter-spacing:1.2px;font-weight:600;text-transform:uppercase;font-family:var(--font-ui);display:flex;align-items:center;gap:8px"><span class="icon purple">&#127917;</span> 技能列表</h3>
+      <div style="display:flex;gap:6px">
+        <select id="skillSortSelect" onchange="loadSkills()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-ui);font-size:12px">
+          <option value="name">按名称排序</option>
+          <option value="created">按创建时间</option>
+          <option value="version">按版本号</option>
+          <option value="size">按大小排序</option>
+        </select>
+        <input type="text" id="skillSearchInput" placeholder="搜索技能..." oninput="filterSkills()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-ui);font-size:12px;width:120px">
+        <button class="btn btn-outline btn-sm" onclick="reloadBotSkills()">重载技能</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleBatchMode()">批量操作</button>
+        <button class="btn btn-primary btn-sm" onclick="showCreateSkill()">+ 新建技能</button>
+      </div>
+    </div>
+    <div id="batchToolbar" class="hidden" style="max-width:1060px;margin:0 auto 10px;padding:0 24px;display:flex;gap:8px;align-items:center">
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+        <input type="checkbox" id="selectAllSkills" onchange="toggleSelectAll(this.checked)"> 全选
+      </label>
+      <button class="btn btn-danger btn-sm" onclick="batchDeleteSkills()">批量删除</button>
+      <span id="selectedCount" style="color:var(--text2);font-size:13px">已选 0 项</span>
+    </div>
+    <div class="roster-grid skills-grid" id="skillsGrid"><div class="empty" style="grid-column:1/-1">加载技能中...</div></div>
+    <div id="retrainProgressPanels" style="max-width:1060px;margin:14px auto 0;padding:0 24px"></div>
+
+    <!-- 技能编辑面板 -->
+    <div class="editor-panel hidden" id="skillEditorPanel">
+      <div class="editor-header">
+        <span class="editor-title">&#9998; 编辑：<span id="editorSkillName">-</span></span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="closeEditor()">关闭</button>
+        </div>
+      </div>
+      <div class="editor-body">
+        <div class="editor-tabs">
+          <button class="editor-tab active" data-file="persona.md" onclick="switchEditorTab(this,'persona.md')">persona.md</button>
+          <button class="editor-tab" data-file="work.md" onclick="switchEditorTab(this,'work.md')">work.md</button>
+          <button class="editor-tab" data-file="SKILL.md" onclick="switchEditorTab(this,'SKILL.md')">SKILL.md</button>
+        </div>
+        <textarea class="editor-textarea" id="editorContent" placeholder="文件内容为空或不存在..."></textarea>
+        <div class="editor-footer">
+          <div class="editor-status" id="editorStatus"></div>
+          <button class="btn btn-primary btn-sm" id="editorSaveBtn" onclick="saveEditorContent()">保存</button>
+        </div>
+        <div id="editorReloadBanner" class="reload-banner hidden">&#10003; 已保存，bot 正在重载技能...</div>
+
+        <!-- AI 特征整合 -->
+        <div class="trait-section">
+          <h4>&#10024; AI 智能特征整合</h4>
+          <p style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.6">输入新的角色特征（如「说话喜欢用反问」「爱吃火锅」「会模仿对方的口癖」），AI 会自动分析并合并到对应文件的合适位置。</p>
+          <textarea class="trait-input" id="traitInput" placeholder="例：她有一个新习惯，紧张的时候会捏衣角；口头禅增加了「没问题的啦~」；对甜食特别执着..."></textarea>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="traitTarget" style="padding:5px 8px;border-radius:6px;border:1px solid var(--edge);background:var(--surface);color:var(--text);font-size:11px;font-family:var(--font-ui)">
+              <option value="persona.md">persona.md</option>
+              <option value="work.md">work.md</option>
+            </select>
+            <button class="btn btn-accent btn-sm" id="traitIntegrateBtn" onclick="integrateTrait()">整合</button>
+            <span style="font-size:10px;color:var(--text4)" id="traitStatus"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card hidden" id="createSkillCard">
+      <h3><span class="icon pink">&#10024;</span> 新建技能</h3>
+      <div class="form-group"><label>语料（可选）</label><select id="newSkillCorpus" onchange="onCorpusSelect()"><option value="">-- 手动创建 --</option></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>技能名称</label><input type="text" id="newSkillName" placeholder="my_character"></div>
+        <div class="form-group"><label>显示名称</label><input type="text" id="newSkillDisplay" placeholder="角色名"></div>
+        <div class="form-group"><label>版本</label><input type="text" id="newSkillVer" value="1.0.0"></div>
+      </div>
+      <div class="form-group"><label>描述</label><input type="text" id="newSkillDesc" placeholder="一行描述"></div>
+      <div class="form-row">
+        <div class="form-group"><label>角色类型</label><select id="newSkillCharacter" style="padding:7px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-ui)"><option value="celebrity">名人</option><option value="colleague">同事</option><option value="relationship">亲密关系</option></select></div>
+        <div class="form-group" id="researchProfileGroup"><label>调研深度</label><select id="newSkillResearchProfile" style="padding:7px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-ui)"><option value="budget-friendly">标准</option><option value="budget-unfriendly">深度</option></select></div>
+      </div>
+      <div class="form-group"><label>人设</label><textarea id="newSkillPersona" placeholder="# 人设..."></textarea></div>
+      <div class="form-group"><label>工作方式</label><textarea id="newSkillWork" placeholder="# 工作方式..."></textarea></div>
+      <div class="btn-group">
+        <button class="btn btn-primary btn-sm" onclick="createSkill(this)">创建</button>
+        <button class="btn btn-accent btn-sm" onclick="createSkillFromCorpus(this)">从语料生成</button>
+        <button class="btn btn-outline btn-sm" onclick="hideCreateSkill()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 日志查看 ═══ -->
+  <div id="tab-logs" class="tab-content hidden" role="tabpanel">
+    <div class="card">
+      <div class="flex-between mb-8">
+        <h3><span class="icon cyan">&#128196;</span> 系统日志</h3>
+        <div style="display:flex;gap:6px">
+          <select id="logFileSelect" onchange="loadLogFile()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);font-family:var(--font-mono);font-size:12px">
+            <option value="">-- 选择日志文件 --</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="loadLogFiles()">刷新</button>
+          <button class="btn btn-outline btn-sm" onclick="loadLogFile()">重新加载</button>
+        </div>
+      </div>
+      <div id="logContent" style="background:var(--void);border:1px solid var(--edge);border-radius:8px;padding:12px;max-height:500px;overflow-y:auto;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--text2);white-space:pre-wrap;word-break:break-all">
+        请选择日志文件...
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2)">
+          <input type="checkbox" id="logAutoScroll" checked> 自动滚动到底部
+        </label>
+        <span id="logLineCount" style="font-size:12px;color:var(--text3)"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 帮助文档 ═══ -->
+  <div id="tab-help" class="tab-content hidden" role="tabpanel">
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="docs-sidebar-header">
+          <span>📚 文档</span>
+          <button onclick="loadDocsList()" title="刷新列表">刷新</button>
+        </div>
+        <div id="docsSidebarList"><div class="docs-sidebar-empty">加载中…</div></div>
+        <div class="docs-hint">
+          实时读取 <code>README.md</code> 和 <code>docs/*.md</code>。改文件后点「刷新」即可看到最新内容。新增 <code>docs/*.md</code> 也会自动出现在侧边栏。
+        </div>
+      </aside>
+      <main class="docs-content" id="docsContent">
+        <div class="docs-empty">
+          <p>← 从左侧选一个文档</p>
+          <p style="font-size:11px;color:var(--text4)">实时读取：改 <code>README.md</code> 或 <code>docs/*.md</code> 后点「刷新」即可</p>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ═══ 对话流水 ═══ -->
+  <div id="tab-turns" class="tab-content hidden" role="tabpanel">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="margin:0"><span class="icon purple">&#128172;</span> 对话流水(最近 200 条 turn)</h3>
+        <div>
+          <label style="font-size:12px;color:var(--text2);margin-right:8px">
+            <input type="checkbox" id="turnAutoScroll" checked> 自动滚动
+          </label>
+          <button class="btn btn-outline btn-sm" onclick="reloadTurnsHistory()">刷新历史</button>
+        </div>
+      </div>
+      <div class="form-row mb-8">
+        <div class="form-group" style="margin-bottom:0">
+          <label>过滤(用户/角色/关键词)</label>
+          <input type="text" id="turnFilter" placeholder="例如:761 / <ADMIN_QQ_1> / 振袖" oninput="renderTurns()">
+        </div>
+        <div class="form-group" style="margin-bottom:0;flex:0 0 200px">
+          <label>状态</label>
+          <select id="turnStatusFilter" onchange="renderTurns()">
+            <option value="">全部</option>
+            <option value="running">进行中</option>
+            <option value="ok">成功</option>
+            <option value="empty">空回复</option>
+            <option value="error">失败</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 聚合统计面板 -->
+      <div id="turnsStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px">
+        <div style="background:var(--bg-2);padding:10px 12px;border-radius:6px;border-left:3px solid #4a90e2"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px">总 Turn</div><div id="stat-total" style="font-size:20px;font-weight:700;margin-top:2px">-</div></div>
+        <div style="background:var(--bg-2);padding:10px 12px;border-radius:6px;border-left:3px solid #2ecc71"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px">成功</div><div id="stat-ok" style="font-size:20px;font-weight:700;margin-top:2px">-</div><div id="stat-ok-sub" style="font-size:11px;color:var(--text2);margin-top:2px"></div></div>
+        <div style="background:var(--bg-2);padding:10px 12px;border-radius:6px;border-left:3px solid #e74c3c"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px">失败</div><div id="stat-err" style="font-size:20px;font-weight:700;margin-top:2px">-</div></div>
+        <div style="background:var(--bg-2);padding:10px 12px;border-radius:6px;border-left:3px solid #f39c12"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px">平均耗时</div><div id="stat-avg" style="font-size:20px;font-weight:700;margin-top:2px">-</div><div id="stat-avg-sub" style="font-size:11px;color:var(--text2);margin-top:2px"></div></div>
+      </div>
+      <div id="turnsBreakdown" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:11px"></div>
+
+      <div id="turnsList" style="max-height:70vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg-1)">
+        <div style="text-align:center;padding:40px;color:var(--text2)">加载中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 参数设置 ═══ -->
+  <div id="tab-settings" class="tab-content hidden" role="tabpanel">
+    <div class="card">
+      <h3><span class="icon cyan">&#9881;</span> Bot 行为</h3>
+      <p class="desc">调整机器人基础行为参数，保存后即时生效（无需重启）。</p>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group"><label>活跃时段起始 (0-23)</label><input type="number" id="set-active_hours_start" min="0" max="23"></div>
+        <div class="form-group"><label>活跃时段结束 (0-23)</label><input type="number" id="set-active_hours_end" min="0" max="23"></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group"><label>联网搜索</label><select id="set-web_search_enabled"><option value="true">开启</option><option value="false">关闭</option></select></div>
+        <div class="form-group"><label>多轮对话</label><select id="set-multi_turn_enabled"><option value="true">开启</option><option value="false">关闭</option></select></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group"><label>测试模式 (仅管理员可对话)</label><select id="set-test_mode_enabled"><option value="true">开启</option><option value="false">关闭</option></select></div>
+        <div class="form-group"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="icon red">&#129504;</span> LLM Provider</h3>
+      <p class="desc">选择当前主选的大模型。两个 Provider 完全独立，<b>不互相兜底</b>。失败时直接报错，需要手动切换主选。</p>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group">
+          <label>主选 Provider</label>
+          <select id="set-active_llm_provider">
+            <option value="minimax">minimax (M3, 默认)</option>
+            <option value="deepseek">DeepSeek (v4-pro)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>minimax 高速探测 (M2.7-highspeed)</label>
+          <select id="set-minimax_use_high_speed"><option value="true">开启</option><option value="false">关闭</option></select>
+        </div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="form-group"><label>Temperature</label><input type="number" id="set-minimax_temperature" min="0" max="2" step="0.05"></div>
+        <div class="form-group"><label>Top P</label><input type="number" id="set-minimax_top_p" min="0" max="1" step="0.05"></div>
+        <div class="form-group"><label>Max Tokens</label><input type="number" id="set-minimax_max_tokens" min="100" max="32000" step="100"></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group">
+          <label>Reasoning (带工具)</label>
+          <select id="set-minimax_reasoning_effort_with_tools">
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Reasoning (无工具)</label>
+          <select id="set-minimax_reasoning_effort_no_tools">
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="icon green">&#9889;</span> 流式输出</h3>
+      <p class="desc">控制流式输出的断句策略。字符阈值越小，分段越频繁；等待秒数越短，响应越快但可能断句不自然。</p>
+      <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="form-group"><label>流式输出</label><select id="set-stream_enabled"><option value="true">开启</option><option value="false">关闭</option></select></div>
+        <div class="form-group"><label>断句字符阈值</label><input type="number" id="set-stream_flush_chars" min="20" max="300"></div>
+        <div class="form-group"><label>断句等待秒数</label><input type="number" id="set-stream_flush_interval" min="1" max="15" step="0.5"></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group"><label>最小累积字符数</label><input type="number" id="set-stream_flush_min_chars" min="20" max="300"></div>
+        <div class="form-group"><label>单段最大字符数</label><input type="number" id="set-stream_max_flush_size" min="50" max="1000"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="icon purple">&#128190;</span> 历史管理</h3>
+      <p class="desc">对话历史的容量与持久化策略。过期历史会在后台定期清理。</p>
+      <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="form-group"><label>最大对话轮数</label><input type="number" id="set-max_history_rounds" min="1" max="100"></div>
+        <div class="form-group"><label>历史过期 (小时)</label><input type="number" id="set-history_ttl_hours" min="1" max="168"></div>
+        <div class="form-group"><label>保存间隔 (秒)</label><input type="number" id="set-history_save_interval" min="10" max="600"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="icon yellow">&#9201;</span> 响应时间</h3>
+      <p class="desc">控制等待提示的触发时机。秒数越小，提示出现越快。</p>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <div class="form-group"><label>等待提示秒数（超过此时间发"在想..."）</label><input type="number" id="set-thinking_timer_seconds" min="1" max="30"></div>
+      </div>
+    </div>
+
+    <div class="btn-group" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="saveSettings(this)">保存设置</button>
+      <button class="btn btn-outline" onclick="loadSettings()">重置为当前值</button>
+    </div>
+  </div>
+
+</div>
+<div class="modal-overlay" id="retrainModal" style="display:none" onclick="if(event.target===this){this.style.display='none'}">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3 id="retrainModalTitle">蒸馏配置</h3>
+      <button class="modal-close" onclick="document.getElementById('retrainModal').style.display='none'">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>角色类型</label><select id="retrainCharacter" style="padding:8px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);width:100%;font-family:var(--font-ui)"><option value="celebrity">名人</option><option value="colleague">同事</option><option value="relationship" selected>亲密关系</option></select></div>
+      <div class="form-group" id="retrainResearchGroup"><label>调研深度</label><select id="retrainResearchProfile" style="padding:8px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);width:100%;font-family:var(--font-ui)"><option value="budget-friendly">标准（2 次 API 调用）</option><option value="budget-unfriendly">深度（4 次 API 调用）</option></select></div>
+      <p class="hint" style="margin:10px 0">旧版本会自动备份。</p>
+      <div class="btn-group" style="justify-content:flex-end">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('retrainModal').style.display='none'">取消</button>
+        <button class="btn btn-primary btn-sm" id="retrainConfirmBtn" onclick="confirmRetrain()">开始</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- JS 模块化拆分后挂载顺序：core_shared → themes → ... → init -->
+<script src="/static/js/core_shared.js"></script>
+<script src="/static/js/themes.js"></script>
+<script src="/static/js/kpi.js"></script>
+<script src="/static/js/wshealth.js"></script>
+<script src="/static/js/roster.js"></script>
+<script src="/static/js/logs.js"></script>
+<script src="/static/js/corpus.js"></script>
+<script src="/static/js/dashboard_mgmt.js"></script>
+<script src="/static/js/twitter.js"></script>
+<script src="/static/js/turns.js"></script>
+<script src="/static/js/help.js"></script>
+<script src="/static/js/editor.js"></script>
+<script src="/static/js/snowluma_log.js"></script>
+<script src="/static/js/skills_filter.js"></script>
+<script src="/static/js/form_draft.js"></script>
+<script src="/static/js/skills_batch.js"></script>
+<script src="/static/js/init.js"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+/* ================================================================
+   BASE — 全局重置 + 字体 + 滚动条 + 动画关键帧
+   这些是任何主题都需要的"地基"
+   ================================================================ */
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+
+body{
+  font-family:var(--font-ui),'Noto Sans SC','Microsoft YaHei',sans-serif;
+  background:var(--void);color:var(--text);min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  transition:background 0.35s var(--ease),color 0.35s var(--ease);
+}
+
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+  opacity:var(--scan-opacity);transition:opacity 0.35s var(--ease);
+}
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background-image:
+    linear-gradient(var(--grid-color) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-color) 1px,transparent 1px);
+  background-size:60px 60px;
+}
+
+::selection{background:rgba(var(--magenta-rgb),0.22);color:var(--text)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--edge2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--neon)}
+
+code{font-family:var(--font-mono);font-size:0.9em}
+
+/* ================================================================
+   ANIMATIONS — 关键帧定义
+   ================================================================ */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+@keyframes glow{0%,100%{box-shadow:0 0 4px rgba(var(--neon-rgb),0.3)}50%{box-shadow:0 0 12px rgba(var(--neon-rgb),0.5)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes borderGlow{0%,100%{border-color:rgba(var(--neon-rgb),0.15)}50%{border-color:rgba(var(--neon-rgb),0.35)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+/* 樱花瓣飘落 — 慢速向下 + 轻微左右漂浮，背景平移即可 */
+@keyframes petalDrift{
+  0%{background-position:0 0,120px 80px}
+  100%{background-position:0 240px,120px 320px}
+}
+/* 暖光圈脉冲（用于 KPI / 状态点呼吸感） */
+@keyframes warmGlow{0%,100%{box-shadow:0 0 0 0 rgba(var(--neon-rgb),0.3)}50%{box-shadow:0 0 0 6px rgba(var(--neon-rgb),0)}}

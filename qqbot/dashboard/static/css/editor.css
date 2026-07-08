@@ -1,0 +1,49 @@
+/* ================================================================
+   EDITOR — 技能编辑面板专用样式
+   编辑器头部 / 标签栏 / 编辑区 / AI 特征整合 / 重载提示
+   ================================================================ */
+
+.editor-panel{
+  background:var(--surface);border:1px solid var(--neon);border-radius:var(--r-lg);
+  padding:0;margin-top:14px;overflow:hidden;animation:fadeUp .3s var(--ease);
+  box-shadow:var(--glow-neon);
+}
+.editor-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 18px;border-bottom:1px solid var(--edge);background:rgba(var(--neon-rgb),0.03);
+}
+.editor-title{font-size:13px;font-weight:600;color:var(--neon);font-family:var(--font-mono);display:flex;align-items:center;gap:8px}
+.editor-body{padding:14px 18px}
+.editor-tabs{display:flex;gap:2px;margin-bottom:10px}
+.editor-tab{
+  padding:6px 14px;cursor:pointer;color:var(--text3);font-size:11px;font-weight:500;
+  border:1px solid var(--edge);border-bottom:none;border-radius:6px 6px 0 0;
+  background:transparent;transition:all .2s var(--ease);font-family:var(--font-ui);
+}
+.editor-tab.active{color:var(--neon);background:var(--void);border-color:var(--edge2)}
+.editor-textarea{
+  width:100%;min-height:320px;padding:12px;background:var(--void);border:1px solid var(--edge);
+  border-radius:0 var(--r) var(--r) var(--r);color:var(--text);font-family:var(--font-mono);
+  font-size:12px;line-height:1.7;resize:vertical;transition:border-color .25s var(--ease);
+}
+.editor-textarea:focus{border-color:var(--neon);outline:none;box-shadow:0 0 0 2px rgba(var(--neon-rgb),0.08)}
+.editor-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.editor-status{font-size:11px;color:var(--text4);font-family:var(--font-mono)}
+
+.trait-section{
+  margin-top:14px;padding:14px;background:var(--void);border:1px solid var(--edge);border-radius:var(--r);
+}
+.trait-section h4{font-size:10px;color:var(--magenta);letter-spacing:1px;font-weight:600;margin-bottom:8px;font-family:var(--font-ui);text-transform:uppercase}
+.trait-input{
+  width:100%;min-height:60px;padding:8px 10px;background:var(--surface);border:1px solid var(--edge);
+  border-radius:6px;color:var(--text);font-family:var(--font-ui);font-size:12px;resize:vertical;
+  transition:border-color .25s var(--ease);margin-bottom:8px;
+}
+.trait-input:focus{border-color:var(--magenta);outline:none;box-shadow:0 0 0 2px rgba(var(--magenta-rgb),0.08)}
+.trait-input::placeholder{color:var(--text4)}
+
+.reload-banner{
+  background:rgba(var(--lime-rgb),0.08);border:1px solid rgba(var(--lime-rgb),0.2);
+  color:var(--lime);padding:6px 14px;border-radius:6px;font-size:11px;font-family:var(--font-ui);
+  display:flex;align-items:center;gap:6px;animation:slideIn .3s var(--ease);margin-top:8px;
+}

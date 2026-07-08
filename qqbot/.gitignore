@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.env
+*.log
+data/
+.claude/
+
+# 项目特定
+napcat/
+corpus/
+cookies.json
+skill_qqbot/
+*.egg-info/
+dist/
+build/
+.reload_skills_trigger
