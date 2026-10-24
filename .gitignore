@@ -1,42 +1,50 @@
 # ============================================================
-#  qqbot-multiple-character .gitignore
+#  qqbot-multiple-character .gitignore（本地版）
+#  基础沿用公开仓库 origin/master 的规则，并额外排除本地私有内容。
+#  原则：代码 / 文档 / 模板进仓库；密钥、角色、语料、运行时数据、
+#        第三方运行时（SnowLuma）与历史归档一律本地保留。
 # ============================================================
 
-# ── 运行时 / 构建产物 ──────────────────────────────────────
-# Python 虚拟环境（setup.bat 创建）
-skill_qqbot/
-
-# 第三方程序（SnowLuma 让用户手动下载到 snowluma/）
-snowluma/
-
-# 运行时 PID / 临时目录
+# ── 本地私有内容（不出现在公开仓库） ───────────────────────
+# 圈子共享背景 + 真人分析，仅本地
+normal-paper/
+# 全部角色（含真人系），仅本地
+qqbot/characters/
+private/
+corpus/
+photo/
+archive/
+skill/
+.work/
+.pids/
 .runtime/
-*.pid
 
-# 日志目录（顶层 + 子模块）
-logs/
-!logs/.gitkeep
+# ── 运行时 / 构建产物 ─────────────────────────────────────
 qqbot/logs/
-!qqbot/logs/.gitkeep
+qqbot/data/
+logs/
+skill_qqbot/
+snowluma/
+*.pid
 *.log
 
-# 运行时持久化数据（bot 自己生成）
-qqbot/data/
-!qqbot/data/.gitkeep
+# ── 隐私 / 敏感配置（绝不能进仓库） ───────────────────────
+.env
+.env.*
+!.env.example
+qqbot/.env
+# 真值配置（只提交 .example.json 模板）
+qqbot/snowluma_onebot_config.json
 
-# ── 隐私 / 敏感配置（绝不能进仓库） ─────────────────────────
-# 真实 API Key / Cookie / 对话历史 / 用户画像
-private/
-!private/.gitkeep
-!private/.env.example
-
-# ── Python 缓存 ───────────────────────────────────────────
+# ── Python ───────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 *.egg-info/
+.venv/
+venv/
 
 # ── IDE / 编辑器 ─────────────────────────────────────────
 .vscode/
@@ -44,10 +52,8 @@ __pycache__/
 *.swp
 *.swo
 *~
-.project
-.pydevproject
 
-# ── OS 临时文件 ───────────────────────────────────────────
+# ── OS 临时文件 ──────────────────────────────────────────
 .DS_Store
 Thumbs.db
 desktop.ini
@@ -57,31 +63,15 @@ $RECYCLE.BIN/
 # ── 临时 / 备份 ──────────────────────────────────────────
 *.tmp
 *.bak
-*.swp
+*.bak_*
 *.orig
 *.rej
+.tmp_helper_marker.txt
+._*
 
-# ── 用户自填内容（保留示例角色头像目录结构但忽略实际内容） ──────────────
-# 角色头像目录（每个角色一个子目录，放 avatar.jpg/png）
-photo/*
-!photo/.gitkeep
-!photo/makise-kurisu/
-!photo/makise-kurisu/.gitkeep
-!photo/makise-kurisu/avatar.*
-
-# 表情图片目录（10 个情绪子目录，已含 keywords.txt）
-emoji/*/1.*
-emoji/*/2.*
-emoji/*/3.*
+# ── 表情图片（体积大，本地保留；仓库只提交 keywords.txt 结构） ──
 emoji/*/*.gif
 emoji/*/*.jpg
+emoji/*/*.jpeg
 emoji/*/*.png
-
-# ── 兜底 ─────────────────────────────────────────────────
-# 任何 .env 文件（防止私钥漏出）
-.env
-.env.*
-!.env.example
-
-# SnowLuma 反向 WS 运行时真值配置（模板 .example.json 入库）
-qqbot/snowluma_onebot_config.json
+emoji/*/*.webp

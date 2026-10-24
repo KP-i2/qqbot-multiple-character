@@ -23,8 +23,6 @@
 <link rel="stylesheet" href="/static/css/editor.css">
 <!-- 帮助文档 -->
 <link rel="stylesheet" href="/static/css/help.css">
-<!-- 增量视觉优化（ABCE 调整；最后加载以覆盖） -->
-<link rel="stylesheet" href="/static/css/tweaks.css">
 </head>
 <body>
 
@@ -35,15 +33,15 @@
     <div><h1>QQ_BOT</h1><div class="sub">控制面板 v2.1</div></div>
   </div>
   <div class="header-right">
-    <div class="health-pills">
+    <div class="health-pills" role="status" aria-live="polite" aria-label="服务状态">
       <span class="health-pill off" id="healthBot" title="NoneBot2"><span id="healthBotDot">&#9679;</span> 机器人</span>
       <span class="health-pill off" id="healthNc" title="snowluma"><span id="healthNcDot">&#9679;</span> 协议端</span>
       <span class="health-pill off" id="healthWs" title="WebSocket 连接"><span id="healthWsDot">&#9679;</span> WS</span>
       <span class="health-time" id="healthTime">--:--</span>
     </div>
-    <div class="ws-badge disconnected" id="wsStatus">连接中...</div>
+    <div class="ws-badge disconnected" id="wsStatus" role="status" aria-live="polite">连接中...</div>
     <div class="theme-wrap">
-      <button class="theme-btn" onclick="toggleThemeMenu(event)"><span class="theme-dot"></span>主题</button>
+      <button class="theme-btn" onclick="toggleThemeMenu(event)" aria-haspopup="true" aria-expanded="false"><span class="theme-dot"></span>主题</button>
       <div class="theme-dropdown hidden" id="themeDropdown">
         <div class="theme-dropdown-title">选择主题</div>
         <div class="theme-grid">
@@ -115,16 +113,12 @@
     <div class="card">
       <div class="flex-between">
         <h3><span class="icon green">&#9889;</span> 服务控制</h3>
-        <div id="wdStatus" class="wd-indicator off"><span id="wdDot">&#9679;</span> <span id="wdText">看门狗 关闭</span></div>
       </div>
-      <p class="desc">管理 NoneBot2、snowluma 和 Dashboard 服务。启动/重启前会自动清理占用端口的旧进程，不再出现端口冲突。看门狗每 30 秒检测，自动重启崩溃的 NoneBot2 或 snowluma。</p>
+      <p class="desc">管理 NoneBot2、snowluma 和 Dashboard 服务。启动/重启前会自动清理占用端口的旧进程，不再出现端口冲突。</p>
       <div class="btn-group">
         <button class="btn btn-success btn-lg" onclick="startAll()">启动 NoneBot2</button>
         <button class="btn btn-accent btn-lg" onclick="restartNonebot(this)">重启 NoneBot2</button>
         <button class="btn btn-danger btn-lg" onclick="shutdownProject()">关闭 NoneBot2</button>
-        <span style="border-left:1px solid var(--edge);margin:0 6px;height:20px"></span>
-        <button class="btn btn-accent btn-sm" onclick="toggleWatchdog(true)">开启看门狗</button>
-        <button class="btn btn-outline btn-sm" onclick="toggleWatchdog(false)">关闭看门狗</button>
       </div>
     </div>
 
@@ -164,7 +158,7 @@
           <button class="btn btn-outline btn-sm" onclick="toggleSnowlumaLog(this)" id="snowLogToggleBtn">展开日志 ▾</button>
         </div>
       </div>
-      <p class="desc">snowluma 提供 OneBot v11 WS 协议，负责 QQ 登录与消息上行下行。WebUI 在 http://localhost:5099 仅用于配置 QQ 连接和协议参数；进程启停请用本页按钮，看门狗会在进程崩溃时自动拉起。</p>
+      <p class="desc">snowluma 提供 OneBot v11 WS 协议，负责 QQ 登录与消息上行下行。WebUI 在 http://localhost:5099 仅用于配置 QQ 连接和协议参数；进程启停请用本页按钮。</p>
       <div class="stat-grid">
         <div class="stat-item"><div class="stat"><div class="label">Desktop</div><div class="value neutral" id="ncStatus">-</div></div></div>
         <div class="stat-item"><div class="stat"><div class="label">QQ 客户端</div><div class="value neutral" id="qqStatus">-</div></div></div>
@@ -174,7 +168,7 @@
       </div>
       <div id="snowLogPanel" class="log-panel hidden">
         <div class="log-panel-header">
-          <span class="log-panel-title">实时日志 · <code>snowluma/start.out</code></span>
+          <span class="log-panel-title">实时日志 · <code>qqbot/logs/snowluma.log</code></span>
           <div class="log-panel-actions">
             <label class="log-panel-check"><input type="checkbox" id="snowLogAutoScroll" checked /> 自动滚动</label>
             <button class="btn btn-xs btn-outline" onclick="clearSnowlumaLog()">清屏</button>
@@ -508,24 +502,27 @@
         <div class="form-group">
           <label>主选 Provider</label>
           <select id="set-active_llm_provider">
-            <option value="minimax">minimax (M3, 默认)</option>
-            <option value="deepseek">DeepSeek (v4-pro)</option>
+            <option value="deepseek">DeepSeek (v4-pro, 默认)</option>
+            <option value="minimax">minimax (M3)</option>
           </select>
         </div>
         <div class="form-group">
-          <label>minimax 高速探测 (M2.7-highspeed)</label>
-          <select id="set-minimax_use_high_speed"><option value="true">开启</option><option value="false">关闭</option></select>
+          <label>识图 (vision, 关闭后图片消息走降级占位)</label>
+          <select id="set-image_handler_enabled">
+            <option value="true">开启</option>
+            <option value="false">关闭</option>
+          </select>
         </div>
       </div>
       <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
-        <div class="form-group"><label>Temperature</label><input type="number" id="set-minimax_temperature" min="0" max="2" step="0.05"></div>
-        <div class="form-group"><label>Top P</label><input type="number" id="set-minimax_top_p" min="0" max="1" step="0.05"></div>
-        <div class="form-group"><label>Max Tokens</label><input type="number" id="set-minimax_max_tokens" min="100" max="32000" step="100"></div>
+        <div class="form-group"><label>Temperature</label><input type="number" id="set-llm_temperature" min="0" max="2" step="0.05"></div>
+        <div class="form-group"><label>Top P</label><input type="number" id="set-llm_top_p" min="0" max="1" step="0.05"></div>
+        <div class="form-group"><label>Max Tokens</label><input type="number" id="set-llm_max_tokens" min="100" max="32000" step="100"></div>
       </div>
       <div class="form-row" style="grid-template-columns:1fr 1fr">
         <div class="form-group">
           <label>Reasoning (带工具)</label>
-          <select id="set-minimax_reasoning_effort_with_tools">
+          <select id="set-llm_reasoning_effort_with_tools">
             <option value="low">low</option>
             <option value="medium">medium</option>
             <option value="high">high</option>
@@ -533,7 +530,7 @@
         </div>
         <div class="form-group">
           <label>Reasoning (无工具)</label>
-          <select id="set-minimax_reasoning_effort_no_tools">
+          <select id="set-llm_reasoning_effort_no_tools">
             <option value="low">low</option>
             <option value="medium">medium</option>
             <option value="high">high</option>
@@ -581,18 +578,18 @@
   </div>
 
 </div>
-<div class="modal-overlay" id="retrainModal" style="display:none" onclick="if(event.target===this){this.style.display='none'}">
+<div class="modal-overlay" id="retrainModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="retrainModalTitle" onclick="if(event.target===this)_closeRetrainModal()">
   <div class="modal" style="max-width:400px">
     <div class="modal-header">
       <h3 id="retrainModalTitle">蒸馏配置</h3>
-      <button class="modal-close" onclick="document.getElementById('retrainModal').style.display='none'">&#10005;</button>
+      <button class="modal-close" onclick="_closeRetrainModal()">&#10005;</button>
     </div>
     <div class="modal-body">
       <div class="form-group"><label>角色类型</label><select id="retrainCharacter" style="padding:8px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);width:100%;font-family:var(--font-ui)"><option value="celebrity">名人</option><option value="colleague">同事</option><option value="relationship" selected>亲密关系</option></select></div>
       <div class="form-group" id="retrainResearchGroup"><label>调研深度</label><select id="retrainResearchProfile" style="padding:8px;border-radius:6px;border:1px solid var(--edge);background:var(--void);color:var(--text);width:100%;font-family:var(--font-ui)"><option value="budget-friendly">标准（2 次 API 调用）</option><option value="budget-unfriendly">深度（4 次 API 调用）</option></select></div>
       <p class="hint" style="margin:10px 0">旧版本会自动备份。</p>
       <div class="btn-group" style="justify-content:flex-end">
-        <button class="btn btn-outline btn-sm" onclick="document.getElementById('retrainModal').style.display='none'">取消</button>
+        <button class="btn btn-outline btn-sm" onclick="_closeRetrainModal()">取消</button>
         <button class="btn btn-primary btn-sm" id="retrainConfirmBtn" onclick="confirmRetrain()">开始</button>
       </div>
     </div>

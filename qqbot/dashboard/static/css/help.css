@@ -46,3 +46,12 @@
 .docs-error{color:var(--coral);padding:14px;background:rgba(255,51,85,.08);border:1px solid var(--coral);border-radius:6px;font-size:12px;margin:14px 0}
 
 @media(max-width:768px){.docs-layout{grid-template-columns:1fr}.docs-sidebar{position:static;max-height:none}}
+
+/* ═══ 原 tweaks.css 收口合并区（2026-08-30）═══ */
+/* E3 Empty docs — 居中 + 装饰 */
+.docs-empty{padding:120px 32px !important;position:relative}
+.docs-empty::before{
+  content:'';display:block;width:64px;height:64px;border-radius:50%;margin:0 auto 16px;
+  background:radial-gradient(circle at 35% 35%,var(--neon) 0%,transparent 60%);
+  opacity:0.3;
+}

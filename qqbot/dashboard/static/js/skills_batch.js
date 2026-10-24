@@ -28,11 +28,40 @@ async function batchDeleteSkills(){
 }
 
 let _retrainTarget='';
-function openRetrainModal(name){_retrainTarget=name;document.getElementById('retrainModalTitle').textContent='蒸馏配置：'+name;document.getElementById('retrainModal').style.display='flex'}
+let _retrainLastFocus=null;
+function openRetrainModal(name){
+  _retrainTarget=name;
+  document.getElementById('retrainModalTitle').textContent='蒸馏配置：'+name;
+  const m=document.getElementById('retrainModal');
+  m.style.display='flex';
+  _retrainLastFocus=document.activeElement;
+  const first=m.querySelector('button,select,input,[tabindex]:not([tabindex="-1"])');
+  if(first&&first.focus)first.focus();
+}
+function _closeRetrainModal(){
+  const m=document.getElementById('retrainModal');
+  if(!m||m.style.display==='none')return;
+  m.style.display='none';
+  if(_retrainLastFocus&&_retrainLastFocus.focus)_retrainLastFocus.focus();
+  _retrainLastFocus=null;
+}
+// 弹窗键盘：Escape 关闭 + Tab 焦点圈定在弹窗内
+document.addEventListener('keydown',function(e){
+  const m=document.getElementById('retrainModal');
+  if(!m||m.style.display==='none')return;
+  if(e.key==='Escape'){e.preventDefault();_closeRetrainModal();return}
+  if(e.key==='Tab'){
+    const focusables=m.querySelectorAll('button,select,input,[tabindex]:not([tabindex="-1"])');
+    if(!focusables.length)return;
+    const first=focusables[0],last=focusables[focusables.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+  }
+});
 document.getElementById('retrainCharacter').addEventListener('change',function(){document.getElementById('retrainResearchGroup').style.display=this.value==='celebrity'?'block':'none'});
 async function confirmRetrain(){
   const name=_retrainTarget,character=document.getElementById('retrainCharacter').value,rp=document.getElementById('retrainResearchProfile').value;
-  document.getElementById('retrainModal').style.display='none';const btn=document.getElementById('retrainConfirmBtn');btnLoading(btn,true,'启动中...');
+  _closeRetrainModal();const btn=document.getElementById('retrainConfirmBtn');btnLoading(btn,true,'启动中...');
   try{const d=await(await safeFetch('/api/skills/'+name+'/retrain?character='+character+'&research_profile='+rp,{method:'POST'})).json();if(!d.ok){toast(d.msg,false);return}toast(d.msg,true);startProgressPoll(name)}
   catch(e){toast('启动失败: '+e.message,false)}finally{btnLoading(btn,false)}}
 

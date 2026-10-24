@@ -51,3 +51,24 @@ code{font-family:var(--font-mono);font-size:0.9em}
 }
 /* 暖光圈脉冲（用于 KPI / 状态点呼吸感） */
 @keyframes warmGlow{0%,100%{box-shadow:0 0 0 0 rgba(var(--neon-rgb),0.3)}50%{box-shadow:0 0 0 6px rgba(var(--neon-rgb),0)}}
+
+/* ════════════════════════════════════════════════════════════════
+   原 tweaks.css 收口合并区（2026-08-30）
+   ════════════════════════════════════════════════════════════════ */
+/* C1 数字滚动动画 */
+@keyframes countUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+/* F1 选中文本颜色更深（提高对比） */
+::selection{background:rgba(var(--neon-rgb),0.28);color:#fff}
+/* F3 滚动条更纤细 + hover 高亮 */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--edge2);border-radius:4px;border:2px solid var(--void)}
+::-webkit-scrollbar-thumb:hover{background:var(--neon)}
+/* F2 减少 motion（无障碍） */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:0.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:0.01ms !important;
+  }
+}

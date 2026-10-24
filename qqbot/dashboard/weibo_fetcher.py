@@ -9,7 +9,8 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 PRIVATE_DIR = PROJECT_ROOT / "private"
 CORPUS_DIR = PROJECT_ROOT / "corpus"
 COOKIES_FILE = PRIVATE_DIR / "cookies.json"
-DOT_SKILL_DIR = PROJECT_ROOT / "_cache" / "colleague-skill"
+# dot-skill (titanwings/colleague-skill) 本地副本，仓库内维护：skill/colleague-skill/
+DOT_SKILL_DIR = PROJECT_ROOT / "skill" / "colleague-skill"
 
 # 加载 .env（私密配置，从 private/ 读取）
 _env_file = PRIVATE_DIR / ".env"
@@ -90,7 +91,7 @@ def list_corpora() -> list[dict]:
     result = []
     if not CORPUS_DIR.exists():
         return result
-    skills_dir = PROJECT_ROOT / "qqbot" / "skills"
+    skills_dir = PROJECT_ROOT / "qqbot" / "characters"
     for d in sorted(CORPUS_DIR.iterdir()):
         if not d.is_dir():
             continue
@@ -406,7 +407,7 @@ def generate_skill_from_corpus(uid: str, skill_name: str, display_name: str,
     """从语料生成 Skill 文件（persona + work + SKILL.md）
     character: 'colleague' | 'relationship' | 'celebrity'
     """
-    skills_dir = PROJECT_ROOT / "qqbot" / "skills"
+    skills_dir = PROJECT_ROOT / "qqbot" / "characters"
     skill_dir = skills_dir / skill_name
 
     if skill_dir.exists():
@@ -709,7 +710,7 @@ async def retrain_skill(
     """
     import time as _time
 
-    skills_dir = PROJECT_ROOT / "qqbot" / "skills"
+    skills_dir = PROJECT_ROOT / "qqbot" / "characters"
     skill_dir = skills_dir / skill_name
 
     if not skill_dir.exists():

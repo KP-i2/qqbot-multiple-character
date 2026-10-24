@@ -22,7 +22,6 @@ async function restartNonebot(btn){
   try{const d=await(await safeFetch('/api/process/full-restart',{method:'POST'},90000)).json();toast(d.msg,d.ok)}
   catch(e){toast('重启出错: '+e.message,false)}finally{btnLoading(btn,false)}
 }
-async function toggleWatchdog(start){try{const url=start?'/api/watchdog/start':'/api/watchdog/stop';const d=await(await safeFetch(url,{method:'POST'})).json();toast(d.msg,d.ok)}catch(e){toast('出错: '+e.message,false)}}
 
 // ── snowluma 启停 (2026-07-01 加进 dashboard 统一管理) ──
 async function toggleSnowluma(action, btn){

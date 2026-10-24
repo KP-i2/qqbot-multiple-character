@@ -5,13 +5,15 @@
 $ErrorActionPreference = 'Stop'
 
 $root   = (Split-Path -Parent $MyInvocation.MyCommand.Path | Split-Path -Parent | Split-Path -Parent)
-$venv   = Join-Path $root 'skill_qqbot\Scripts\pythonw.exe'
+# 2026-07-23: 改用 anaconda conda env (botenv) — 真独立 python, 避免 venv launcher 转发到 base python
+$venv   = 'D:\Work\anaconda3\envs\botenv\pythonw.exe'
 $qwDir  = $root
 $logs   = Join-Path $root 'qqbot\logs'
 $port   = 8501
 
 if (-not (Test-Path $venv)) {
-    Write-Host "[!] venv pythonw.exe not found: $venv"
+    Write-Host "[!] botenv pythonw.exe not found: $venv"
+    Write-Host "    创建方法: conda create -n botenv python=3.12 -y"
     pause
     exit 1
 }

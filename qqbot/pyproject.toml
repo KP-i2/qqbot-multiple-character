@@ -1,7 +1,7 @@
 [project]
-name = "zyw-qqbot"
+name = "char-chat-qqbot"
 version = "1.0.0"
-description = "zyw character QQ bot powered by NoneBot2 + DeepSeek"
+description = "Multi-character QQ bot powered by NoneBot2 + DeepSeek"
 
 [tool.nonebot]
 adapters = [

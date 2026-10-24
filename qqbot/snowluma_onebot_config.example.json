@@ -1,22 +1,20 @@
-﻿{
+{
   "networks": {
     "httpServers": [],
     "httpClients": [],
     "wsServers": [],
     "wsClients": [
       {
-        "enable": true,
-        "name": "zyw",
+        "name": "qqbot",
         "url": "ws://127.0.0.1:8080/onebot/v11/ws",
         "accessToken": "your-access-token-here",
         "messageFormat": "array",
         "reportSelfMessage": false,
-        "heartInterval": 30000,
-        "reconnectInterval": 5000
+        "role": "Universal",
+        "reconnectIntervalMs": 5000
       }
     ]
   },
-  "musicSignUrl": "",
   "statusCommand": {
     "enabled": true,
     "swallow": false,

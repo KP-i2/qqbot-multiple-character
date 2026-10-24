@@ -267,3 +267,120 @@
 @media(max-width:480px){
   .kpi-grid{grid-template-columns:1fr 1fr}.roster-grid{grid-template-columns:repeat(2,1fr)}.skills-grid{grid-template-columns:1fr}
 }
+
+/* ════════════════════════════════════════════════════════════════
+   原 tweaks.css 收口合并区（2026-08-30）
+   从独立覆盖层并入本文件，保证最终视觉不变（后定义覆盖上层）
+   ════════════════════════════════════════════════════════════════ */
+/* A1 头部：渐变底 + 底部渐变线 */
+.header{
+  background:linear-gradient(180deg,rgba(var(--neon-rgb),0.04) 0%,rgba(var(--neon-rgb),0.01) 100%),var(--surface) !important;
+  border-bottom:1px solid transparent !important;
+  box-shadow:inset 0 -1px 0 var(--edge),0 2px 12px rgba(0,0,0,0.06);
+}
+.header::after{
+  content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--neon) 30%,var(--magenta) 70%,transparent);
+  opacity:0.3;pointer-events:none;
+}
+/* A2 Logo：渐变内圈 + 微弱光环 */
+.header-logo{
+  background:radial-gradient(circle at 30% 30%,var(--magenta) 0%,var(--neon) 70%);
+  box-shadow:0 0 12px rgba(var(--neon-rgb),0.35),inset 0 0 0 1px rgba(255,255,255,0.15);
+  letter-spacing:0 !important;
+}
+/* A3 KPI 卡：玻璃质 + hover lift */
+.kpi-card{
+  background:linear-gradient(180deg,rgba(255,255,255,0.012),transparent),var(--surface) !important;
+  backdrop-filter:blur(8px);
+}
+.kpi-card:hover{
+  transform:translateY(-3px) scale(1.005) !important;
+  box-shadow:0 12px 32px rgba(var(--kpi-accent-rgb,var(--neon-rgb)),0.18),0 2px 8px rgba(0,0,0,0.04);
+}
+.kpi-value{font-size:26px;letter-spacing:-0.5px;animation:countUp 0.45s var(--ease)}
+/* A4 卡片顶部 accent 渐变 — 双 stop + 中心高亮 */
+.card::before{
+  height:2px !important;
+  background:radial-gradient(60% 100% at 50% 0%,var(--neon) 0%,var(--magenta) 40%,transparent 80%) !important;
+  opacity:0.5 !important;
+}
+.card:hover::before{opacity:0.9 !important}
+/* A5 Card hover — 减少位移、柔光 */
+.card{transition:border-color 0.3s var(--ease),box-shadow 0.3s var(--ease) !important}
+.card:hover{transform:none !important;box-shadow:0 8px 28px rgba(var(--neon-rgb),0.06),0 2px 8px rgba(0,0,0,0.03)}
+/* A9 主题下拉：玻璃质感 */
+.theme-dropdown{
+  backdrop-filter:blur(24px) saturate(1.5) !important;
+  box-shadow:0 16px 48px rgba(0,0,0,0.32),0 0 0 1px rgba(255,255,255,0.04),var(--glow-neon) !important;
+}
+.theme-card-preview{
+  box-shadow:inset 0 1px 2px rgba(255,255,255,0.4),0 2px 6px rgba(0,0,0,0.12),inset 0 -8px 12px rgba(0,0,0,0.1) !important;
+}
+/* A10 状态 pill — dot 呼吸感 */
+.health-pill{transition:all 0.3s var(--ease)}
+.health-pill.on{box-shadow:0 0 12px rgba(var(--lime-rgb),0.15)}
+.health-pill.off{background:rgba(var(--coral-rgb),0.04)}
+.health-pill #healthBotDot,#healthNcDot,#healthWsDot{transition:opacity 0.3s var(--ease)}
+.health-pill.on #healthBotDot,.health-pill.on #healthNcDot,.health-pill.on #healthWsDot{
+  animation:pulse 2s var(--ease) infinite;
+}
+/* B1 Content 容器：更大内边距 + 最大宽度 */
+.content{padding:28px 28px 64px !important;max-width:1180px}
+/* B2 KPI grid：更大间距 */
+.kpi-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  gap:14px !important;
+  margin-bottom:18px !important;
+}
+/* B3 卡片：加大内边距 */
+.card{
+  padding:22px 26px !important;
+  margin-bottom:16px !important;
+  border-radius:var(--r-lg) !important;
+}
+.card h3{margin-bottom:18px !important;gap:10px !important}
+.card h3 .icon{width:26px;height:26px;border-radius:8px}
+/* B5 花名册 7 列 */
+.roster-grid{grid-template-columns:repeat(7,1fr) !important;gap:12px !important}
+.roster-card{padding:16px 8px 14px !important}
+.roster-avatar,.roster-fallback{width:64px;height:64px}
+/* B6 技能卡 4 列 */
+.skills-grid{grid-template-columns:repeat(4,1fr) !important;max-width:1180px;gap:12px}
+/* B8 Tabs — 增高加粗 */
+.tabs{padding:0 28px !important;gap:2px}
+.tab{padding:12px 20px !important;font-size:12.5px !important;font-weight:500}
+.tab.active{font-weight:600}
+/* B9 Section 标题节奏 */
+.card h3{font-size:12px;letter-spacing:1.2px}
+/* B10 健康 pill 紧凑 + 等宽 */
+.health-pill{padding:3px 9px !important;font-size:10px}
+.header-right{gap:14px !important}
+/* B11 响应式：花名册/技能卡列数 */
+@media(max-width:1100px){
+  .roster-grid{grid-template-columns:repeat(5,1fr) !important}
+}
+@media(max-width:900px){
+  .roster-grid{grid-template-columns:repeat(4,1fr) !important}
+  .skills-grid{grid-template-columns:repeat(3,1fr) !important}
+}
+/* C2 Tab 切换 stagger */
+.tab-content{animation:fadeUp 0.3s var(--ease) both}
+/* C4 Roster / skill card hover tilt */
+.roster-card,.skill-card{transform-style:preserve-3d}
+.roster-card:hover,.skill-card:hover{transform:translateY(-4px) !important}
+/* C6 Card stagger 入场 */
+.card{animation:fadeUp 0.45s var(--ease) both}
+.card:nth-child(2){animation-delay:0.06s}
+.card:nth-child(3){animation-delay:0.12s}
+.card:nth-child(4){animation-delay:0.18s}
+.card:nth-child(5){animation-delay:0.24s}
+.card:nth-child(6){animation-delay:0.30s}
+.card:nth-child(n+7){animation-delay:0.36s}
+/* C7 Pulse for live indicators */
+.ws-badge.connecting #wsStatusDot,
+.ws-badge.connected::before{animation:pulse 1.5s var(--ease) infinite}
+/* F4 Skill linked badge hover 微动 */
+.skill-badge.linked:hover{transform:translateY(-1px)}
+/* F5 Tab focus-visible ring */
+.tab:focus-visible{outline:none;box-shadow:inset 0 -2px 0 var(--neon),inset 0 4px 0 rgba(var(--neon-rgb),0.15)}

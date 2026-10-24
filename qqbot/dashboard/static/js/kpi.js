@@ -25,7 +25,8 @@ async function updateLLMProviderKPI(){
   const visSubEl=document.getElementById('kpiVisionLLMSub');
   if(!chatEl || !visEl) return;
   try{
-    const r=await fetch('/api/llm-providers');
+    // 2026-08-30: 原用裸 fetch 不带 token header，开启鉴权后必 401；改 safeFetch 自动带 X-Dashboard-Token
+    const r=await safeFetch('/api/llm-providers');
     if(!r.ok) throw new Error('http '+r.status);
     const d=await r.json();
     const cp=d.chat_provider||{};

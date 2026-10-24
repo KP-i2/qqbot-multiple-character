@@ -28,29 +28,23 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent  # 项目根(scripts/sanitize.py -> .. -> repo root)
 
 # 内容层 -- regex 替换
-# 注意:这里只放**通用危险模式**,不放具体真实 QQ 号 / 推主 handle 等
-# 任何具体个人数据请用占位符或在本地副本里加(不提交)
 CONTENT_RULES = [
-    # API key 类(通用)
+    # API key 类
     (r"sk-[A-Za-z0-9_\-]{20,}", "<REDACTED_API_KEY>", "sk-xxx API key"),
     (r"sk-cp-[A-Za-z0-9_\-]{20,}", "<REDACTED_API_KEY>", "sk-cp-xxx API key"),
-    (r"xai-[A-Za-z0-9_\-]{20,}", "<REDACTED_API_KEY>", "xai-xxx API key"),
-    (r"sk-ant-[A-Za-z0-9_\-]{20,}", "<REDACTED_API_KEY>", "sk-ant-xxx API key"),
-    (r"AQ\.A[A-Za-z0-9]{16,}", "<REDACTED_API_KEY>", "AQ.Axxx API key"),
 
-    # Bearer / Authorization token
-    (r"(?i)bearer\s+[A-Za-z0-9_\-\.]{20,}", "<REDACTED_BEARER_TOKEN>", "Bearer token"),
-    (r"(?i)authorization\s*:\s*['\"]?[A-Za-z0-9_\-\.]{20,}", "<REDACTED_AUTH_HEADER>", "Authorization header"),
+    # 本地已知真 QQ 号(管理员/OneBot)
+    (r"\b2972494435\b", "<ADMIN_QQ_1>", "管理员 2972494435"),
+    (r"\b2361850615\b", "<ADMIN_QQ_2>", "管理员 2361850615"),
+    (r"\b3240436320\b", "<ONEBOT_QQ>", "OneBot 3240436320"),
 
-    # 密码 / 密钥 / cookie
-    (r"(?i)(password|passwd|pwd)\s*[=:]\s*['\"][^'\"]{4,}['\"]", "<REDACTED_PASSWORD>", "password field"),
-    (r"(?i)(api[_-]?key|secret|token|cookie)\s*[=:]\s*['\"][A-Za-z0-9_\-]{12,}['\"]", "<REDACTED_SECRET>", "secret/token/cookie field"),
-
-    # JWT
-    (r"eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+", "<REDACTED_JWT>", "JWT"),
-
-    # 数据库连接串
-    (r"(?i)(postgresql|mysql|mongodb)://[^\s'\"<>]+:[^\s'\"<>]+@[^\s'\"<>]+", "<REDACTED_DB_URL>", "DB connection URL"),
+    # 真推主 handle(normal-paper 已黑名单剔,但源码兜底)
+    (r"@jiemei[_]?rose", "@<HANDLE>", "Twitter @jiemei_rose"),
+    (r"@kimikyun_momo",  "@<HANDLE>", "Twitter @kimikyun_momo"),
+    (r"@skingfd",        "@<HANDLE>", "Twitter @skingfd"),
+    (r"@starwink",       "@<HANDLE>", "Twitter @starwink"),
+    (r"@wakusei_vortex", "@<HANDLE>", "Twitter @wakusei_vortex"),
+    (r"@skyfire[_a-z0-9]*", "@<HANDLE>", "Twitter @skyfire*"),
 ]
 
 # 文件层 -- 整目录黑名单(.gitignore 没拦到的也强制剔)
@@ -77,7 +71,7 @@ BLACKLIST_FILES = [
     "_bat_err.log",
     "_bat_out.log",
     "qqbot/snowluma_onebot_config.json",
-    "qqbot/plugins/zyw_chat/_diag.js",
+    "qqbot/plugins/char_chat/_diag.js",
     "docs/snowluma-websocket-config.png",
 ]
 

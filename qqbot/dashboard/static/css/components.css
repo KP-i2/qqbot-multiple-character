@@ -64,11 +64,6 @@ tr:hover td{background:rgba(var(--neon-rgb),0.03)}
 .form-group textarea{min-height:90px;resize:vertical;font-family:var(--font-mono);font-size:11px}
 .form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 
-/* ── 看门狗指示器 ── */
-.wd-indicator{font-size:10px;padding:4px 10px;border-radius:8px;border:1px solid var(--edge);display:inline-flex;align-items:center;gap:4px;font-weight:600;font-family:var(--font-ui);letter-spacing:0.3px}
-.wd-indicator.on{border-color:rgba(var(--lime-rgb),0.3);color:var(--lime);background:rgba(var(--lime-rgb),0.08)}
-.wd-indicator.off{border-color:var(--edge);color:var(--text4)}
-
 /* ── 进度条 / 进度面板（蒸馏任务用） ── */
 .progress{height:4px;background:var(--edge);border-radius:2px;overflow:hidden;margin-top:8px}
 .progress-bar{height:100%;background:linear-gradient(90deg,var(--neon),var(--magenta));transition:width .4s;width:0;border-radius:2px}
@@ -156,3 +151,67 @@ tr:hover td{background:rgba(var(--neon-rgb),0.03)}
 /* ── WS Badge 三态 ── */
 .ws-badge{transition:all 0.25s var(--ease)}
 .ws-badge.connecting{border-color:rgba(var(--amber-rgb),0.4);color:var(--amber);background:rgba(var(--amber-rgb),0.08);animation:warmGlow 1.6s infinite}
+
+/* ════════════════════════════════════════════════════════════════
+   原 tweaks.css 收口合并区（2026-08-30）
+   ════════════════════════════════════════════════════════════════ */
+/* A6 按钮：按下回弹 + 主按钮光泽 */
+.btn{will-change:transform}
+.btn-primary{
+  box-shadow:0 2px 8px rgba(var(--neon-rgb),0.25),inset 0 1px 0 rgba(255,255,255,0.15) !important;
+}
+.btn-primary:hover{
+  box-shadow:0 6px 20px rgba(var(--neon-rgb),0.45),inset 0 1px 0 rgba(255,255,255,0.2) !important;
+}
+.btn:active{transform:translateY(0.5px) scale(0.985)}
+/* C3 按钮 ripple（主按钮按下扩散） */
+.btn-primary{position:relative;overflow:hidden}
+.btn-primary::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,0.35) 0%,transparent 60%);
+  opacity:0;transition:opacity 0.4s var(--ease);pointer-events:none;
+}
+.btn-primary:active::before{opacity:1;transition:opacity 0s}
+/* A7 输入框 focus — 双层 ring + 渐变描边 */
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{
+  box-shadow:0 0 0 3px rgba(var(--neon-rgb),0.14),0 4px 16px rgba(var(--neon-rgb),0.1) !important;
+  border-color:var(--neon) !important;
+}
+/* A8 表格行 hover — 微高亮 + 左侧色条 */
+tbody tr{transition:background 0.2s var(--ease)}
+tbody tr:hover td{background:rgba(var(--neon-rgb),0.04) !important}
+tbody tr:hover td:first-child{box-shadow:inset 2px 0 0 var(--neon)}
+/* B7 表格 cell padding 加大 */
+th{padding:11px 14px !important}
+td{padding:12px 14px !important}
+/* C5 Toast slide-in 加减速 */
+.toast{animation:slideIn 0.35s cubic-bezier(0.34,1.56,0.64,1)}
+/* E5 Toast 容器右上角堆叠间距 */
+.toast + .toast{margin-top:8px}
+/* E1 Empty state 升级：图标 + 文案 */
+.empty{
+  padding:48px 24px !important;
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+}
+.empty::before{
+  content:'';width:48px;height:48px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,rgba(var(--neon-rgb),0.25) 0%,rgba(var(--magenta-rgb),0.1) 60%,transparent 70%);
+  margin-bottom:4px;
+  position:relative;
+}
+.empty::after{
+  content:attr(data-empty-icon,'·');
+  position:absolute;font-size:20px;color:var(--neon);
+}
+.empty{position:relative}
+/* E2 Skeleton card（更柔和 shimmer） */
+@keyframes shimmer{0%{background-position:-150% 0}100%{background-position:150% 0}}
+.skeleton{
+  background:linear-gradient(90deg,var(--surface2) 0%,rgba(var(--neon-rgb),0.04) 50%,var(--surface2) 100%) !important;
+  background-size:200% 100% !important;
+  animation:shimmer 1.6s ease-in-out infinite !important;
+}
+/* E4 Turn 流空状态 */
+#turnsList .empty{padding:64px 24px}
+/* F6 表单 input placeholder 颜色 */
+.form-group input::placeholder,.form-group textarea::placeholder{color:var(--text4);opacity:0.7}

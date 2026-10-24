@@ -1,4 +1,4 @@
-"""进程检测与系统监控（修复版：async-friendly + 看门狗 + 日志捕获）"""
+"""进程检测与系统监控（async-friendly + 日志捕获）"""
 import os, time, asyncio, subprocess, socket, logging, shutil
 from pathlib import Path
 from datetime import datetime
@@ -9,13 +9,25 @@ logger = logging.getLogger("dashboard.monitor")
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent  # skill_communication/
 QQBOT_DIR = PROJECT_ROOT / "qqbot"
-VENV_PYTHON = PROJECT_ROOT / "skill_qqbot" / "Scripts" / "python.exe"
+VENV_PYTHON = Path(r"D:\Work\anaconda3\envs\botenv\python.exe")
 BOT_SCRIPT = QQBOT_DIR / "bot.py"
 LOG_DIR = QQBOT_DIR / "logs"
 SNOWLUMA_DIR = PROJECT_ROOT / "snowluma"  # snowluma 安装目录
 SNOWLUMA_NODE_EXE: Optional[Path] = None  # 解析后填入: snowluma/SnowLuma-*/node.exe
 # 旧 NapCat 兼容：保留常量名但实际指向 snowluma，避免大改
 LEGACY_PROTOCOL_EXE = "NapCatQQ-Desktop.exe"  # 仅用于日志注释
+
+# 2026-09-10: 自己加载 private/.env（写法跟 weibo_fetcher 一致）。
+# 必须放在下面读取 STATUS_CACHE_TTL 等 os.getenv 常量之前 ——
+# main.py 里 monitor 是第一个被 import 的模块，此时 weibo_fetcher 的
+# load_dotenv 还没执行，不自己加载就读不到 .env 里的配置。
+try:
+    from dotenv import load_dotenv
+    _env_file = PROJECT_ROOT / "private" / ".env"
+    if _env_file.exists():
+        load_dotenv(_env_file)
+except ImportError:  # dotenv 缺失时静默降级为纯环境变量
+    pass
 
 
 def _resolve_snowluma_node() -> Optional[Path]:
@@ -40,8 +52,10 @@ def _resolve_snowluma_node() -> Optional[Path]:
 # ── 可配置常量 ──
 NONEBOT_PORT = int(os.getenv("NONEBOT_PORT", "8080"))
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8501"))
-WATCHDOG_INTERVAL = int(os.getenv("WATCHDOG_INTERVAL", "30"))
-STATUS_CACHE_TTL = int(os.getenv("STATUS_CACHE_TTL", "5"))
+# get_all_status 优化后冷跑约 30ms（原先 4.4s），30s 缓存足够；
+# 需要更快刷新可改 .env 的 STATUS_CACHE_TTL（用户点 start/stop 会走
+# invalidate_status_cache() 立即失效，不受此值影响）
+STATUS_CACHE_TTL = int(os.getenv("STATUS_CACHE_TTL", "30"))
 _STOP_GRACE = 5  # 优雅退出等待（秒）
 
 # 确保日志目录存在
@@ -78,6 +92,20 @@ def invalidate_status_cache():
 
 
 def check_port_open(port: int) -> bool:
+    """检查端口是否在监听。
+
+    2026-08-30: 原实现用 socket connect_ex，连到未监听端口时会等满 1s 超时
+    （Windows 防火墙静默丢包），get_all_status 每次冷缓存要拖 1s+。
+    改为 psutil 查 LISTEN 状态（毫秒级），AccessDenied 时回退 socket。
+    """
+    try:
+        for conn in psutil.net_connections(kind="inet"):
+            if conn.laddr and conn.laddr.port == port and conn.status == "LISTEN":
+                return True
+        return False
+    except (psutil.AccessDenied, OSError):
+        pass
+    # fallback：socket connect 探测
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(1)
         return s.connect_ex(("127.0.0.1", port)) == 0
@@ -111,16 +139,33 @@ def clean_stale_port(port: int, exclude_pid: int = 0) -> int:
     return killed
 
 
+def _memory_mb(proc: psutil.Process) -> float:
+    """按需读取单个进程的内存占用（MB）。
+
+    2026-09-10 性能修复：**不要在 process_iter 的 attrs 里带 memory_info**。
+    本机实测（296 个进程）：
+        process_iter(["pid","name"])                   0.001s
+        process_iter(["pid","name","create_time"])     0.001s
+        process_iter(["pid","name","memory_info"])     0.620s   <-- 唯一杀手
+    原因是 memory_info 要对每个进程 OpenProcess 取一次 RSS。而真正需要的
+    往往只有命中名字的那几个，按需取 5 个进程实测 0.0000s。
+    """
+    try:
+        return round(proc.memory_info().rss / 1024 / 1024, 1)
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return 0.0
+
+
 def find_process_by_name(name: str) -> list[dict]:
     results = []
-    for proc in psutil.process_iter(["pid", "name", "cmdline", "create_time", "memory_info"]):
+    # 注意：attrs 里刻意不带 memory_info（见 _memory_mb 的性能说明）
+    for proc in psutil.process_iter(["pid", "name", "cmdline", "create_time"]):
         try:
             if name.lower() in (proc.info["name"] or "").lower():
-                mem = proc.info["memory_info"]
                 results.append({
                     "pid": proc.info["pid"],
                     "name": proc.info["name"],
-                    "memory_mb": round(mem.rss / 1024 / 1024, 1) if mem else 0,
+                    "memory_mb": _memory_mb(proc),
                     "uptime": _format_uptime(proc.info["create_time"]),
                 })
         except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -165,20 +210,20 @@ def get_napcat_status() -> dict:
     """
     # 检测 snowluma 进程：node.exe 且 路径在 snowluma/ 下
     snowluma_procs = []
-    for proc in psutil.process_iter(["pid", "name", "create_time", "memory_info"]):
+    # 注意：attrs 里刻意不带 memory_info（见 _memory_mb 的性能说明）
+    for proc in psutil.process_iter(["pid", "name", "create_time"]):
         try:
             pinfo = proc.info
             pname = (pinfo["name"] or "").lower()
             if pname != "node.exe":
                 continue
-            p = psutil.Process(pinfo["pid"])
-            exe_path = (p.exe() or "").lower()
+            # 直接用 proc，不再 psutil.Process(pid) 重开句柄（省一次 OpenProcess）
+            exe_path = (proc.exe() or "").lower()
             if "snowluma" in exe_path or "\\snowluma\\" in exe_path:
-                mem = pinfo["memory_info"]
                 snowluma_procs.append({
                     "pid": pinfo["pid"],
                     "name": "snowluma",
-                    "memory_mb": round(mem.rss / 1024 / 1024, 1) if mem else 0,
+                    "memory_mb": _memory_mb(proc),
                     "uptime": _format_uptime(pinfo["create_time"]),
                 })
         except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -334,10 +379,12 @@ def get_all_status() -> dict:
     now = time.time()
     if now - _status_cache_time < _CACHE_TTL and _status_cache:
         return _status_cache
+    # 2026-08-30: get_napcat_status 只调一次，snowluma/napcat 两个字段复用（原实现调了两次）
+    napcat_status = get_napcat_status()
     result = {
         "nonebot2": get_nonebot2_status(),
-        "snowluma": get_napcat_status(),   # 2026-06-27 字段名统一:snowluma
-        "napcat": get_napcat_status(),     # 兼容旧前端
+        "snowluma": napcat_status,   # 2026-06-27 字段名统一:snowluma
+        "napcat": napcat_status,     # 兼容旧前端
         "timestamp": datetime.now().isoformat(),
     }
     _status_cache = result
@@ -477,117 +524,12 @@ async def full_restart() -> dict:
     }
 
 
-# ── 进程看门狗 ──
-_watchdog_task: Optional[asyncio.Task] = None
-_watchdog_running = False
-
 # ── WS 健康探活任务 ──
 _ws_health_task: Optional[asyncio.Task] = None
 
-# ── 重启互斥锁（防止看门狗与手动重启冲突） ──
+# ── 重启互斥锁（防止并发重启冲突） ──
 _restart_lock = asyncio.Lock()
 
-
-async def _watchdog_loop(interval: int = 30):
-    """进程看门狗 v3：监控 NoneBot2 + snowluma + WebSocket 连接健康
-
-    策略：
-    1. NoneBot2 崩溃 → 自动重启
-    2. snowluma 崩溃 → 自动重启
-    3. WebSocket 断开（snowluma 未连接）→ 日志告警
-    """
-    global _watchdog_running
-    _watchdog_running = True
-    logger.info(f"[watchdog v3] Started (interval={interval}s)")
-
-    # 启动后等 30 秒再开始检查
-    await asyncio.sleep(30)
-
-    _ws_warn_count = 0  # WebSocket 断开连续告警计数
-    _WS_WARN_THRESHOLD = 3  # 连续 3 次断开才告警（避免启动期间误报）
-
-    while _watchdog_running:
-        try:
-            nb_status = await asyncio.get_event_loop().run_in_executor(None, get_nonebot2_status)
-
-            # NoneBot2 挂了 → 自动重启（加锁防止与手动重启冲突）
-            if not nb_status["running"]:
-                if _restart_lock.locked():
-                    logger.info("[watchdog] Restart already in progress, skipping")
-                else:
-                    async with _restart_lock:
-                        logger.warning("[watchdog] NoneBot2 is down, auto-restarting...")
-                        result = await asyncio.get_event_loop().run_in_executor(None, start_nonebot2)
-                        logger.info(f"[watchdog] NoneBot2 restart: {result['msg']}")
-                        _ws_warn_count = 0  # 重置 WS 告警计数
-                        # 等端口就绪
-                        for _ in range(15):
-                            if await asyncio.get_event_loop().run_in_executor(None, check_port_open, NONEBOT_PORT):
-                                break
-                            await asyncio.sleep(1)
-            else:
-                # NoneBot2 运行时，检查 WebSocket 连接
-                ws_ok = await asyncio.get_event_loop().run_in_executor(None, check_ws_connected, NONEBOT_PORT)
-                if ws_ok:
-                    _ws_warn_count = 0
-                else:
-                    # WS 没连: 可能是 snowluma 挂了, 先看进程
-                    snow_status = await asyncio.get_event_loop().run_in_executor(None, get_napcat_status)
-                    if not snow_status["running"]:
-                        # snowluma 进程也不在 → 自动拉起
-                        if _restart_lock.locked():
-                            logger.info("[watchdog] Restart already in progress, skipping snowluma")
-                        else:
-                            async with _restart_lock:
-                                logger.warning("[watchdog] snowluma is down (no process), auto-restarting...")
-                                result = await asyncio.get_event_loop().run_in_executor(None, start_snowluma)
-                                logger.info(f"[watchdog] snowluma restart: {result['msg']}")
-                    # 给 QQ 客户端 + snowluma 一个连接窗口 (每轮 30s, 连续告警)
-                    _ws_warn_count += 1
-                    if _ws_warn_count == _WS_WARN_THRESHOLD:
-                        logger.warning(
-                            f"[watchdog] No WebSocket client connected to port {NONEBOT_PORT} "
-                            f"(checked {_WS_WARN_THRESHOLD} times). "
-                            "snowluma/QQ may need attention."
-                        )
-                    elif _ws_warn_count > _WS_WARN_THRESHOLD and _ws_warn_count % 10 == 0:
-                        logger.warning(
-                            f"[watchdog] WebSocket still disconnected (count={_ws_warn_count})"
-                        )
-
-        except Exception as e:
-            logger.error(f"[watchdog] Error during check: {e}")
-
-        await asyncio.sleep(interval)
-
-
-def start_watchdog(interval: int = 30) -> Optional[asyncio.Task]:
-    """启动进程看门狗"""
-    global _watchdog_task
-    if _watchdog_task and not _watchdog_task.done():
-        logger.warning("[watchdog] Already running")
-        return _watchdog_task
-    _watchdog_task = asyncio.create_task(_watchdog_loop(interval))
-    return _watchdog_task
-
-
-def stop_watchdog():
-    """停止进程看门狗"""
-    global _watchdog_running, _watchdog_task
-    _watchdog_running = False
-    if _watchdog_task and not _watchdog_task.done():
-        _watchdog_task.cancel()
-        _watchdog_task = None
-    logger.info("[watchdog] Stopped")
-
-
-def get_watchdog_status() -> dict:
-    return {
-        "running": _watchdog_running and _watchdog_task is not None and not _watchdog_task.done(),
-    }
-
-
-# ── Dashboard 自身管理 ──
 
 def get_dashboard_status() -> dict:
     """获取 Dashboard 进程自身的状态"""
@@ -613,65 +555,49 @@ def get_dashboard_status() -> dict:
 
 
 def restart_dashboard() -> dict:
-    """重启 Dashboard 自身（spawn 独立进程：杀旧 → 等端口 → 启新）"""
+    """重启 Dashboard 自身（spawn 独立 helper：杀旧 → 等端口 → 启新 → 校验）
+
+    2026-09-10 修复：此前这段逻辑是拼成 `python -c` 的字符串跑的。父进程 f-string 里的
+    `{{}}` 求值后塌缩成 `{}`，写进 helper 就变成空表达式 f-string ->
+    SyntaxError -> helper 秒退：旧进程已经自杀、新进程根本没起来，面板直接掉线，
+    而且报错落在继承来的 stderr 里（很难查）。
+    现在改成 spawn 真实文件 qqbot/dashboard/_restart_helper.py —— 语法在导入期就能发现，
+    能单独 dry-run 测试，helper 的 stdout/stderr 也落到 logs/dashboard_restart.log。
+    """
     import sys
-    pid_file = PROJECT_ROOT / ".pids" / "dashboard.pid"
-    log_file = LOG_DIR / "dashboard.log"
-    current_pid = os.getpid()
 
-    # 构建重启脚本（Python one-liner）
-    restart_script = (
-        f"import time, subprocess, socket, os, sys\n"
-        f"def port_free(p):\n"
-        f"    s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)\n"
-        f"    s.settimeout(1)\n"
-        f"    r=s.connect_ex(('127.0.0.1',p))!=0\n"
-        f"    s.close()\n"
-        f"    return r\n"
-        f"time.sleep(2)\n"  # 等待当前进程退出
-        f"# 如果旧进程还在，强制终止\n"
-        f"try:\n"
-        f"    import psutil\n"
-        f"    p=psutil.Process({current_pid})\n"
-        f"    if p.is_running(): p.kill()\n"
-        f"except: pass\n"
-        f"time.sleep(2)\n"
-        f"# 等待端口释放\n"
-        f"for _ in range(10):\n"
-        f"    if port_free({DASHBOARD_PORT}): break\n"
-        f"    time.sleep(1)\n"
-        f"# 启动新 Dashboard\n"
-        f"logf=open(r'{log_file}','a',encoding='utf-8')\n"
-        f"logf.write(f'\\n--- Dashboard restarted at {{}}\\n'.format(__import__('datetime').datetime.now().isoformat()))\n"
-        f"proc=subprocess.Popen(\n"
-        f"    [r'{VENV_PYTHON}','-m','uvicorn','qqbot.dashboard.main:app','--host','0.0.0.0','--port','{DASHBOARD_PORT}'],\n"
-        f"    cwd=r'{PROJECT_ROOT}',\n"
-        f"    stdout=logf,stderr=subprocess.STDOUT,\n"
-        f"    creationflags=0x00000200 if sys.platform=='win32' else 0\n"
-        f")\n"
-        f"# 写 PID 文件\n"
-        f"pid_dir=os.path.dirname(r'{pid_file}')\n"
-        f"os.makedirs(pid_dir,exist_ok=True)\n"
-        f"open(r'{pid_file}','w').write(str(proc.pid))\n"
-    )
+    helper = Path(__file__).resolve().parent / "_restart_helper.py"
+    helper_log = LOG_DIR / "dashboard_restart.log"
 
-    # Spawn 独立重启进程（detached，不受当前进程影响）
+    if not helper.exists():
+        logger.error(f"restart helper not found: {helper}")
+        return {"ok": False, "msg": f"重启组件缺失: {helper.name}"}
+
     try:
-        creation_flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS if sys.platform == "win32" else 0
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        logf = open(helper_log, "ab")
+        creation_flags = (
+            subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+            if sys.platform == "win32" else 0
+        )
         subprocess.Popen(
-            [str(VENV_PYTHON), "-c", restart_script],
+            [str(VENV_PYTHON), str(helper), "--pid", str(os.getpid()), "--port", str(DASHBOARD_PORT)],
             creationflags=creation_flags,
             close_fds=True,
+            stdout=logf,
+            stderr=subprocess.STDOUT,
         )
-        logger.info("Dashboard restart subprocess spawned")
+        logger.info(f"Dashboard restart helper spawned (log: {helper_log})")
         return {"ok": True, "msg": "Dashboard 正在重启，页面将在几秒后自动刷新"}
     except Exception as e:
-        logger.error(f"Failed to spawn dashboard restart: {e}")
+        logger.error(f"Failed to spawn dashboard restart helper: {e}")
         return {"ok": False, "msg": f"重启失败: {e}"}
 
 
 # ── snowluma 日志实时 tail（dashboard 前端 SSE 推流用） ──
-SNOWLUMA_LOG_PATH = PROJECT_ROOT / "snowluma" / "start.out"
+# 2026-10-24 修正：SnowLuma v2.x 不再写 snowluma/start.out；实际日志是
+# monitor.start_snowluma() 重定向到的 qqbot/logs/snowluma.log，指向它才看得到内容。
+SNOWLUMA_LOG_PATH = LOG_DIR / "snowluma.log"
 _snowluma_log_subscribers: set = set()  # 所有 SSE 订阅者（asyncio.Queue 集合）
 
 

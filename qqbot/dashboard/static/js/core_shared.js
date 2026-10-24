@@ -28,7 +28,7 @@ function switchImportTab(el,tabId){
 }
 
 
-const _settingKeys=['active_hours_start','active_hours_end','web_search_enabled','multi_turn_enabled','test_mode_enabled','active_llm_provider','minimax_use_high_speed','minimax_temperature','minimax_top_p','minimax_max_tokens','minimax_reasoning_effort_with_tools','minimax_reasoning_effort_no_tools','stream_enabled','stream_flush_chars','stream_flush_interval','stream_flush_min_chars','stream_max_flush_size','max_history_rounds','history_ttl_hours','history_save_interval','thinking_timer_seconds'];
+const _settingKeys=['active_hours_start','active_hours_end','web_search_enabled','multi_turn_enabled','test_mode_enabled','active_llm_provider','llm_temperature','llm_top_p','llm_max_tokens','llm_reasoning_effort_with_tools','llm_reasoning_effort_no_tools','stream_enabled','stream_flush_chars','stream_flush_interval','stream_flush_min_chars','stream_max_flush_size','max_history_rounds','history_ttl_hours','history_save_interval','thinking_timer_seconds','image_handler_enabled'];
 
 async function loadSettings(){
   try{
@@ -118,9 +118,30 @@ function updateStatus(s){
     slStart.disabled = !!nc.running;
     slStop.disabled  = !nc.running;
   }
-  if(s.watchdog){const wdEl=document.getElementById('wdStatus');
-    if(s.watchdog.running){wdEl.className='wd-indicator on';document.getElementById('wdDot').textContent='\u25cf';document.getElementById('wdText').textContent='看门狗 开启'}
-    else{wdEl.className='wd-indicator off';document.getElementById('wdDot').textContent='\u25cf';document.getElementById('wdText').textContent='看门狗 关闭'}}
 }
+
+/* ================================================================
+   统一轮询调度器（2026-08-30 新增）
+   - 所有周期性网络刷新走这里，替代散落的多个 setInterval
+   - 页面隐藏时自动暂停全部轮询（省请求），回到前台立即补一次
+   ================================================================ */
+const _pollers=[];
+function schedulePoll(fn,intervalMs,immediate=true){
+  _pollers.push({fn,intervalMs,next:immediate?0:Date.now()+intervalMs});
+}
+function _pollTick(){
+  if(document.hidden)return;               // 页面不可见时暂停所有轮询
+  const now=Date.now();
+  for(const p of _pollers){
+    if(now>=p.next){
+      p.next=now+p.intervalMs;
+      try{p.fn()}catch(e){}
+    }
+  }
+}
+setInterval(_pollTick,2000);               // 主时钟 2s：整除 30s / 5s 等常见间隔
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden)_pollTick();         // 切回前台立即刷新，不等下一个 tick
+});
 
 

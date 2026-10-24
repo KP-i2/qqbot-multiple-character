@@ -6,7 +6,9 @@ from pathlib import Path
 logger = logging.getLogger("dashboard.skill_manager")
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-SKILLS_DIR = PROJECT_ROOT / "qqbot" / "skills"
+# 2026-09-10: 目录已从 qqbot/skills 改名为 qqbot/characters（避开根目录 skill/ 的混淆）。
+# 代码里的 skill 概念保持不变，只是路径常量指向新目录。
+SKILLS_DIR = PROJECT_ROOT / "qqbot" / "characters"
 PHOTO_DIR = PROJECT_ROOT / "photo"
 CORPUS_DIR = PROJECT_ROOT / "corpus"
 
