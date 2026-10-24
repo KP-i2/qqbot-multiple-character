@@ -42,19 +42,21 @@ def _tail_lines(path, n: int) -> list[str]:
 
 
 def _read_turns_history(limit: int = _TURNS_HISTORY_MAX) -> list[dict]:
-    """读 turns_stream.jsonl 尾部（约 limit*3 行），聚合成 turns 数组（从最新往最旧）。
+    """读 turns_stream.jsonl 尾部并聚合成 turn 列表（最新在前）。
 
-    2026-08-30: 从"每次 readlines 全文件"改为尾部读取——文件可能上万行，
-    每次全读 + 逐行 json.loads 在 30s 轮询下是浪费。
+    2026-08-30：从"每次 readlines 全文件"改为尾部读取，避免上万行文件每次全读。
+    2026-10-24 修复：原实现 `for line in reversed(lines)` 倒序聚合，导致每个 turn 的
+    后续事件（step_added / turn_ended）永远配不到 `current`（turn_started 处理完就
+    置 None 了），于是 Dashboard 历史里 steps 恒为空、status 恒为 running。
+    现在改为正序遍历按 turn_id 聚合，最后整体反转成"最新在前"返回。
     """
     if not _TURNS_STREAM_PATH.exists():
         return []
-    # 每个 turn 通常 2-4 个事件行，读 3 倍缓冲足够覆盖最近 limit 个 turn
-    lines = _tail_lines(_TURNS_STREAM_PATH, limit * 3 + 10)
-    # 倒序聚合:每个 turn 第一个事件是 turn_started
-    turns: list[dict] = []
-    current: dict | None = None
-    for line in reversed(lines):
+    # 一个 turn 通常 4~8 行事件（msg/probe/thinking/tool/reply/ended），多读一些
+    lines = _tail_lines(_TURNS_STREAM_PATH, limit * 8 + 20)
+    turns: dict[str, dict] = {}
+    order: list[str] = []
+    for line in lines:
         line = line.strip()
         if not line:
             continue
@@ -62,23 +64,31 @@ def _read_turns_history(limit: int = _TURNS_HISTORY_MAX) -> list[dict]:
             ev = json.loads(line)
         except Exception:
             continue
-        t = ev.get("type")
-        if t == "turn_started":
-            current = ev.get("turn", {})
-            current["steps"] = current.get("steps", [])
-            turns.append(current)
-            current = None  # 与原实现一致：倒序中 turn_started 之上的 step_added 已随 turn 数据内置
-            if len(turns) >= limit:
-                break
-        elif t == "step_added" and current is not None:
-            current["steps"].append(ev.get("step"))
-        elif t == "turn_ended" and current is not None:
-            current["status"] = ev.get("status")
-            current["duration"] = ev.get("duration")
-    # turns 是倒序的,steps 也是倒序的,翻回来
-    for t in turns:
-        t["steps"].reverse()
-    return turns
+        etype = ev.get("type")
+        if etype == "turn_started":
+            turn = ev.get("turn") or {}
+            tid = turn.get("turn_id") or ev.get("turn_id")
+            if not tid or tid in turns:
+                continue
+            turn.setdefault("steps", [])
+            turns[tid] = turn
+            order.append(tid)
+            continue
+        tid = ev.get("turn_id")
+        turn = turns.get(tid) if tid else None
+        if turn is None:
+            continue
+        if etype == "step_added":
+            step = ev.get("step")
+            if step:
+                turn.setdefault("steps", []).append(step)
+        elif etype == "turn_ended":
+            turn["status"] = ev.get("status", turn.get("status"))
+            if ev.get("duration") is not None:
+                turn["duration"] = ev["duration"]
+    result = [turns[tid] for tid in order]
+    result.reverse()  # 最新在前（保持前端原有顺序）
+    return result[:limit]
 
 
 @router.get("/api/turns/history")

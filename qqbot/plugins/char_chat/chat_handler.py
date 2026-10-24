@@ -9,6 +9,7 @@ from datetime import datetime
 
 from nonebot import logger, on_message
 from nonebot.adapters.onebot.v11 import Bot, Event, GroupMessageEvent, Message, PrivateMessageEvent
+from nonebot.exception import FinishedException
 from nonebot.rule import Rule
 
 from . import config as cfg
@@ -64,6 +65,12 @@ async def handle_chat(bot: Bot, event: Event):
     status = "ok"
     try:
         await _handle_chat_inner(bot, event)
+    except FinishedException:
+        # 命令分支（/switch /reset 等）和主动结束都走 matcher.finish()，
+        # 它抛 FinishedException 告诉 NoneBot2 停止后续 matcher —— 这是正常控制流。
+        # 2026-10-24 修复：此前被下面的 except Exception 记成 error，导致每条命令的
+        # turn 在 Dashboard「对话流水」里都显示失败（实际已成功）。
+        raise
     except Exception:
         status = "error"
         raise
