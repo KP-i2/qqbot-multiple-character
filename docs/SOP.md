@@ -2,7 +2,7 @@
 
 > **标准操作程序（Standard Operating Procedure）**
 > 适用：Windows 本地部署的 `skill_communication` 项目（NoneBot2 + SnowLuma + 多 LLM Provider）
-> 配套文档：[README.md](../README.md)（安装 / 架构 / 配置全量说明）
+> 配套文档：[README.md](../README.md)（项目门面 / 快速开始） · [INSTALL.md](INSTALL.md) · [USAGE.md](USAGE.md) · [CONFIG.md](CONFIG.md) · [ARCHITECTURE.md](ARCHITECTURE.md)
 > 本文件整理于：2026-08-30（从 README 独立成文）
 
 ---

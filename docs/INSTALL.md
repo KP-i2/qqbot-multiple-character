@@ -9,7 +9,7 @@
 项目依赖装在独立的 Conda 环境 `botenv`（Python 3.12）里，不直接使用系统 Python。
 
 - [下载 Anaconda](https://www.anaconda.com/download) 或 [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
-- 默认按 `D:\Work\anaconda3\` 安装；若装在别处，需要改启动脚本里的硬编码路径（见 [README「重要硬编码路径」](../README.md#目录结构)）
+- 默认按 `D:\Work\anaconda3\` 安装；若装在别处，需改这几处硬编码路径：`scripts/bat/setup.bat`、`scripts/bat/launch_dashboard.ps1`、`qqbot/dashboard/monitor.py`（见 [ARCHITECTURE.md 目录结构](ARCHITECTURE.md#目录结构)）
 
 验证 conda 可用：
 
