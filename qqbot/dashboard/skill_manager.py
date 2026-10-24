@@ -74,7 +74,7 @@ def _read_skill_info(skill_dir: Path) -> dict:
 
     # Calculate prompt size
     total = 0
-    _counted = {"SKILL.md", "persona.md", "work.md", "starwink.md"}
+    _counted = {"SKILL.md", "persona.md", "work.md"}
     for fname in _counted:
         f = skill_dir / fname
         if f.exists():

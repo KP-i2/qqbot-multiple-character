@@ -11,7 +11,7 @@
 
 | 项 | 值 |
 |---|---|
-| 项目根目录 | `D:\agent_function\skill_communication` |
+| 项目根目录 | `D:\path\to\skill_communication`（按实际修改） |
 | Python 环境 | `D:\Work\anaconda3\envs\botenv\`（Conda，Python 3.12，硬编码路径） |
 | NoneBot2 端口 | `8080` |
 | Dashboard 端口 | `8501`（浏览器访问 http://localhost:8501） |
@@ -19,7 +19,7 @@
 | 主配置文件 | `private/.env`（唯一生效位置） |
 | 运行时参数 | `qqbot/data/runtime_settings.json`（Dashboard「参数设置」页可改） |
 | 日志目录 | `qqbot/logs/`：nonebot2.log / chat.log / snowluma.log / dashboard.out / dashboard.err / `turns_stream.jsonl` / `turns/<date>/` |
-| 角色 Skill 目录 | `qqbot/characters/`（当前 17 个角色） |
+| 角色 Skill 目录 | `qqbot/characters/`（公开仓库 2 个示例；作者本地 16 个） |
 | 语料目录 | `corpus/`（微博 / 推特 / QQ 群聊 / 二次元原作） |
 | 共享背景知识 | `normal-paper/`（所有角色自动注入 system prompt） |
 | 入口 | `manage.bat`（桌面快捷方式「QQ Bot」也指向它） |
@@ -113,7 +113,7 @@
    [2] 抓完会落到 corpus/<UID>/weibo_corpus.txt + weibo_ajax_page*.json
 4. 语料库 → 刚抓取的条目 → 点「生成技能」（蒸馏）：
    [1] 选角色类型：名人 / 同事 / 亲密关系
-   [2] 填技能名（英文/数字，如 "jinmao"、"aoyi"）+ 显示名 + 描述
+   [2] 填技能名（英文/数字，如 "my-role"、"example-character"）+ 显示名 + 描述
    [3] 点「生成」 → DeepSeek 跑 30~60s → 自动落到 qqbot/characters/<name>/
 5. 角色头像：
    把 avatar.jpg/png 放到 photo/<name>/avatar.jpg
@@ -285,7 +285,7 @@
 
 ```bat
 :: 打开 CMD，进入项目目录
-cd D:\agent_function\skill_communication
+cd D:\path\to\skill_communication
 
 :: 1. 先看 botenv 里当前有啥
 D:\Work\anaconda3\envs\botenv\python.exe -m pip list
@@ -310,13 +310,13 @@ Dashboard → 进程管理 → NoneBot2 重启
 ```
 必备份（含隐私，不要上传 GitHub / 公网）：
   1. private/              整个目录 → 云盘 / NAS / 移动硬盘加密备份
-  2. qqbot/characters/         所有角色（17 个，纯手写的无价）
+  2. qqbot/characters/         所有本地角色（纯手写的无价；公开仓库只带 2 个示例）
   3. qqbot/data/           conversation_histories.json / user_profiles/ / runtime_settings.json
   4. corpus/               所有语料（抓微博/整理原作非常花时间）
 
 可选备份：
   - photo/ （头像，没了可以再找）
-  - normal-paper/（通用共享知识，跟项目一起已在 git 里的话就不用额外备份）
+  - normal-paper/（本地私有的共享知识，不在公开仓库里，需要备份）
 
 建议备份频率：
   - 改了角色 persona.md / 新增 Skill → 当天备份
@@ -324,5 +324,5 @@ Dashboard → 进程管理 → NoneBot2 重启
   - 重要升级（环境变动/大改代码）→ 前后各备份一次
 
 ⚠️ 绝对不要备份到公开仓库（GitHub）：.gitignore 已拦，但再确认：
-     private/*  /  corpus/*  /  qqbot/characters/*（除 761 示例）  /  qqbot/data/*
+     private/*  /  corpus/*  /  qqbot/characters/*（除 2 个 anime 示例）  /  qqbot/data/*
 ```

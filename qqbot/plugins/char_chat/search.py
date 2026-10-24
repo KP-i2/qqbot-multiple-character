@@ -923,11 +923,11 @@ def _corpus_dirs_for(name: str) -> list[Path]:
 def _resolve_corpus_dirs(skill_name: str) -> list[Path]:
     """解析所有匹配 skill 名的 corpus 目录，按名称排序（新的在前）。
 
-    例: ytj → [corpus/ytj_v3/, corpus/ytj_v2/, corpus/ytj_7841140689/]
+    例: myrole → [corpus/myrole_v3/, corpus/myrole_v2/, corpus/myrole_1234567890/]
     同时回退到 characters/{name}/corpus_ref/（如果存在）。
 
     2026-09-10: 若该角色自己完全没有语料，再按 config.CORPUS_ALIASES 借用别名角色的语料
-    （当前只有 dot_yuu → ytj）。角色一旦有了自己的语料目录就优先用自己的，别名自动失效。
+    （别名映射在本地 private/corpus_aliases.json 配置）。角色一旦有了自己的语料目录就优先用自己的，别名自动失效。
     """
     dirs = _corpus_dirs_for(skill_name)
     if dirs:
@@ -952,7 +952,7 @@ def _resolve_corpus_dir(skill_name: str) -> Optional[Path]:
 def _pinyin_initials(text: str) -> str:
     """提取中文文本的拼音首字母序列，用于 fuzzy 匹配。
 
-    例: '宋雨琦' → 'syq', 'starwink' → 'starwink' (非中文保留)
+    例: '宋雨琦' → 'syq', 'myrole' → 'myrole' (非中文保留)
     """
     try:
         import pypinyin
@@ -975,7 +975,7 @@ def _fuzzy_match(line_lower: str, kw_list: list[str]) -> bool:
     fuzzy 规则：
     1. 精确包含（kw 直接出现在 line 里）→ True
     2. 拼音首字母 fuzzy：line 抽取首字母序列后，kw 的首字母在其中 → True
-       例: kw='momo', line='mm 来演出' → line_initials='mmlcyl', kw_initials='momo'
+       例: kw='myrole', line='mm 来演出' → line_initials='mmlcyl', kw_initials='myrole'
            若 kw_initials 全是首字母（中文）,在 line_initials 中查找
            若 kw 含非中文字符（英文）,只在 line 里有连续首字母段匹配时算命中
     """

@@ -28,23 +28,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent  # 项目根(scripts/sanitize.py -> .. -> repo root)
 
 # 内容层 -- regex 替换
+# 注意：下面是示例规则。真正使用前，把本地真实的 QQ 号 / 社交 handle
+# 填进 CONTENT_RULES（或维护一份本地私有的规则清单），不要把它们写回仓库。
 CONTENT_RULES = [
     # API key 类
     (r"sk-[A-Za-z0-9_\-]{20,}", "<REDACTED_API_KEY>", "sk-xxx API key"),
     (r"sk-cp-[A-Za-z0-9_\-]{20,}", "<REDACTED_API_KEY>", "sk-cp-xxx API key"),
 
-    # 本地已知真 QQ 号(管理员/OneBot)
-    (r"\b2972494435\b", "<ADMIN_QQ_1>", "管理员 2972494435"),
-    (r"\b2361850615\b", "<ADMIN_QQ_2>", "管理员 2361850615"),
-    (r"\b3240436320\b", "<ONEBOT_QQ>", "OneBot 3240436320"),
+    # 本地 QQ 号（示例占位：替换成你自己的管理员 / OneBot QQ）
+    (r"\b1234567890\b", "<ADMIN_QQ>", "管理员 QQ"),
+    (r"\b1000000001\b", "<ONEBOT_QQ>", "OneBot QQ"),
 
-    # 真推主 handle(normal-paper 已黑名单剔,但源码兜底)
-    (r"@jiemei[_]?rose", "@<HANDLE>", "Twitter @jiemei_rose"),
-    (r"@kimikyun_momo",  "@<HANDLE>", "Twitter @kimikyun_momo"),
-    (r"@skingfd",        "@<HANDLE>", "Twitter @skingfd"),
-    (r"@starwink",       "@<HANDLE>", "Twitter @starwink"),
-    (r"@wakusei_vortex", "@<HANDLE>", "Twitter @wakusei_vortex"),
-    (r"@skyfire[_a-z0-9]*", "@<HANDLE>", "Twitter @skyfire*"),
+    # 社交账号 handle（示例占位：替换成需要脱敏的真实 handle）
+    (r"@your_handle_a", "@<HANDLE>", "社交账号 A"),
+    (r"@your_handle_b", "@<HANDLE>", "社交账号 B"),
 ]
 
 # 文件层 -- 整目录黑名单(.gitignore 没拦到的也强制剔)

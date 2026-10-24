@@ -24,7 +24,7 @@ def is_command(text: str) -> bool:
     """检查是否是命令"""
     prefixes = ["/", "／"]
     commands = ["reset", "重置", "清空记忆", "skills", "角色", "列表",
-                 "switch", "切换", "current", "当前", "zyw", "人设"]
+                 "switch", "切换", "current", "当前", "人设"]
     for p in prefixes:
         if text.startswith(p):
             cmd = text[len(p):].strip().split()[0] if text[len(p):].strip() else ""
@@ -84,8 +84,8 @@ async def respond_rule(event: Event) -> bool:
 def _sender_allowed(event: Event) -> bool:
     """角色级访问控制：当前激活角色若声明了 allowed_users，则只放行白名单用户。
 
-    2026-09-10 新增，配合 dot_yuu 这类 private 角色（SKILL.md 里写
-    allowed_users: 2972494435）。未声明该字段的角色不受影响。
+    2026-09-10 新增，配合 private 类角色（SKILL.md 里写
+    allowed_users: 123456789）。未声明该字段的角色不受影响。
 
     失败时**保守拒绝**：这个闸门保护的是受限角色的内容外泄，
     宁可让 bot 暂时不吭声（日志里能看到 [access] 报错），也不能漏放。

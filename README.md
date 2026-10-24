@@ -9,7 +9,7 @@
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078d4.svg)](#运行环境)
 [![NoneBot2](https://img.shields.io/badge/NoneBot2-supported-green.svg)](https://nonebot.dev)
 
-![Dashboard](docs/dashboard.png)
+![架构总览](docs/architecture-overview.png)
 
 **多角色随时切换 + 语料蒸馏 + 中文 Web 管理面板**  
 **面向个人 / 小圈子长跑的多角色 QQ 机器人**
@@ -43,7 +43,7 @@
 
 | 维度 | 本项目 | 典型群助手类 | 企业客服类 |
 |---|---|---|---|
-| 角色数量 | **17 个内置（真人 + 二次元） + 无限自建** | 1 个 | 1-3 个 FAQ bot |
+| 角色数量 | **公开仓库自带 2 个 anime 示例 + 本地无限自建（作者本地 16 个）** | 1 个 | 1-3 个 FAQ bot |
 | LLM Provider | **四轨独立 + 热切换**（DeepSeek 对话 / deepseek-vision 视觉默认 / SiliconFlow 视觉可选 / MiniMax 备用） | 单 Provider | 单 Provider 或企业私有 |
 | 多模态识图 | **✅ deepseek-vision（默认） / SiliconFlow Qwen3.5-9B（可选） / MiniMax M3（备用）** | ❌ | ❌ |
 | 语料来源 | 微博 / 推特 / QQ 群聊 / 文本 / 萌娘百科（二次元角色） | 仅文本 | 文档库 |
@@ -58,11 +58,11 @@
 ## 效果样例
 
 <details>
-<summary>📸 Dashboard 截图（点击展开）</summary>
+<summary>🏗️ 架构总览（点击展开）</summary>
 
-![Dashboard 进程管理](docs/dashboard.png)
+![架构总览](docs/architecture-overview.png)
 
-*8 套主题切换 / 实时 turn 流 / 进程监控 / 角色花名册*
+*3 个进程 / char_chat 插件流水线 / 数据落地；单条消息链路见 [消息流程图](docs/message-flow.png)*
 
 </details>
 
@@ -215,7 +215,7 @@ DASHBOARD_TOKEN=自定义一个密码           # 管理面板访问密码（留
 # ============================================================
 #  默认角色 & 主选 Provider（2026-07-23 最新默认）
 # ============================================================
-DEFAULT_SKILL=761                       # 启动时的默认角色编号
+DEFAULT_SKILL=makise-kurisu             # 启动时的默认角色（目录名）
 ACTIVE_LLM_PROVIDER=deepseek            # 主选对话 Provider（deepseek / minimax，推荐 deepseek）
 
 # ============================================================
@@ -359,7 +359,7 @@ qqbot/characters/角色名/
 └── corpus_ref/    # 可选 — 造角色时的语料快照（语料搜索的兜底来源）
 ```
 
-**预置示例角色**：`761` —— 完整人设/工作方式样例，可以直接跑，也可以用作你自己造新角色的模板。
+**预置示例角色**：`makise-kurisu`（牧瀬红莉栖）—— 完整人设/工作方式样例，可以直接跑，也可以用作你自己造新角色的模板。
 
 ### 可选 front matter 字段
 
@@ -388,7 +388,7 @@ qqbot/characters/角色名/
 |---|---|---|
 | **从零手写** | 30 min - 2 h | 已经想清楚人设 |
 | **从语料蒸馏** | 10 min | 有微博/推特/QQ 聊天 → 自动生成 7 层结构 persona |
-| **从克隆修改** | 15 min | 复制 `qqbot/characters/761/` 改 meta + persona |
+| **从克隆修改** | 15 min | 复制 `qqbot/characters/makise-kurisu/` 改 meta + persona |
 
 蒸馏流程在 Dashboard → 语料库 → 抓取 → 「生成技能」一键完成。
 
@@ -400,8 +400,8 @@ qqbot/characters/角色名/
 
 | 在哪儿 | 内容 | 怎么管 |
 |---|---|---|
-| **本仓库 / 公开 GitHub** | 只放代码、文档与模板（`snowluma_onebot_config.example.json`、`.env.example` 等），**不含任何角色本体** | `.gitignore` 排除 `qqbot/characters/` |
-| **你本地** | 全部 17 个角色（含 `761` 模板） | `qqbot/characters/<角色名>/` |
+| **本仓库 / 公开 GitHub** | 代码、文档、模板 + **2 个 anime 示例角色**（`makise-kurisu/`、`amadeus-kurisu/`）+ `normal-paper/examples/` 示例 | `.gitignore` 只放行这两类 |
+| **你本地** | 全部 16 个角色（含真人系与自建角色） | `qqbot/characters/<角色名>/` |
 | **运行时加载** | bot 启动时扫描 `qqbot/characters/` 下所有目录 | 自动 |
 
 > 这样 GitHub 公开仓库和你的隐私角色分布天然分离 —— 角色、语料（`corpus/`）、共享背景（`normal-paper/`）、头像（`photo/`）都只留在本地，不会因为公开仓库泄漏。
@@ -541,7 +541,7 @@ Bot 会在对话过程中自动提取用户的简要画像（称呼偏好、兴�
 
 ### 通用背景知识
 
-`normal-paper/` 目录下的 `.md` 文件会作为所有角色共享的领域背景知识自动注入 system prompt。适合存放圈子通用术语、礼仪规则、文化背景等不需要写进每个角色人设的参考资料。支持热重载（随 Skill 一起刷新）。
+`normal-paper/` 目录下的 `.md` 文件会作为所有角色共享的领域背景知识自动注入 system prompt（**只注入 `basic/*.md`**）。适合存放圈子通用术语、礼仪规则、文化背景等不需要写进每个角色人设的参考资料，支持热重载。公开仓库只带 `normal-paper/README.md` 与 `examples/` 示例，真实内容留在本地。
 
 ### 对话流水（turn 流）
 
@@ -558,7 +558,7 @@ Dashboard 新增「对话流水」tab，通过 SSE 实时推送每个 turn 的�
 
 访问 `http://localhost:8501`
 
-![Dashboard 进程管理](docs/dashboard.png)
+> 截图未随公开仓库提供（Dashboard 会显示本地角色与部署信息，避免泄露）。界面结构见 [架构总览](docs/architecture-overview.png)。
 
 | 页面 | 功能 |
 |------|------|
@@ -721,7 +721,7 @@ python scripts/fetch_twitter.py elonmusk --all --type Replies
 | **权限 & 默认值** | | | |
 | `ADMIN_QQ` | 管理员 QQ 号（多个用中英文逗号分隔） | — | ⭕ |
 | `DASHBOARD_TOKEN` | Dashboard 访问密码（空则自动生成随机 token） | — | 推荐 |
-| `DEFAULT_SKILL` | 启动默认角色 Skill 名 | `761` | |
+| `DEFAULT_SKILL` | 启动默认角色 Skill 名 | `makise-kurisu` | |
 | `ACTIVE_LLM_PROVIDER` | 启动主选 Provider（`deepseek` / `minimax`） | `deepseek` | |
 | **行为** | | | |
 | `ACTIVE_HOURS_START` / `ACTIVE_HOURS_END` | Bot 活跃时段（小时 0-23） | `0 / 23`（全天） | |
@@ -813,12 +813,12 @@ skill_communication/
 │   │                               #   roster.js / logs.js / corpus.js / dashboard_mgmt.js / twitter.js
 │   │                               #   turns.js / help.js / editor.js / snowluma_log.js
 │   │                               #   skills_filter.js / form_draft.js / skills_batch.js
-│   ├── characters/                 # ⭐ 角色目录（已 17 个，本地私有）
-│   │   ├── 761/ (小船chiyori，惑星vortex) · aoyi/ · guuo/ · iteru/ · jinmao/
-│   │   ├── koimo/ · mika/ · nana/ · skingfd/ · ytj/ · zyw/ · dot_yuu/   # 真人系（语料来自微博/QQ群）
-│   │   ├── momo/ · rose/                                           # 真人系（语料来自推特）
-│   │   ├── amadeus-kurisu/ · makise-kurisu/ · yukina/             # 二次元系（命运石之门+噬血狂袭）
-│   │   └── <每个角色>/ = SKILL.md + persona.md + work.md + corpus_ref/
+│   ├── characters/                 # ⭐ 角色目录（公开仓库只带 2 个 anime 示例）
+│   │   ├── README.md              #   目录结构 + SKILL.md front-matter 字段说明
+│   │   ├── makise-kurisu/         #   示例：牧瀬红莉栖（命运石之门）
+│   │   ├── amadeus-kurisu/        #   示例：Amadeus 红莉栖
+│   │   └── <其他角色>/             #   作者本地维护（真人系/自建），不进公开仓库
+│   │       = SKILL.md + persona.md + work.md + corpus_ref/
 │   ├── logs/                       # 运行日志（自动轮转 5MB×3 备份）
 │   │   ├── nonebot2.log            # NoneBot2 全部输出（启动/报错/API栈）
 │   │   ├── chat.log                # 对话事件日志（用户消息→Bot回复→搜索→流式分段）
@@ -864,19 +864,16 @@ skill_communication/
 │   ├── angry/ curious/ happy/ laugh/ proud/ sad/ shy/ surprised/ thinking/ tired/
 │   └── <每类>/ = keywords.txt（触发词） + *.png/jpg（表情图，需自行添加）
 ├── normal-paper/                   # ⭐ 通用共享背景知识
-│   ├── basic/                      # ⚠️ 只有这一层会被自动注入所有角色的 system prompt
-│   │   ├── 规则.md                 #   现场礼仪 + "私下联系=开除"
-│   │   └── 人设补充.md             #   角色相关的基础设定
-│   ├── cmks.md / 通用词汇.md        # 应援词/圈内词汇（2026-09-14 从 basic/ 移出，改为按需检索）
-│   ├── common_mix.md               # 通用知识混合
-│   ├── jiemei.md / kimikyun.md / starwink.md / wakusei_vortex.md # 圈子设定（偶像/组合）
-│   └── 张育闻和skingFD人物分析.md   # 真人角色人物分析
+│   ├── README.md                   #   目录说明（公开仓库只带示例）
+│   ├── examples/                   #   示例：basic/ 下文件的写法
+│   └── basic/                      #   本地目录（⚠️ 只有这一层会被自动注入所有角色 system prompt）
 │   # 说明：basic/ 之外的文件不进 prompt，只在角色调用 search_corpus 时被检索（rglob 全目录）
 ├── assets/                         # 静态资源
 │   ├── icon/ icon.ico · qqbot_bot_icon.ico  # 桌面快捷方式 ICO
-│   └── images/                     # README 配图
+│   └── images/                     # 本地配图（已忽略，不进公开库）
 ├── docs/                           # 文档
-│   ├── dashboard.png               # Dashboard 截图
+│   ├── architecture-overview.png   # 架构总览图
+│   ├── message-flow.png            # 单条消息处理链路图
 │   ├── SOP.md                      # ⭐ 运行维护 SOP（SOP-01~09 + 索引 + 快速故障定位表）
 │   ├── RELEASE-2026-08-30.md       # 2026-08-30 Dashboard 优化发布说明（更新日志 + 部署/回滚）
 │   └── plan-himeragi-yukina.md     # 姬柊雪菜角色引入计划（参考二次元 Skill 流程）
@@ -929,7 +926,7 @@ skill_communication/
 
 **迁移历史记录（避免踩老坑）**：
 - **2026-07-23：Python 运行环境从 venv → Conda env `botenv`**
-  - 旧方式：`D:\agent_function\skill_communication\skill_qqbot\Scripts\python.exe`（虚拟 venv）
+  - 旧方式：`D:\path\to\skill_qqbot\Scripts\python.exe`（虚拟 venv）
   - 问题：venv launcher 是 Stub，实际转发到 base python，导致 `uvicorn` / `multiprocessing` fork 出的 worker 进了 Conda base 而非 venv，报 ImportError
   - 新方式：直接用 Conda 建真独立的 `botenv`，目录下的 `python.exe` 是真正的解释器副本，无转发问题
   - 影响：脚本路径硬编码均已改到 Conda 路径；bot.py / dashboard.py 开头仍保留 `sys._base_executable = sys.executable` 保险补丁（无害，保留）
@@ -1172,13 +1169,10 @@ A: 浏览器 EventSource（SSE）API 不能带自定义 header，token 通过 `?
    - 如果忘了 token 又没写 private/.env → 看 `qqbot/logs/dashboard.err`，首次启动没填 `DASHBOARD_TOKEN` 会自动生成并打印到日志。
 
 **Q: test_mode 是什么？为什么群里@了不回？**
-A: `test_mode_enabled = true` 时：
-   - **私聊 Bot**：正常触发（管理员测试用）
-   - **所有群聊**：静默拦截（日志会打 "group silent"，用户侧无任何反应）
+A: `test_mode_enabled = true` 时，只有**管理员（ADMIN_QQ）**不受影响：
+   - 管理员：私聊 / 群聊都正常触发
+   - 非管理员：私聊收到「维护中」提示；群聊静默拦截（用户侧无任何反应）
    默认开着是防止新用户装好就被群里一堆人@把余额打没。群里真要用 → Dashboard「参数设置」取消勾选保存即可。
-
-## 效果测试群
-目前运行bot效果可加群查看![群二维码](qq测试群.jpg)
 
 ## Roadmap
 
@@ -1227,11 +1221,12 @@ A: `test_mode_enabled = true` 时：
 | 类型 | 例子 |
 |---|---|
 | API keys | `sk-xxx` / `sk-cp-xxx` / `AQ.Axxx` |
-| 你的真 QQ 号 / OneBot 号 | `2972494435` / `2361850615` / `3240436320` |
-| 你的真实角色目录（当前 17 个，数量会变） | `qqbot/characters/{aoyi,dot_yuu,...,zyw}/` |
+| 你的真 QQ 号 / OneBot 号 | `1234567890` / `1000000001` |
+| 真实角色目录（除 `makise-kurisu` / `amadeus-kurisu` 两个示例） | `qqbot/characters/<你的角色>/` |
+| 真人相关的共享背景 | `normal-paper/`（除 `README.md` / `examples/`） |
 | `private/.env` / `private/cookies.json` / `private/twitter_cookies.json` | — |
 | `corpus/*/tweets_raw.json` / `corpus/*/corpus.txt`（含真人微博/推特原文） | — |
-| 任何 QQ 群聊记录（含真人头像/QQ 号） | — |
+| 任何 QQ 群聊记录 / 群二维码（含 QQ 号） | — |
 
 > 这些都在 `.gitignore` 里拦了，但 PR 时还是麻烦人工 review。  
 > 跑 `python scripts/sanitize.py --check-only` 可以批量检查整库。

@@ -7,13 +7,13 @@
 
 用法：
   # 1) 预检（不写任何东西）
-  python scripts/install_character_update.py --from <产出目录> --slug dot_yuu
+  python scripts/install_character_update.py --from <产出目录> --slug my-role
 
   # 2) 确认后安装（自动备份）
-  python scripts/install_character_update.py --from <产出目录> --slug dot_yuu --apply
+  python scripts/install_character_update.py --from <产出目录> --slug my-role --apply
 
   # 3) 深处层单独放 private/（永远不要放进角色目录）
-  python scripts/install_character_update.py --from <产出目录> --slug dot_yuu --apply --deep <deep.md路径>
+  python scripts/install_character_update.py --from <产出目录> --slug my-role --apply --deep <deep.md路径>
 
 退出码：0 = 通过 / 1 = 有 FAIL（不会写盘）
 """
@@ -75,7 +75,7 @@ def main():
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--from", dest="src", required=True, help="本地模型产出目录")
-    ap.add_argument("--slug", default="dot_yuu", help="角色目录名（默认 dot_yuu）")
+    ap.add_argument("--slug", default="my-role", help="角色目录名（默认 my-role）")
     ap.add_argument("--apply", action="store_true", help="确认安装（不加则只预检）")
     ap.add_argument("--deep", default=None, help="深处层文件，会被放到 private/ 而不是角色目录")
     args = ap.parse_args()

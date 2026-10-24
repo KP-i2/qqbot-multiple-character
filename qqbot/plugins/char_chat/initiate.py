@@ -15,7 +15,7 @@
 还会随上下文漂移。掷骰放在代码里才是真的 7%，而且可复现、可观测（日志有 [initiate] 行）。
 
 角色接入方式（SKILL.md front-matter）：
-    allowed_users: 2972494435
+    allowed_users: 1234567890
     initiate_probability: 0.07
     initiate_hint: "本轮：主动暗示命中（见 persona.md 的「主动暗示」一节）"
 """

@@ -203,7 +203,7 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
     # 2026-09-10: 可选注入 SKILL.md 正文（控制层）。
     # 默认不注入 —— 现有角色把 SKILL.md 当纯元数据/给人看的说明文档。
     # 需要角色显式声明 include_skill_body: true，通常用于 SKILL.md 承载
-    # 身份路由 / 分级规则 / 模式触发表这类"必须被执行"的逻辑（如 dot_yuu）。
+    # 身份路由 / 分级规则 / 模式触发表这类"必须被执行"的逻辑（见 docs/SKILL_AUTHORING.md）。
     if include_skill_body and skill_body:
         parts.append(f"# 角色控制层（SKILL.md）\n{skill_body}")
 
@@ -228,7 +228,7 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
         for _f in sorted(_sub_dir.glob("*.md")):
             parts.append(f"# 模式参考：{_sub}/{_f.name}\n{_f.read_text(encoding='utf-8')}")
 
-    # 加载额外参考文件（如 starwink.md 等团体背景）
+    # 加载额外参考文件（如角色目录下的团体/世界观背景 .md）
     for extra_file in sorted(skill_path.glob("*.md")):
         ename = extra_file.name
         if ename in ("SKILL.md", "persona.md", "work.md"):

@@ -114,7 +114,7 @@ def _build_llm_providers() -> dict:
         except Exception:
             pass
 
-    class zyw_cfg:  # 替身,只在 dashboard 用
+    class _local_cfg:  # 替身,只在 dashboard 用
         ACTIVE_LLM_PROVIDER = runtime.get("active_llm_provider", "deepseek")
         IMAGE_HANDLER_ENABLED = bool(runtime.get("image_handler_enabled", True))
         MINIMAX_ENABLED = env_vars.get("MINIMAX_ENABLED", "false").lower() == "true"
@@ -132,46 +132,46 @@ def _build_llm_providers() -> dict:
         SILICONFLOW_BASE_URL = env_vars.get("siliconflow_base_url", "")
         SILICONFLOW_MODEL = env_vars.get("siliconflow_model", "Qwen/Qwen3.5-9B")
 
-    active = getattr(zyw_cfg, "ACTIVE_LLM_PROVIDER", "deepseek")
+    active = getattr(_local_cfg, "ACTIVE_LLM_PROVIDER", "deepseek")
     if active == "minimax":
-        chat_available = bool(zyw_cfg.MINIMAX_ENABLED and zyw_cfg.MINIMAX_API_KEY
-                              and not zyw_cfg.MINIMAX_API_KEY.startswith("sk-your"))
-        chat_model = zyw_cfg.MINIMAX_MODEL
+        chat_available = bool(_local_cfg.MINIMAX_ENABLED and _local_cfg.MINIMAX_API_KEY
+                              and not _local_cfg.MINIMAX_API_KEY.startswith("sk-your"))
+        chat_model = _local_cfg.MINIMAX_MODEL
     else:
-        chat_available = bool(zyw_cfg.DEEPSEEK_API_KEY
-                              and not zyw_cfg.DEEPSEEK_API_KEY.startswith("sk-your"))
-        chat_model = zyw_cfg.DEEPSEEK_MODEL
+        chat_available = bool(_local_cfg.DEEPSEEK_API_KEY
+                              and not _local_cfg.DEEPSEEK_API_KEY.startswith("sk-your"))
+        chat_model = _local_cfg.DEEPSEEK_MODEL
 
     # 2026-07-23: vision 状态 = 开关 + provider 可用性 双重决定
     # 2026-08-30: 优先级链改为 deepseek-vision > siliconflow > minimax，
     # 必须跟 provider.get_vision_provider() 完全一致，否则面板显示与实际调用不符。
-    if (zyw_cfg.DEEPSEEK_VISION_ENABLED and zyw_cfg.DEEPSEEK_API_KEY
-            and not zyw_cfg.DEEPSEEK_API_KEY.startswith("sk-your")):
+    if (_local_cfg.DEEPSEEK_VISION_ENABLED and _local_cfg.DEEPSEEK_API_KEY
+            and not _local_cfg.DEEPSEEK_API_KEY.startswith("sk-your")):
         vision_provider_ok = True
         vision_name = "deepseek-vision"
-        vision_model = zyw_cfg.DEEPSEEK_VISION_MODEL
-    elif zyw_cfg.SILICONFLOW_ENABLED and zyw_cfg.SILICONFLOW_API_KEY and zyw_cfg.SILICONFLOW_BASE_URL:
+        vision_model = _local_cfg.DEEPSEEK_VISION_MODEL
+    elif _local_cfg.SILICONFLOW_ENABLED and _local_cfg.SILICONFLOW_API_KEY and _local_cfg.SILICONFLOW_BASE_URL:
         vision_provider_ok = True
         vision_name = "siliconflow"
-        vision_model = zyw_cfg.SILICONFLOW_MODEL
-    elif (zyw_cfg.MINIMAX_ENABLED and zyw_cfg.MINIMAX_API_KEY
-          and zyw_cfg.MINIMAX_BASE_URL
-          and not zyw_cfg.MINIMAX_API_KEY.startswith("sk-your")
-          and not zyw_cfg.MINIMAX_API_KEY.startswith("sk-cp-your")):
+        vision_model = _local_cfg.SILICONFLOW_MODEL
+    elif (_local_cfg.MINIMAX_ENABLED and _local_cfg.MINIMAX_API_KEY
+          and _local_cfg.MINIMAX_BASE_URL
+          and not _local_cfg.MINIMAX_API_KEY.startswith("sk-your")
+          and not _local_cfg.MINIMAX_API_KEY.startswith("sk-cp-your")):
         vision_provider_ok = True
         vision_name = "minimax"
-        vision_model = zyw_cfg.MINIMAX_MODEL
+        vision_model = _local_cfg.MINIMAX_MODEL
     else:
         vision_provider_ok = False
         vision_name = None
         vision_model = None
-    vision_enabled = bool(zyw_cfg.IMAGE_HANDLER_ENABLED)
+    vision_enabled = bool(_local_cfg.IMAGE_HANDLER_ENABLED)
     vision_available = vision_enabled and vision_provider_ok
     if not vision_available and vision_enabled:
         vision_model = (
-            zyw_cfg.DEEPSEEK_VISION_MODEL if zyw_cfg.DEEPSEEK_API_KEY
-            else (zyw_cfg.SILICONFLOW_MODEL if zyw_cfg.SILICONFLOW_API_KEY
-                  else (zyw_cfg.MINIMAX_MODEL if zyw_cfg.MINIMAX_API_KEY else None))
+            _local_cfg.DEEPSEEK_VISION_MODEL if _local_cfg.DEEPSEEK_API_KEY
+            else (_local_cfg.SILICONFLOW_MODEL if _local_cfg.SILICONFLOW_API_KEY
+                  else (_local_cfg.MINIMAX_MODEL if _local_cfg.MINIMAX_API_KEY else None))
         )
     if not vision_enabled:
         vision_warning = "识图已关闭 (image_handler_enabled=False)"

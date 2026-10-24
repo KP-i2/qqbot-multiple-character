@@ -26,14 +26,22 @@ QQBOT_DIR = PLUGIN_DIR.parent.parent
 #       /skills 命令 / /api/skills 接口）保持不变，见本次改动的 scope 约定。
 SKILLS_DIR = QQBOT_DIR / "characters"
 CORPUS_DIR = QQBOT_DIR.parent / "corpus"
-# 2026-09-10: 角色级语料别名。dot_yuu 是 ytj 的「另一面」，没有自己的语料，
-# 语料检索（search_corpus）时借用 ytj 的 corpus/ytj_*。
+# 角色级语料别名：某个角色没有自己的语料目录 / corpus_ref 时，借助另一个角色的语料。
 # 生效条件：该角色既没有 corpus/{name}_* 目录、也没有 characters/{name}/corpus_ref/；
 # 一旦角色自己有了语料，别名自动失效（优先用自己的）。
 # 只影响检索；Dashboard 的蒸馏管线仍要求角色自有语料，不吃这个别名。
-CORPUS_ALIASES: dict[str, str] = {
-    "dot_yuu": "ytj",
-}
+# 别名映射属于本地私有配置，放在 private/corpus_aliases.json（不进公开仓库），格式：
+#   {"<角色目录名>": "<被借用语料的角色名/前缀>"}
+CORPUS_ALIASES: dict[str, str] = {}
+_CORPUS_ALIAS_FILE = QQBOT_DIR.parent / "private" / "corpus_aliases.json"
+try:
+    if _CORPUS_ALIAS_FILE.exists():
+        _aliases = json.loads(_CORPUS_ALIAS_FILE.read_text(encoding="utf-8"))
+        if isinstance(_aliases, dict):
+            CORPUS_ALIASES = {str(k): str(v) for k, v in _aliases.items()}
+except Exception:
+    # 配置坏了不影响启动：退化成"没有别名"
+    CORPUS_ALIASES = {}
 PHOTO_DIR = QQBOT_DIR.parent / "photo"
 NORMAL_PAPER_DIR = QQBOT_DIR.parent / "normal-paper"
 

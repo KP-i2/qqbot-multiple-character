@@ -1,15 +1,10 @@
 # ============================================================
-#  qqbot-multiple-character .gitignore（本地版）
-#  基础沿用公开仓库 origin/master 的规则，并额外排除本地私有内容。
-#  原则：代码 / 文档 / 模板进仓库；密钥、角色、语料、运行时数据、
-#        第三方运行时（SnowLuma）与历史归档一律本地保留。
+#  qqbot-multiple-character .gitignore
+#  原则：代码 / 文档 / 示例进仓库；密钥、真实角色、语料、运行时数据、
+#        第三方运行时（SnowLuma）与历史归档一律只留本地。
 # ============================================================
 
 # ── 本地私有内容（不出现在公开仓库） ───────────────────────
-# 圈子共享背景 + 真人分析，仅本地
-normal-paper/
-# 全部角色（含真人系），仅本地
-qqbot/characters/
 private/
 corpus/
 photo/
@@ -18,6 +13,17 @@ skill/
 .work/
 .pids/
 .runtime/
+
+# ── 角色：只公开 2 个 anime 示例角色 + 目录说明 ─────────────
+qqbot/characters/*
+!qqbot/characters/README.md
+!qqbot/characters/makise-kurisu/
+!qqbot/characters/amadeus-kurisu/
+
+# ── 共享背景：只公开 README + examples 示例 ─────────────────
+normal-paper/*
+!normal-paper/README.md
+!normal-paper/examples/
 
 # ── 运行时 / 构建产物 ─────────────────────────────────────
 qqbot/logs/
@@ -35,6 +41,12 @@ snowluma/
 qqbot/.env
 # 真值配置（只提交 .example.json 模板）
 qqbot/snowluma_onebot_config.json
+
+# ── 不要进公开库的截图 / 图片 ───────────────────────────────
+# 旧版 Dashboard 截图（含 NapCat 时代界面，已过时）
+docs/dashboard.png
+# QQ 群二维码（含群号）
+assets/images/qq_women_de.jpg
 
 # ── Python ───────────────────────────────────────────────
 __pycache__/
@@ -68,6 +80,9 @@ $RECYCLE.BIN/
 *.rej
 .tmp_helper_marker.txt
 ._*
+# Dashboard 热重载触发文件（运行时生成，不入库）
+.reload_skills_trigger
+.reload_settings_trigger
 
 # ── 表情图片（体积大，本地保留；仓库只提交 keywords.txt 结构） ──
 emoji/*/*.gif
@@ -75,3 +90,6 @@ emoji/*/*.jpg
 emoji/*/*.jpeg
 emoji/*/*.png
 emoji/*/*.webp
+
+# 临时诊断脚本（开发期排查用，不进公开仓库）
+qqbot/_diag_*.py
