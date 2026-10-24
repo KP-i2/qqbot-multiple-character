@@ -1,5 +1,5 @@
 """进程检测与系统监控（async-friendly + 日志捕获）"""
-import os, time, asyncio, subprocess, socket, logging, shutil
+import os, re, time, asyncio, subprocess, socket, logging, shutil
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -30,10 +30,20 @@ except ImportError:  # dotenv 缺失时静默降级为纯环境变量
     pass
 
 
+def _snowluma_version_key(dir_name: str) -> tuple:
+    """从目录名 SnowLuma-v2.2.0-win-x64 提取版本元组，用于自然排序。"""
+    m = re.search(r"SnowLuma-v(\d+(?:\.\d+)*)", dir_name, re.IGNORECASE)
+    if m:
+        return tuple(int(x) for x in m.group(1).split("."))
+    return (0,)
+
+
 def _resolve_snowluma_node() -> Optional[Path]:
     """解析 snowluma 安装路径: 找 snowluma/SnowLuma-*/node.exe
 
-    支持多个版本目录（按字典序第一个）。
+    2026-10-25: 多版本目录改为按版本号自然排序取最高版本。
+    原实现 `sorted()` 是字典序：v1.10.3 会排在 v2.2.0 前面、v2.10 也会排在
+    v2.2 前面，升级后可能一直启动到旧版。同版本时按目录修改时间兜底。
     返回 None 表示未安装。
     """
     global SNOWLUMA_NODE_EXE
@@ -41,13 +51,23 @@ def _resolve_snowluma_node() -> Optional[Path]:
         return SNOWLUMA_NODE_EXE
     if not SNOWLUMA_DIR.exists():
         return None
-    for sub in sorted(SNOWLUMA_DIR.iterdir()):
-        if sub.is_dir() and sub.name.startswith("SnowLuma-"):
-            candidate = sub / "node.exe"
-            if candidate.exists():
-                SNOWLUMA_NODE_EXE = candidate
-                return candidate
-    return None
+    candidates = []
+    for sub in SNOWLUMA_DIR.iterdir():
+        if not (sub.is_dir() and sub.name.startswith("SnowLuma-")):
+            continue
+        node_exe = sub / "node.exe"
+        if not node_exe.exists():
+            continue
+        try:
+            mtime = sub.stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        candidates.append((_snowluma_version_key(sub.name), mtime, node_exe))
+    if not candidates:
+        return None
+    candidates.sort(reverse=True)
+    SNOWLUMA_NODE_EXE = candidates[0][2]
+    return SNOWLUMA_NODE_EXE
 
 # ── 可配置常量 ──
 NONEBOT_PORT = int(os.getenv("NONEBOT_PORT", "8080"))

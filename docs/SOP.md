@@ -66,17 +66,14 @@
 
 ```
 1. 双击桌面「QQ Bot」快捷方式 → （或直接双击 manage.bat）
-   └─ 背后操作：powershell 后台启动 pythonw uvicorn，写 .runtime/dashboard.pid
-   └─ 自动打开浏览器 → http://localhost:8501
+   └─ start_stack.ps1 后台启动 Dashboard（pythonw，写 .runtime/dashboard.pid）
+   └─ 通过 Dashboard API 自动启动 SnowLuma + NoneBot2（已在跑会跳过）
+   └─ 等 WebSocket 连上后自动打开浏览器 → http://localhost:8501
 
 2. Dashboard 登录（输入 DASHBOARD_TOKEN，浏览器会记到 localStorage）
 
-3. 进程管理 Tab，按顺序启动：
-   [1] NoneBot2 卡片 → 点「启动」
-       └─ 等待 pill 从红 → 绿（显示"监听 8080"）≈ 5-15s
-   [2] SnowLuma 卡片 → 点「启动」
-       └─ 如果弹出 SnowLuma WebUI → 确认显示"机器人在线"即可
-       └─ 首次或掉线需扫码 → http://localhost:5099 用手机 QQ 扫
+3. 一般无需操作。需要单独重启时：进程管理 Tab → 对应卡片「启动 / 停止 / 重启」
+   └─ 只有首次登录、升级同意协议、QQ 掉线时才需要打开 SnowLuma WebUI http://localhost:5099
 
 4. 顶部状态 pill 最终颜色：
    ✅ 全部变绿 = System OK / NoneBot2 OK / SnowLuma OK / WebSocket 已连接

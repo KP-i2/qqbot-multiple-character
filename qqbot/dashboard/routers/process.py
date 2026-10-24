@@ -16,10 +16,31 @@ from ._shared import _safe_name, logger, token_ok
 router = APIRouter()
 
 
+def _apply_live_ws(status: dict) -> dict:
+    """用 ws 探活结果（3s 更新）覆盖状态缓存里的 ws_connected。
+
+    2026-10-25：get_all_status 有 30s 缓存，一键启动/重启 bot 后，即使 WS 几秒内
+    就连上了，/api/health 与 /api/status 仍可能显示"未连接"，面板红 30 秒。
+    这里只覆盖 ws_connected，其它字段继续用缓存（避免每次都全进程扫描）。
+    """
+    ws = monitor.get_ws_health()
+    if not ws.get("last_check_at"):
+        return status
+    ok = bool(ws.get("ws_upgrade_ok"))
+    out = dict(status)
+    for key in ("snowluma", "napcat"):
+        part = status.get(key)
+        if isinstance(part, dict):
+            out[key] = dict(part)
+            out[key]["ws_connected"] = ok
+    return out
+
+
 # ── 进程监控 ──
 @router.get("/api/status")
 async def api_status():
-    return await asyncio.get_event_loop().run_in_executor(None, monitor.get_all_status)
+    status = await asyncio.get_event_loop().run_in_executor(None, monitor.get_all_status)
+    return _apply_live_ws(status)
 
 
 @router.post("/api/process/start/{name}")
@@ -85,7 +106,7 @@ async def api_full_restart():
 async def api_health():
     """系统健康检查（复用 get_all_status 的 5s 缓存，避免高频全进程遍历）"""
     loop = asyncio.get_event_loop()
-    all_status = await loop.run_in_executor(None, monitor.get_all_status)
+    all_status = _apply_live_ws(await loop.run_in_executor(None, monitor.get_all_status))
     nb = all_status.get("nonebot2") or {}
     snowluma = all_status.get("napcat") or {}
 

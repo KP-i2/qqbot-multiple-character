@@ -112,8 +112,8 @@ DEFAULT_SKILL=makise-kurisu          # 公开仓库自带示例角色
 manage.bat
 ```
 
-自动拉起 Dashboard（`http://localhost:8501`）→ 进程管理页点「启动 NoneBot2」+「启动 SnowLuma」。
-首次使用请登录 Dashboard（Token 即 `DASHBOARD_TOKEN`）。
+一次完成：后台拉起 Dashboard → 自动启动 SnowLuma + NoneBot2 → 等 WebSocket 连上后自动打开 `http://localhost:8501`。
+（也仍可在 Dashboard 里手动启停 / 重启单个进程。）首次使用登录 Dashboard，Token 即 `DASHBOARD_TOKEN`。
 
 **第 5 步：验证**
 

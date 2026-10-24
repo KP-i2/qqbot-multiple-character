@@ -20,7 +20,7 @@ QQ 客户端 ←→ SnowLuma (OneBot v11) ←WebSocket→ NoneBot2 (port 8080)
 
 Dashboard (port 8501) ←→ 进程管理 / 微博+推特语料采集 / Skill 蒸馏 / 头像管理 / 热重载 / 实时对话流水
 SnowLuma WebUI (port 5099) ←→ 扫码登录 QQ / 连接状态
-manage.bat             ←→ 统一入口（启动 Dashboard + 浏览器，端口自动清理）
+manage.bat             ←→ 一键入口（start_stack.ps1：Dashboard + SnowLuma + NoneBot2 + 打开浏览器）
 ```
 
 
@@ -253,7 +253,8 @@ skill_communication/
 │   │   ├── dashboard.bat           # Dashboard 前台启动（有日志框）
 │   │   ├── dashboard_silent.bat    # Dashboard 后台启动（无窗口）
 │   │   ├── create_shortcut.bat     # 桌面快捷方式创建（QQ Bot.lnk → manage.bat）
-│   │   └── launch_dashboard.ps1    # ⭐ manage.bat 实际调的 PS1（后台 pythonw 启动 + 端口检测）
+│   │   ├── start_stack.ps1         # ⭐ manage.bat 实际调用：一键启动 Dashboard+SnowLuma+NoneBot2
+│   │   └── launch_dashboard.ps1    # 后台 pythonw 启动 Dashboard + TCP 端口探测（-NoPause 供自动化调用）
 │   ├── fetch_twitter.py            # 推特语料抓取（twikit + Cookie，无需 API Key）
 │   └── weibo_pw_cookies.py         # 微博抓取（Playwright + Cookie 注入）
 ├── private/                        # ⭐ 隐私配置目录（.gitignore 保护，不外传）
@@ -403,5 +404,5 @@ tail -5 qqbot/logs/turns_stream.jsonl
 | 前端 | 原生 HTML/CSS/JS（模块化：17 js + 6 css），8 套 CSS 变量主题 |
 | 语料蒸馏 | DeepSeek API（真人系/二次元系两套模板） |
 | 进程监控 | psutil + asyncio（内置于 Dashboard，含端口自动清理） |
-| 服务管理 | manage.bat + launch_dashboard.ps1（pythonw 后台启动 + PID 跟踪 + 端口冲突自愈） |
+| 服务管理 | manage.bat + start_stack.ps1（一键启动全栈）/ launch_dashboard.ps1（pythonw 后台启动 + TCP 端口探测 + PID 跟踪 + 端口冲突自愈） |
 | Python 环境 | Conda env `botenv`（Python 3.12，杜绝 venv launcher 转发问题） |

@@ -32,6 +32,9 @@ PID_FILE = RUNTIME_DIR / "dashboard.pid"
 BOOT_LOG = LOG_DIR / "dashboard.log"
 HELPER_LOG = LOG_DIR / "dashboard_restart.log"
 VENV_PYTHON = Path(r"D:\Work\anaconda3\envs\botenv\python.exe")
+# 2026-10-25: 重启后的 Dashboard 用 pythonw.exe 拉起（无控制台窗口；原先用
+# python.exe，自重启后会在桌面留一个控制台窗口，且更容易被父进程/任务树带走）。
+VENV_PYTHONW = VENV_PYTHON.with_name("pythonw.exe")
 
 APP = "qqbot.dashboard.main:app"
 
@@ -94,8 +97,9 @@ def main() -> int:
         child_out = subprocess.DEVNULL
         child_err = None
     else:
+        launcher = VENV_PYTHONW if VENV_PYTHONW.exists() else VENV_PYTHON
         argv = [
-            str(VENV_PYTHON), "-m", "uvicorn", APP,
+            str(launcher), "-m", "uvicorn", APP,
             "--host", "0.0.0.0", "--port", str(args.port),
         ]
         LOG_DIR.mkdir(parents=True, exist_ok=True)

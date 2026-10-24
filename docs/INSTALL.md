@@ -159,13 +159,14 @@ scripts\bat\setup_snowluma.bat
 
 ### 步骤 5：首次扫码登录 QQ
 
-**方式 A（推荐）**：Dashboard 启动 SnowLuma
+**方式 A（推荐）**：manage.bat 一键启动（会自动拉起 SnowLuma）
 
-1. 双击 `manage.bat`，浏览器访问 `http://localhost:8501`
-2. 用 `.env` 里的 `DASHBOARD_TOKEN` 登录
-3. 进程管理 → SnowLuma 卡片点「启动」
-4. 打开 SnowLuma WebUI：`http://localhost:5099`，输入机器人 QQ 号 → 生成二维码 → 手机 QQ 扫码确认
-5. 看到「在线」状态即可；之后 Dashboard 启动 SnowLuma 会自动登录，无需再扫码
+1. 双击 `manage.bat`：后台启动 Dashboard，并通过 API 自动启动 SnowLuma + NoneBot2，等 WS 连通后自动打开 `http://localhost:8501`
+2. 用 `.env` 里的 `DASHBOARD_TOKEN` 登录 Dashboard
+3. 首次登录：打开 SnowLuma WebUI `http://localhost:5099` → 同意 EULA/隐私政策 → 输入机器人 QQ 号 → 生成二维码 → 手机 QQ 扫码确认
+4. 看到「在线」状态即可；之后启动 SnowLuma 会自动登录，无需再扫码
+
+> 只有首次扫码、版本升级后重新同意协议、QQ 被踢下线这三种情况才需要打开 WebUI；日常启动不需要。
 
 **方式 B（命令行）**：
 
@@ -180,18 +181,16 @@ node.exe 你的QQ号
 
 ### 步骤 6：启动 Bot
 
-**方式一（推荐）**：用 manage.bat 一键拉起 Dashboard
+**方式一（推荐）**：manage.bat 一键启动全部
 
 ```bat
 manage.bat
 ```
 
-脚本会在后台启动 Dashboard（无黑框），然后手动打开 `http://localhost:8501`，输入 `.env` 中设置的 `DASHBOARD_TOKEN` 进入。
+脚本会自动完成：后台启动 Dashboard → 通过 Dashboard API 启动 SnowLuma + NoneBot2 → 等 WebSocket 连上后打开 `http://localhost:8501`（无黑框、无需手动点启动）。
+首次使用输入 `.env` 中设置的 `DASHBOARD_TOKEN` 登录即可。
 
-在 Dashboard → 进程管理 里依次点：
-
-1. NoneBot2 卡片 →「启动」（等 pill 变绿、8080 监听）
-2. SnowLuma 卡片 →「启动」（等 WebSocket 显示已连接）
+> 只需要单独启停某个进程时，仍可在 Dashboard → 进程管理页操作；脚本里的启动是幂等的（已在运行会跳过）。
 
 **方式二（调试用）**：命令行前台启动 Dashboard
 

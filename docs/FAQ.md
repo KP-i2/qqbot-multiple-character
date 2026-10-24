@@ -11,7 +11,13 @@ A: 项目硬编码 Conda 根在 `D:\Work\anaconda3\`。如果装到了 C 盘或�
    然后重新跑 `scripts/bat/setup.bat` 会自动装 botenv。
 
 **Q: manage.bat 一闪就没了 / 浏览器没打开？**
-A: 参见 SOP-07 故障 1。先看 `qqbot/logs/dashboard.err` 定位具体错误。常见是 botenv 未安装或端口 8501 残留占用没清。如果日志里写 `pythonw.exe not found` → 先跑 setup.bat。
+A: `manage.bat` 现在走 `scripts/bat/start_stack.ps1`：会依次启动 Dashboard → SnowLuma → NoneBot2，等 WebSocket 连通后才开浏览器（正常可能等十几秒，QQ 没登录时最多等 60s）。
+- 窗口一闪就没有、浏览器也没开 → 看 `qqbot/logs/dashboard.err`（Dashboard 起不来）或直接在该窗口里看启动输出；常见是 botenv 未安装 / 端口 8501 被占。
+- 想跳过自动开浏览器：设环境变量 `QQBOT_NO_BROWSER=1` 再运行。
+- 日志里写 `pythonw.exe not found` → 先跑 setup.bat。
+
+**Q: 一键启动后卡在"等待 WS 连接就绪"？**
+A: 说明 SnowLuma/NoneBot2 进程起来了但 QQ 没连上。最常见原因是 **QQ 客户端没登录**（SnowLuma 靠 hook 已登录的 QQ）。脚本开始时会检查并提示；打开 QQ 登录即可，之后重跑 `manage.bat` 或到 Dashboard 点重启。超时后脚本只是提示，不会杀掉已启动的进程。
 
 **Q: manage.bat / Dashboard 里启动找不到 SnowLuma？**
 A: 2026-07-01 之后 SnowLuma 要放**项目根目录**下（不是 qqbot/ 里！）：
@@ -22,7 +28,7 @@ skill_communication/
         ├── node.exe
         └── index.mjs
 ```
-从 [MaaYYDS/SnowLuma Releases](https://github.com/MaaYYDS/SnowLuma/releases) 下载 win-x64 zip 解压即可。注意 v2.2.0 的 zip 是**根级文件**，要先手动新建 `snowluma\SnowLuma-v2.2.0-win-x64\` 再解压进去（旧版包自带版本目录）；`snowluma/` 下有多版本目录时 Dashboard 按字典序取第一个。
+从 [MaaYYDS/SnowLuma Releases](https://github.com/MaaYYDS/SnowLuma/releases) 下载 win-x64 zip 解压即可。注意 v2.2.0 的 zip 是**根级文件**，要先手动新建 `snowluma\SnowLuma-v2.2.0-win-x64\` 再解压进去（旧版包自带版本目录）；`snowluma/` 下有多版本目录时 Dashboard 会按版本号取**最高版本**（v2.10 > v2.2）。
 
 **Q: Bot 启动了但 QQ @了不回消息？**
 A: 按 SOP-07 故障 3 的诊断顺序：
