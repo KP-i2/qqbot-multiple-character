@@ -43,6 +43,14 @@ async def on_startup():
         logger.info(f"主对话 Provider: minimax | model={cfg.MINIMAX_MODEL}")
     else:
         logger.info(f"主对话 Provider: deepseek | model={cfg.DEEPSEEK_MODEL}")
+    # 联网搜索（2026-10-30 起只走 DeepSeek 官方 Search API）
+    if cfg.DEEPSEEK_SEARCH_ENABLED:
+        logger.info(
+            f"联网搜索: DeepSeek Search API | count={cfg.DEEPSEEK_SEARCH_COUNT} "
+            f"| timeout={cfg.DEEPSEEK_SEARCH_TIMEOUT}s | summary_max={cfg.DEEPSEEK_SEARCH_SUMMARY_MAX}"
+        )
+    else:
+        logger.warning("联网搜索已关闭 (DEEPSEEK_SEARCH_ENABLED=false)")
     # 图片描述 Provider：优先硅基流动 Qwen3.5-9B, minimax 兜底 (2026-07-23 接入)
     # 2026-07-23 优化: warning 条件改为"用户开了识图但 vision 不可用"时才报,
     # 避免 image_handler_enabled=False 时出现误报 warning

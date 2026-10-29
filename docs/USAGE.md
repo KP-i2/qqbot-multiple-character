@@ -263,11 +263,11 @@ bot 同时加载所有 `qqbot\characters\<角色名>\` 下的角色（首次启�
 
 当用户消息包含搜索意图关键词（如「查一下」「最新」「是谁」）或 URL 时自动触发：
 
-- **百度**：唯一通用搜索引擎
-- **微博单帖正文 / 微博热搜**：做增强补充（免 Cookie）
-- 带相关性过滤 + 健康检查 + 自动降级；最多执行 3 轮工具调用
+- **DeepSeek 官方 Search API**（自研搜索引擎）：唯一联网搜索后端，返回带来源站点 / 发布日期 / 摘要的结果，按相关性重排
+- 搜索失败或 0 结果时，模型会直接说「没查到」，不再抓网页、也不再拿微博热搜凑数
+- 最多执行 3 轮工具调用；结果里带链接，可直接引用
 
-可在 `.env` 用 `WEB_SEARCH_ENABLED=false` 关闭，或在 Dashboard 参数设置动态调整。
+可在 `.env` 用 `WEB_SEARCH_ENABLED=false` 关闭；`DEEPSEEK_SEARCH_COUNT`（默认 5）、`DEEPSEEK_SEARCH_TIMEOUT`（默认 10s）、`DEEPSEEK_SEARCH_SUMMARY_MAX`（默认 600 字/条）可调；Dashboard 参数设置也能动态开关。
 
 ### 多模态识图
 

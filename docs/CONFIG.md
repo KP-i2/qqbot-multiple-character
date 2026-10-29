@@ -36,6 +36,10 @@
 | **行为** | | | |
 | `ACTIVE_HOURS_START` / `ACTIVE_HOURS_END` | Bot 活跃时段（小时 0-23） | `0 / 23`（全天） | |
 | `WEB_SEARCH_ENABLED` | 联网搜索开关 | `true` | |
+| `DEEPSEEK_SEARCH_ENABLED` | 联网搜索只走 DeepSeek 官方 Search API（2026-10-30 起） | `true` | |
+| `DEEPSEEK_SEARCH_COUNT` | 每次搜索返回条数（1~10，实际 clamp） | `5` | |
+| `DEEPSEEK_SEARCH_TIMEOUT` | 搜索超时（秒） | `10` | |
+| `DEEPSEEK_SEARCH_SUMMARY_MAX` | 单条结果摘要最大字符数（控制 context 体积，0=不截断） | `600` | |
 | `AUTO_REPLY_GROUP_IDS` | **已移除（历史项）**：白名单群号（多群逗号分隔）；代码不再读取，旧 `.env` 留着不影响启动 | 空 | 历史项 |
 | `AUTO_REPLY_GROUP_PROBABILITY` | **已移除（历史项）**：白名单群自动回复概率（0~1）；2026-09 起群聊必须 @ 或 `/` 命令 | `0.0`（关） | 历史项 |
 | **推特抓取（可选）** | | | |

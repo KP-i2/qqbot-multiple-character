@@ -426,10 +426,25 @@ async def _call_deepseek_inner(
 
             if func_name == "web_search":
                 query = func_args.get("query", "")
-                max_results = func_args.get("max_results", 8)
+                max_results = func_args.get("max_results", 5)
+                # 2026-10-30: 把用户本轮原话一并传给 DeepSeek Search（ori_question），
+                # 帮助搜索引擎理解意图（模型给的 query 可能过短/丢语境）
+                _ori_question = ""
+                for _m in reversed(full_messages):
+                    if _m.get("role") == "user":
+                        _c = _m.get("content")
+                        if isinstance(_c, str):
+                            _ori_question = _c[:128]
+                        elif isinstance(_c, list):
+                            _ori_question = "".join(
+                                str(p.get("text", "")) for p in _c if isinstance(p, dict)
+                            )[:128]
+                        break
                 logger.info(f"[search] 联网搜索: {query} (max={max_results})")
                 cfg.chat_logger.info(f"[SEARCH] 联网搜索触发: query='{query}', max_results={max_results}")
-                search_text = await search.execute_web_search(query, max_results)
+                search_text = await search.execute_web_search(
+                    query, max_results, ori_question=_ori_question
+                )
 
             elif func_name == "search_corpus":
                 kw = func_args.get("keywords", "")

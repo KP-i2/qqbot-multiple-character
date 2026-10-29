@@ -40,7 +40,7 @@
 |---|---|
 | 🎭 多角色热切换 | `/switch <角色名>` 立即生效；每个角色独立人设、语气、可用工具与访问白名单 |
 | 🖼️ 多模态识图 | 图片自动转文字描述（默认 `deepseek-vision`，可切 SiliconFlow / MiniMax） |
-| 🔍 联网搜索 | 百度 + 微博（单帖/热搜），由模型经 Function Calling 自主决定是否搜索 |
+| 🔍 联网搜索 | DeepSeek 官方 Search API（自研搜索，带来源/日期/摘要，实测 0.2~0.4s），由模型经 Function Calling 自主决定是否搜索 |
 | 💬 流式回复 | 探测式路由：不需要工具就走流式分段，需要工具就走工具循环（≤3 轮） |
 | 🧠 记忆与画像 | 多轮历史 + 用户画像（称呼偏好/兴趣），可调轮数与 TTL |
 | 😀 情绪表情 | 10 类情绪、关键词触发、50% 概率 + 用户冷却，可热重载 |
@@ -59,7 +59,7 @@ QQ 客户端 ←→ SnowLuma（OneBot v11 协议端，WebUI :5099）
           NoneBot2（:8080） + char_chat 插件
                 ├─ 触发规则 → 主流程 → 上下文装配 → 工具/LLM → 分段发送
                 ├─ DeepSeek 主对话 / deepseek-vision 识图 / SiliconFlow / MiniMax
-                └─ 百度 + 微博搜索、语料检索、表情系统、turn 记录
+                └─ DeepSeek Search API、语料检索、表情系统、turn 记录
                 ↕
       Dashboard（FastAPI :8501）— 进程管理 / 日志 / 语料 / Skill / 参数 / 对话流水
 ```

@@ -15,7 +15,7 @@ QQ 客户端 ←→ SnowLuma (OneBot v11) ←WebSocket→ NoneBot2 (port 8080)
                                                ├─ deepseek-vision (默认图片描述 Provider,deepseek-v4-flash-vision-exp)
                                                ├─ SiliconFlow Qwen3.5-9B (可选图片描述 Provider,视觉转文字)
                                                ├─ MiniMax M3 (视觉备用 Provider)
-                                               ├─ 百度 + 微博(单帖/热搜) 联网搜索
+                                               ├─ DeepSeek 官方 Search API（自研搜索引擎，¥5/1000 次）
                                                └─ 流式输出 + Function Calling
 
 Dashboard (port 8501) ←→ 进程管理 / 微博+推特语料采集 / Skill 蒸馏 / 头像管理 / 热重载 / 实时对话流水
@@ -187,7 +187,7 @@ skill_communication/
 │   │   ├── history.py              # 对话历史管理（持久化到 JSON、TTL 清理、轮数上限）
 │   │   ├── user_profile.py         # 用户画像提取（DeepSeek 抽取称呼偏好/兴趣 → 注入上下文）
 │   │   ├── avatar.py               # QQ 昵称与头像设置（SnowLuma API）
-│   │   ├── search.py               # 联网搜索（百度 + 微博单帖/热搜，健康感知 + 自动降级）
+│   │   ├── search.py               # 联网搜索（DeepSeek 官方 Search API；旧百度实现降级为 legacy 不再调用）
 │   │   ├── url_fetcher.py          # URL 提取与内容抓取（BV 号解析、短链展开、正文提取）
 │   │   ├── dsml_cleaner.py         # DSML / XML / 思考标记清理
 │   │   ├── message_utils.py        # 消息分段、QQ 表情解析、反垃圾
@@ -397,7 +397,7 @@ tail -5 qqbot/logs/turns_stream.jsonl
 | 主对话 LLM | DeepSeek V4-Pro（默认，唯一主对话） |
 | 视觉理解（默认） | **deepseek-vision - deepseek-v4-flash-vision-exp**（先下载转 base64，复用 DeepSeek Key） |
 | 视觉理解（可选/备用） | SiliconFlow Qwen/Qwen3.5-9B（可选） / MiniMax M3（备用） |
-| 联网搜索 | 百度（唯一通用引擎）+ 微博单帖正文/热搜（健康状态持久化 + 自动降级） |
+| 联网搜索 | DeepSeek 官方 Search API（自研搜索引擎，带 rerank/authority/发布日期，¥5/1000 次成功请求） |
 | 推特抓取 | twikit（纯 HTTP，内置 KEY_BYTE 补丁，Dashboard 一键调用） |
 | 微博抓取 | Playwright Chromium + Cookie 注入 + 浏览器内 AJAX 翻页 |
 | Dashboard | FastAPI + Uvicorn + SSE（对话流）+ SSR（首屏注入） |

@@ -1,8 +1,10 @@
 """
-联网搜索（百度）+ 微博增强（单帖正文 / 热搜，均免 cookie）+ 页面抓取 + 语料库搜索
+联网搜索（2026-10-30 起只走 DeepSeek 官方 Search API）+ 语料库搜索
 
-2026-09-10 精简：删掉四个接不通的源（Bing 投毒 / 搜狗反爬 / DDG 不可达 / 微博关键词搜索需登录态）。
-它们只会拖慢响应，而模型侧本来也选不了源 —— 模型只有"要不要联网"这一个开关。
+历史：2026-09-10 曾精简到「百度 + 微博单帖/热搜」；实测百度抓取反爬、相关性、
+正文污染问题多（经常 0 结果或跑题），2026-10-30 切换为 DeepSeek 自研搜索 API
+（POST /v1/tools/search，¥5/1000 次，带 rerank_score / authority / date）。
+旧的百度实现保留为 _legacy_baidu_web_search 仅供回溯，不再被调用。
 """
 
 import asyncio
@@ -44,15 +46,15 @@ SEARCH_TOOLS = [
         "function": {
             "name": "web_search",
             "description": (
-                "【联网搜索 - 兜底工具】在网络上搜索实时信息。系统会用百度搜索并抓取正文，涉及微博时直接取单帖内容，"
-                "并自动抓取百科类页面详细内容。"
+                "【联网搜索 - 实时信息工具】调用 DeepSeek 官方搜索 API 搜索实时网页信息，"
+                "返回带来源站点、发布日期和摘要的结果（按相关性/权威性重排）。"
                 "使用场景（仅在以下情况使用本工具）："
                 "1. 用户询问的话题明显超出角色知识范围（最新新闻、未来事件、特定圈外人物）；"
                 "2. search_corpus 已调用但未找到结果；"
                 "3. 用户明确要求查实时信息（'最新'、'今天'、'最近'等）。"
                 "对于角色自身、所属圈子、过往经历等话题，**必须先调 search_corpus**，"
                 "不要直接用联网搜索代替本地语料。"
-                "搜索结果包含可点击链接，可以提供给用户参考。"
+                "搜索结果包含链接和日期，可以引用给对方参考；结果与问题无关时直接说没查到。"
             ),
             "parameters": {
                 "type": "object",
@@ -67,8 +69,8 @@ SEARCH_TOOLS = [
                     },
                     "max_results": {
                         "type": "integer",
-                        "description": "返回结果数量，默认 8。需要详细信息时建议设为 10",
-                        "default": 8,
+                        "description": "返回结果数量，默认 5，最多 10。需要更全的信息时再设大",
+                        "default": 5,
                     },
                 },
                 "required": ["query"],
@@ -673,7 +675,130 @@ async def search_baidu(query: str, max_results: int = 10, timeout_s: float = 15)
 
 
 # ── 主搜索编排 ──
-async def execute_web_search(query: str, max_results: int = 5) -> str:
+# ============================================================
+# DeepSeek 官方 Search API（2026-10-30 起联网搜索唯一后端）
+# ============================================================
+# 文档: https://api-docs.deepseek.com/zh-cn/guides/search/
+# 计费: Search/Fetch 每 1000 次成功请求 5 元，失败/无结果不计费；Search QPS 100
+# 切换原因：原百度抓取实测经常 0 结果 / 结果跑题 / 正文被侧边栏污染。
+
+
+def _deepseek_search_url() -> str:
+    base = (cfg.DEEPSEEK_BASE_URL or "https://api.deepseek.com").rstrip("/")
+    if base.endswith("/v1"):
+        return base + "/tools/search"
+    return base + "/v1/tools/search"
+
+
+def _fix_site_name(name) -> str:
+    """Search API 偶尔把站点名返回成 UTF-8 的 hex 串（如 e5a4aee5b9bfe7bd91），这里还原。"""
+    if not name:
+        return ""
+    s = str(name).strip()
+    if len(s) >= 6 and len(s) % 2 == 0 and re.fullmatch(r"[0-9a-fA-F]+", s):
+        try:
+            return bytes.fromhex(s).decode("utf-8")
+        except (ValueError, UnicodeDecodeError):
+            return s
+    return s
+
+
+async def deepseek_search(query: str, count: int = 5, ori_question: str = "") -> list:
+    """调用 DeepSeek 官方 Search API，返回原始 results（已修正 site_name）。"""
+    if not cfg.DEEPSEEK_API_KEY or cfg.DEEPSEEK_API_KEY.startswith("sk-your"):
+        raise RuntimeError("DEEPSEEK_API_KEY 未配置")
+    payload = {
+        "query": (query or "")[:128],
+        "count": max(1, min(int(count), 50)),
+        "need_content": False,
+    }
+    if ori_question:
+        payload["ori_question"] = ori_question[:128]
+    resp = await _get_search_client().post(
+        _deepseek_search_url(),
+        headers={"Authorization": f"Bearer {cfg.DEEPSEEK_API_KEY}"},
+        json=payload,
+        timeout=cfg.DEEPSEEK_SEARCH_TIMEOUT,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+    results = (resp.json() or {}).get("results") or []
+    for r in results:
+        r["site_name"] = _fix_site_name(r.get("site_name"))
+    return results
+
+
+def _format_deepseek_results(results: list) -> str:
+    """把 Search API 结果格式化成给模型读的紧凑文本（带来源/日期/摘要）。"""
+    lines = [f"## 网络搜索结果（DeepSeek Search {len(results)} 条）\n"]
+    for i, r in enumerate(results, 1):
+        title = (r.get("title") or "无标题").strip()
+        url = (r.get("url") or "").strip()
+        site = (r.get("site_name") or "").strip()
+        date = (r.get("date") or "")[:10]
+        summary = (r.get("summary") or r.get("snippet") or "").strip()
+        _max = cfg.DEEPSEEK_SEARCH_SUMMARY_MAX
+        if _max > 0 and len(summary) > _max:
+            summary = summary[:_max] + "…"
+        meta = " · ".join(x for x in (site, date) if x)
+        head = f"[{i}] {title}"
+        if meta:
+            head += f"\n    来源: {meta}"
+        lines.append(f"{head}\n    链接: {url}\n    摘要: {summary}\n")
+    lines.append(
+        "\n（以上是 DeepSeek 实时搜索结果。优先采用权威来源和较新的日期；"
+        "如果结果与问题无关或互相矛盾，就直接说没查到/不确定，不要编造链接、日期或版本号。"
+        "引用时带上来源站点名，不要自己拼链接。）"
+    )
+    return "\n".join(lines)
+
+
+async def execute_web_search(query: str, max_results: int = 5, ori_question: str = "") -> str:
+    """联网搜索：只走 DeepSeek 官方 Search API（2026-10-30 起）。
+
+    参数：
+      query:        搜索词（模型给出的核心关键词）
+      max_results:  返回条数（会 clamp 到 1~10）
+      ori_question: 用户原始问题（可选，帮助搜索理解意图）
+    """
+    cfg.record_metric("web_search", "calls")
+    if not cfg.DEEPSEEK_SEARCH_ENABLED:
+        cfg.chat_logger.warning("[SEARCH] DEEPSEEK_SEARCH_ENABLED=false，联网搜索已关闭")
+        return "联网搜索当前被配置关闭（DEEPSEEK_SEARCH_ENABLED=false）。"
+
+    count = cfg.DEEPSEEK_SEARCH_COUNT or 5
+    if max_results:
+        count = max(1, min(int(max_results), 10))
+
+    t0 = time.time()
+    try:
+        results = await deepseek_search(query, count=count, ori_question=ori_question or "")
+    except asyncio.TimeoutError:
+        cfg.update_search_health("deepseek_search", False)
+        logger.warning(f"[web_search] DeepSeek Search 超时（{cfg.DEEPSEEK_SEARCH_TIMEOUT}s）: {query[:60]}")
+        return "联网搜索超时，暂时没查到。（可以直接告诉对方没查到，别凭记忆硬答）"
+    except Exception as e:
+        cfg.update_search_health("deepseek_search", False)
+        logger.warning(f"[web_search] DeepSeek Search 失败: {type(e).__name__}: {e}")
+        return "联网搜索暂时不可用，没查到结果。（可以直接告诉对方没查到，别凭记忆硬答）"
+
+    elapsed = time.time() - t0
+    if not results:
+        cfg.update_search_health("deepseek_search", True)
+        cfg.chat_logger.info(f"[SEARCH] DeepSeek Search 0 条 | {elapsed:.2f}s | query='{query[:60]}'")
+        return "未找到相关结果。（可以换个说法再搜一次，或者直接告诉对方没查到）"
+
+    cfg.update_search_health("deepseek_search", True)
+    cfg.record_metric("web_search", "hits")
+    cfg.record_metric("by_source", "deepseek_search", len(results))
+    cfg.chat_logger.info(
+        f"[SEARCH] DeepSeek Search {len(results)} 条 | {elapsed:.2f}s | query='{query[:60]}'"
+    )
+    return _format_deepseek_results(results)
+
+
+# ── 旧版百度抓取实现（2026-10-30 起不再调用，仅保留供回溯/对比） ──
+async def _legacy_baidu_web_search(query: str, max_results: int = 5) -> str:
     """联网搜索：百度（主力）+ 微博增强 + 相关性闸门 + 重排 + 正文抓取。
 
     2026-09-10 精简：删掉四个接不通的源 ——

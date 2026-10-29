@@ -113,7 +113,27 @@ ACTIVE_HOURS_END: int = int(getattr(config, "active_hours_end", 23))
 _web_search_raw = getattr(config, "web_search_enabled", "true")
 WEB_SEARCH_ENABLED: bool = str(_web_search_raw).lower() == "true" if _web_search_raw is not None else True
 
-# 搜狗搜索（替代 DuckDuckGo/百度，国内直连无需第三方库）
+# ── 联网搜索后端：2026-10-30 起只走 DeepSeek 官方 Search API ──
+# 文档: https://api-docs.deepseek.com/zh-cn/guides/search/
+# 计费: 每 1000 次成功请求 5 元；失败/无结果不计费
+_ds_search_enabled_raw = (
+    getattr(config, "deepseek_search_enabled", "")
+    or os.getenv("DEEPSEEK_SEARCH_ENABLED", "")
+    or "true"
+)
+DEEPSEEK_SEARCH_ENABLED: bool = str(_ds_search_enabled_raw).lower() == "true"
+DEEPSEEK_SEARCH_COUNT: int = int(
+    getattr(config, "deepseek_search_count", "") or os.getenv("DEEPSEEK_SEARCH_COUNT", "") or 5
+)
+DEEPSEEK_SEARCH_TIMEOUT: float = float(
+    getattr(config, "deepseek_search_timeout", "") or os.getenv("DEEPSEEK_SEARCH_TIMEOUT", "") or 10
+)
+DEEPSEEK_SEARCH_SUMMARY_MAX: int = int(
+    getattr(config, "deepseek_search_summary_max", "")
+    or os.getenv("DEEPSEEK_SEARCH_SUMMARY_MAX", "")
+    or 600
+)
+
 SEARCH_AVAILABLE = True
 
 # 历史与超时
@@ -394,7 +414,8 @@ _SEARCH_HEALTH_FILE = QQBOT_DIR / "data" / "search_health.json"
 # 2026-09-12: 只保留真正在用的引擎 —— sogou/weibo/ddg 已在 search.py 里删除
 # （反爬 / 需登录态 / 不可达），留着它们只会让 search_health.json 反复写回死条目。
 _search_health: dict[str, dict] = {
-    "baidu": {"fail_count": 0, "last_fail": 0, "healthy": True},
+    # 2026-10-30: 联网搜索只走 DeepSeek 官方 Search API
+    "deepseek_search": {"fail_count": 0, "last_fail": 0, "healthy": True},
 }
 _SEARCH_HEALTH_FAIL_THRESHOLD = 3
 _SEARCH_HEALTH_COOLDOWN = 120

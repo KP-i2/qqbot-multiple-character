@@ -10,6 +10,12 @@ A: 项目硬编码 Conda 根在 `D:\Work\anaconda3\`。如果装到了 C 盘或�
    - `qqbot/dashboard/monitor.py`（`VENV_PYTHON` 常量）
    然后重新跑 `scripts/bat/setup.bat` 会自动装 botenv。
 
+**Q: 双击「QQ Bot」快捷方式弹「无法验证发布者 / 未签名」安全警告？**
+A: 这是 Windows 对**无签名 .bat** 的安全提示（本地创建的文件也可能触发，和是否从网上下载无关）。桌面快捷方式已改为**直接调用 PowerShell**（不经过 .bat），正常情况下不会再弹。如果仍出现：
+- 右键 `manage.bat` / `scripts\bat\start_stack.ps1` → 属性 → 勾选「解除锁定」→ 应用；
+- 或在弹窗里点「运行」即可继续，不影响功能；
+- 也可以自己把快捷方式目标改成 `powershell.exe`，参数 `-NoProfile -ExecutionPolicy Bypass -File "D:\...\scripts\bat\start_stack.ps1"`。
+
 **Q: manage.bat 一闪就没了 / 浏览器没打开？**
 A: `manage.bat` 现在走 `scripts/bat/start_stack.ps1`：会依次启动 Dashboard → SnowLuma → NoneBot2，等 WebSocket 连通后才开浏览器（正常可能等十几秒，QQ 没登录时最多等 60s）。
 - 窗口一闪就没有、浏览器也没开 → 看 `qqbot/logs/dashboard.err`（Dashboard 起不来）或直接在该窗口里看启动输出；常见是 botenv 未安装 / 端口 8501 被占。
