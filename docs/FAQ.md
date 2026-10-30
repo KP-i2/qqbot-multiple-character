@@ -60,6 +60,14 @@ A: 检查 `private/.env` 里的**实际在用的 Provider** API Key：
    - 识图失败 → 默认 deepseek-vision 复用 `DEEPSEEK_API_KEY`；SiliconFlow / MiniMax 兜底时看对应 Key
    别忘了查对应平台账户余额是否为 0（DeepSeek / SiliconFlow / MiniMax 任一个欠费都会 401）。
 
+**Q: 回复显示「模型接口连续失败，冷却中」或「LLM 调用超时」？**
+A: 这是到模型服务商的网络问题，**不是联网搜索超时**（搜索 API 实测 0.3~0.7s）。2026-10-30 起：
+   - 连接失败（ConnectError）立即返回，不再重试白等；
+   - 读超时按 `LLM_REQUEST_TIMEOUT`（默认 45s）× `LLM_MAX_RETRIES`（默认 2）重试，单轮总预算 `LLM_TOTAL_TIMEOUT`（默认 120s）；
+   - 连续失败 2 次进入 120s 冷却，冷却期内的消息会**立刻**提示剩余秒数，不再卡满 120s；
+   - 搜索接口遇到超时/5xx 会自动重试一次。
+   想调松/收紧就改 `private/.env` 里这三个变量，重启 NoneBot2。
+
 **Q: 识图不工作（发图 bot 没描述内容）？**
 A: 诊断顺序：
 1. Dashboard「参数设置」→ `image_handler_enabled` 必须勾选

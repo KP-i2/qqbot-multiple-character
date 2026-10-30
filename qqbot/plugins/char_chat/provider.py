@@ -111,6 +111,24 @@ def _is_provider_healthy(name: str) -> bool:
     return False
 
 
+def get_provider_cooldown_remaining(name: str) -> int:
+    """返回 provider 冷却剩余秒数（0 表示可用）。
+
+    2026-10-30 修复：冷却此前只用于 dashboard 展示，调用侧完全不知道，
+    连续失败后下一条消息还会再打一轮 120s。调用前先查这里，冷却中直接快速失败。
+    """
+    h = _provider_health.get(name)
+    if not h or h["healthy"]:
+        return 0
+    remain = _PROVIDER_COOLDOWN - (time.time() - h["last_fail"])
+    if remain <= 0:
+        h["healthy"] = True
+        h["fail_count"] = 0
+        logger.info(f"[provider] '{name}' 冷却期已过,重新启用")
+        return 0
+    return int(remain) + 1
+
+
 def get_active_provider() -> dict:
     """返回当前可用的主 provider。
 

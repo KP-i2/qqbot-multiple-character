@@ -33,6 +33,9 @@
 | `DASHBOARD_TOKEN` | Dashboard 访问密码（空则自动生成随机 token） | — | 推荐 |
 | `DEFAULT_SKILL` | 启动默认角色 Skill 名 | `makise-kurisu` | |
 | `ACTIVE_LLM_PROVIDER` | 启动主选 Provider（`deepseek` / `minimax`） | `deepseek` | |
+| `LLM_TOTAL_TIMEOUT` | 单轮 LLM 调用总预算（秒）；超时后返回友好提示 | `120` | 2026-10-30 新增 |
+| `LLM_REQUEST_TIMEOUT` | 单次 HTTP 请求超时（秒）；与重试次数共同决定最坏耗时 | `45` | 2026-10-30 新增 |
+| `LLM_MAX_RETRIES` | 单次请求最大尝试次数（连接失败不重试，读超时才重试） | `2` | 2026-10-30 新增 |
 | **行为** | | | |
 | `ACTIVE_HOURS_START` / `ACTIVE_HOURS_END` | Bot 活跃时段（小时 0-23） | `0 / 23`（全天） | |
 | `WEB_SEARCH_ENABLED` | 联网搜索开关 | `true` | |

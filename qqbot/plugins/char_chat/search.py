@@ -714,18 +714,41 @@ async def deepseek_search(query: str, count: int = 5, ori_question: str = "") ->
     }
     if ori_question:
         payload["ori_question"] = ori_question[:128]
-    resp = await _get_search_client().post(
-        _deepseek_search_url(),
-        headers={"Authorization": f"Bearer {cfg.DEEPSEEK_API_KEY}"},
-        json=payload,
-        timeout=cfg.DEEPSEEK_SEARCH_TIMEOUT,
-    )
-    if resp.status_code != 200:
-        raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:200]}")
-    results = (resp.json() or {}).get("results") or []
-    for r in results:
-        r["site_name"] = _fix_site_name(r.get("site_name"))
-    return results
+    last_exc: Exception | None = None
+    t0 = time.monotonic()
+    for attempt in (1, 2):
+        try:
+            resp = await _get_search_client().post(
+                _deepseek_search_url(),
+                headers={"Authorization": f"Bearer {cfg.DEEPSEEK_API_KEY}"},
+                json=payload,
+                timeout=cfg.DEEPSEEK_SEARCH_TIMEOUT,
+            )
+            if resp.status_code in (429, 500, 502, 503, 504) and attempt < 2:
+                cfg.chat_logger.warning(
+                    f"[SEARCH] DeepSeek Search HTTP {resp.status_code}，重试一次"
+                )
+                await asyncio.sleep(0.6)
+                continue
+            if resp.status_code != 200:
+                raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+            results = (resp.json() or {}).get("results") or []
+            for r in results:
+                r["site_name"] = _fix_site_name(r.get("site_name"))
+            return results
+        except httpx.TransportError as e:
+            last_exc = e
+            if attempt < 2:
+                cfg.chat_logger.warning(
+                    f"[SEARCH] DeepSeek Search {type(e).__name__} "
+                    f"({time.monotonic() - t0:.1f}s)，重试一次"
+                )
+                await asyncio.sleep(0.5)
+                continue
+            raise
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("DeepSeek Search 未知失败")
 
 
 def _format_deepseek_results(results: list) -> str:
@@ -773,7 +796,7 @@ async def execute_web_search(query: str, max_results: int = 5, ori_question: str
     t0 = time.time()
     try:
         results = await deepseek_search(query, count=count, ori_question=ori_question or "")
-    except asyncio.TimeoutError:
+    except (asyncio.TimeoutError, httpx.TimeoutException):
         cfg.update_search_health("deepseek_search", False)
         logger.warning(f"[web_search] DeepSeek Search 超时（{cfg.DEEPSEEK_SEARCH_TIMEOUT}s）: {query[:60]}")
         return "联网搜索超时，暂时没查到。（可以直接告诉对方没查到，别凭记忆硬答）"

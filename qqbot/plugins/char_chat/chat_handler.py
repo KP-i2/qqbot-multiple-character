@@ -448,7 +448,7 @@ async def _handle_chat_inner(bot: Bot, event: Event):
                     **llm.build_sampling_params(_stream_provider["name"]),
                     "messages": [{"role": "system", "content": effective_prompt}]
                                 + _effective_history,
-                }):
+                }, timeout=cfg.LLM_REQUEST_TIMEOUT, max_retries=cfg.LLM_MAX_RETRIES):
                     if not _timer_cancelled:
                         _timer_cancelled = True
                         timer_task.cancel()

@@ -51,6 +51,10 @@ async def on_startup():
         )
     else:
         logger.warning("联网搜索已关闭 (DEEPSEEK_SEARCH_ENABLED=false)")
+    logger.info(
+        f"LLM 超时预算: total={cfg.LLM_TOTAL_TIMEOUT:.0f}s "
+        f"| request={cfg.LLM_REQUEST_TIMEOUT:.0f}s x{cfg.LLM_MAX_RETRIES}"
+    )
     # 图片描述 Provider：优先硅基流动 Qwen3.5-9B, minimax 兜底 (2026-07-23 接入)
     # 2026-07-23 优化: warning 条件改为"用户开了识图但 vision 不可用"时才报,
     # 避免 image_handler_enabled=False 时出现误报 warning

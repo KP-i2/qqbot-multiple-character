@@ -4,6 +4,7 @@ LLM 调用逻辑：探测工具需求、Function Calling 循环、流式/非流�
 
 import asyncio
 import json
+import time
 from datetime import datetime
 from typing import Optional
 
@@ -127,6 +128,14 @@ async def probe_tool_usage(
         "tool_choice": "auto",
     }
 
+    # 2026-10-30: 冷却中的 provider 不再探测——探测也会白等一轮
+    _probe_cool = prov.get_provider_cooldown_remaining(probe_provider["name"])
+    if _probe_cool > 0:
+        cfg.chat_logger.warning(
+            f"[PROBE] {probe_provider['name']} 冷却中（约 {_probe_cool}s），跳过探测"
+        )
+        return True
+
     try:
         await asyncio.wait_for(api_client.API_SEMAPHORE.acquire(), timeout=10)
     except asyncio.TimeoutError:
@@ -140,7 +149,12 @@ async def probe_tool_usage(
         probe_payload = await prov.describe_images_in_payload(probe_payload)
 
     try:
-        data = await api_client.api_request(probe_payload, probe_provider)
+        data = await api_client.api_request(
+            probe_payload,
+            probe_provider,
+            timeout=min(30.0, float(cfg.LLM_REQUEST_TIMEOUT)),
+            max_retries=1,
+        )
     finally:
         api_client.API_SEMAPHORE.release()
 
@@ -183,23 +197,38 @@ async def call_deepseek(
         此时再给 LLM 加 tools 会触发 deepseek v4 思考模式瞎答.
         强制 LLM 只看 user message (含搜索结果) 总结.
     """
+    # 2026-10-30: 主 provider 冷却中直接快速失败，不再打一轮 120s
+    _active_name = getattr(cfg, "ACTIVE_LLM_PROVIDER", "deepseek")
+    _cooldown = prov.get_provider_cooldown_remaining(_active_name)
+    if _cooldown > 0:
+        cfg.chat_logger.warning(
+            f"[LLM] {_active_name} 冷却中（约 {_cooldown}s），快速失败"
+        )
+        return f"⚠️ 模型接口连续失败，冷却中（约 {_cooldown}s 后恢复），请稍后再试。"
+
+    total_timeout = float(cfg.LLM_TOTAL_TIMEOUT)
     try:
         await asyncio.wait_for(api_client.API_SEMAPHORE.acquire(), timeout=30)
     except asyncio.TimeoutError:
         cfg.chat_logger.warning("[LLM] API 并发已满，排队超时")
         return "⚠️ 调用排队超时（API 并发已满），请稍后重试。"
 
+    _t0 = time.monotonic()
     try:
         return await asyncio.wait_for(
             _call_deepseek_inner(
                 system_prompt, messages, skill_name, current_user_content,
                 force_tools=force_tools, disable_tools=disable_tools,
+                deadline=_t0 + total_timeout - 2,
             ),
-            timeout=120,
+            timeout=total_timeout,
         )
     except asyncio.TimeoutError:
-        cfg.chat_logger.warning("[LLM] 整体调用超时 (180s)，强制返回")
-        return "⚠️ LLM 调用超时（180s），请稍后重试或检查网络。"
+        elapsed = time.monotonic() - _t0
+        cfg.chat_logger.warning(
+            f"[LLM] 整体调用超时 ({total_timeout:.0f}s, elapsed={elapsed:.1f}s)，强制返回"
+        )
+        return f"⚠️ LLM 调用超时（{total_timeout:.0f}s），请稍后重试或检查网络。"
     finally:
         api_client.API_SEMAPHORE.release()
 
@@ -222,6 +251,16 @@ def _log_reasoning(text: str, *, round_num: int = 0, source: str = "reasoning_co
     cfg.chat_logger.info(f"[REASONING] round={round_num} src={source} len={len(text)} | {snippet}")
 
 
+def _next_request_timeout(deadline: float | None) -> float | None:
+    """根据整轮 deadline 算本次请求超时；返回 None 表示预算已耗尽。"""
+    if deadline is None:
+        return float(cfg.LLM_REQUEST_TIMEOUT)
+    remain = deadline - time.monotonic()
+    if remain <= 3:
+        return None
+    return max(3.0, min(float(cfg.LLM_REQUEST_TIMEOUT), remain))
+
+
 async def _call_deepseek_inner(
     system_prompt: str,
     messages: list[dict],
@@ -229,6 +268,7 @@ async def _call_deepseek_inner(
     current_user_content: Optional[object] = None,
     force_tools: bool = False,
     disable_tools: bool = False,
+    deadline: float | None = None,
 ) -> Optional[str]:
     """实际的 LLM 调用逻辑。
 
@@ -311,7 +351,14 @@ async def _call_deepseek_inner(
                 "reasoning_effort": reasoning_effort,
             },
         })
-        data = await api_client.api_request(payload, provider)
+        _req_timeout = _next_request_timeout(deadline)
+        if _req_timeout is None:
+            cfg.chat_logger.warning("[LLM] 预算不足，停止调用（无工具分支）")
+            turn_recorder.add_step({"kind": "error", "title": "LLM 预算耗尽", "data": {}})
+            raise asyncio.TimeoutError("LLM budget exhausted")
+        data = await api_client.api_request(
+            payload, provider, timeout=_req_timeout, max_retries=cfg.LLM_MAX_RETRIES
+        )
         if data is None:
             turn_recorder.add_step({"kind": "error", "title": "LLM 请求失败", "data": {}})
             return None
@@ -367,7 +414,18 @@ async def _call_deepseek_inner(
             "tool_choice": tool_choice_value,
         }
 
-        data = await api_client.api_request(payload, provider)
+        _req_timeout = _next_request_timeout(deadline)
+        if _req_timeout is None:
+            cfg.chat_logger.warning("[LLM] 预算不足，停止调用（工具循环）")
+            turn_recorder.add_step({
+                "kind": "error",
+                "title": f"LLM 预算耗尽 (round={round_num})",
+                "data": {"round": round_num},
+            })
+            raise asyncio.TimeoutError("LLM budget exhausted")
+        data = await api_client.api_request(
+            payload, provider, timeout=_req_timeout, max_retries=cfg.LLM_MAX_RETRIES
+        )
         if data is None:
             turn_recorder.add_step({
                 "kind": "error",
@@ -491,7 +549,13 @@ async def _call_deepseek_inner(
     })
 
     payload_final = {**base_payload, "messages": full_messages}
-    data = await api_client.api_request(payload_final, provider)
+    _req_timeout = _next_request_timeout(deadline)
+    if _req_timeout is None:
+        cfg.chat_logger.warning("[LLM] 预算不足，跳过强制总结轮")
+        raise asyncio.TimeoutError("LLM budget exhausted")
+    data = await api_client.api_request(
+        payload_final, provider, timeout=_req_timeout, max_retries=cfg.LLM_MAX_RETRIES
+    )
     if data is None:
         return None
     raw_content = data["choices"][0]["message"].get("content", "").strip()
@@ -512,7 +576,12 @@ async def _call_deepseek_inner(
             "content": "（系统：请立刻用自然语言总结上面搜索到的内容回复用户，不要使用任何工具标记。）",
         })
         payload_retry = {**base_payload, "messages": full_messages}
-        data2 = await api_client.api_request(payload_retry, provider)
+        _req_timeout = _next_request_timeout(deadline)
+        if _req_timeout is None:
+            raise asyncio.TimeoutError("LLM budget exhausted")
+        data2 = await api_client.api_request(
+            payload_retry, provider, timeout=_req_timeout, max_retries=cfg.LLM_MAX_RETRIES
+        )
         if data2:
             raw2 = data2["choices"][0]["message"]["content"].strip()
             reply2 = clean_llm_reply(raw2)

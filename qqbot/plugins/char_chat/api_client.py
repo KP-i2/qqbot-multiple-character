@@ -118,10 +118,15 @@ def _classify_error(status: int, body: str) -> str:
         return "rate"
     if status in (500, 502, 503, 529):
         return "server"
+    # 2026-10-30: 400 一律不重试（retry 只会白等）；其余 4xx 归 client
+    if status == 400:
+        return "bad_request"
+    if 400 <= status < 500:
+        return "client"
     return "unknown"
 
 
-async def api_request(payload: dict, provider: dict = None) -> Optional[dict]:
+async def api_request(payload: dict, provider: dict = None, *, timeout: float | None = None, max_retries: int | None = None) -> Optional[dict]:
     """底层 API 请求，带重试。返回 JSON dict 或 None。
 
     路由策略（2026-06-28 重构）：
@@ -131,6 +136,9 @@ async def api_request(payload: dict, provider: dict = None) -> Optional[dict]:
       - 无图片 → active provider（默认 deepseek）
 
     注：两个 Provider 完全独立,失败不互回退。
+
+    2026-10-30: timeout / max_retries 可按调用方（LLM 主链路）覆盖；
+    Provider 冷却中直接返回 None，不再发起一轮注定超时的请求。
     """
     if provider is None:
         # 自动路由
@@ -138,7 +146,17 @@ async def api_request(payload: dict, provider: dict = None) -> Optional[dict]:
         provider = prov.get_provider_for_route(routed_name)
         payload = routed_payload
 
-    result, err_type = await _api_request_inner(payload, provider)
+    cooldown = prov.get_provider_cooldown_remaining(provider["name"])
+    if cooldown > 0:
+        _set_last_error(provider["name"], "cooldown")
+        cfg.chat_logger.warning(
+            f"[{provider['name']}] 冷却中（约 {cooldown}s），跳过请求"
+        )
+        return None
+
+    result, err_type = await _api_request_inner(
+        payload, provider, timeout=timeout, max_retries=max_retries
+    )
     if result is not None:
         prov.mark_provider_healthy(provider["name"])
         _set_last_error(provider["name"], None)
@@ -153,7 +171,13 @@ async def api_request(payload: dict, provider: dict = None) -> Optional[dict]:
     return None
 
 
-async def _api_request_inner(payload: dict, provider: dict) -> tuple[Optional[dict], str | None]:
+async def _api_request_inner(
+    payload: dict,
+    provider: dict,
+    *,
+    timeout: float | None = None,
+    max_retries: int | None = None,
+) -> tuple[Optional[dict], str | None]:
     """对指定 provider 发送 API 请求，带重试。返回 (JSON dict 或 None, error_type)"""
     base = provider["base_url"].rstrip("/")
     if base.endswith("/v1"):
@@ -169,56 +193,69 @@ async def _api_request_inner(payload: dict, provider: dict) -> tuple[Optional[di
     last_error = None
     last_err_type: str | None = None
     pname = provider["name"]
+    retries = max_retries if max_retries and max_retries > 0 else _API_MAX_RETRIES
 
     cfg.chat_logger.debug(
         f"[{pname}] POST {url} | model={adapted.get('model')} | "
         f"keys={sorted(adapted.keys())}"
     )
 
-    for attempt in range(1, _API_MAX_RETRIES + 1):
+    for attempt in range(1, retries + 1):
         try:
-            resp = await client.post(url, headers=headers, json=adapted)
+            resp = await client.post(url, headers=headers, json=adapted, timeout=timeout)
             resp.raise_for_status()
             return resp.json(), None
+        except httpx.ConnectError as e:
+            # 2026-10-30: 连接失败不重试（重试只会让用户多等一个 connect timeout）
+            last_error = f"ConnectError: {e}"
+            last_err_type = "network"
+            logger.error(f"[{pname}] API connect error (attempt {attempt}/{retries}): {last_error}")
+            return None, last_err_type
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
             body = e.response.text[:200]
             last_error = f"HTTP {status}: {body}"
             last_err_type = _classify_error(status, body)
             cfg.chat_logger.error(
-                f"[{pname}] HTTP {status} (attempt {attempt}/{_API_MAX_RETRIES}, type={last_err_type}) | url={url} | body={body}"
+                f"[{pname}] HTTP {status} (attempt {attempt}/{retries}, type={last_err_type}) | url={url} | body={body}"
             )
-            # 422 sensitive / 400 model / 400 disallowed / 401 auth 这些重试无意义
-            if last_err_type in ("sensitive", "model", "disallowed", "auth"):
+            # 422 sensitive / 400 bad_request / 401 auth 这些重试无意义
+            if last_err_type in ("sensitive", "model", "disallowed", "auth", "bad_request", "client"):
                 return None, last_err_type
-            if status in (429, 500, 502, 503, 529) and attempt < _API_MAX_RETRIES:
+            if status in (429, 500, 502, 503, 529) and attempt < retries:
                 delay = _API_RETRY_BASE_DELAY * (2 ** (attempt - 1))
-                logger.warning(f"[{pname}] API {status} (attempt {attempt}/{_API_MAX_RETRIES}), retry in {delay}s: {body}")
+                logger.warning(f"[{pname}] API {status} (attempt {attempt}/{retries}), retry in {delay}s: {body}")
                 await asyncio.sleep(delay)
                 continue
-            logger.error(f"[{pname}] API HTTP error (attempt {attempt}/{_API_MAX_RETRIES}): {last_error}")
+            logger.error(f"[{pname}] API HTTP error (attempt {attempt}/{retries}): {last_error}")
         except httpx.TimeoutException as e:
             last_error = f"Timeout: {e}"
             last_err_type = "timeout"
-            if attempt < _API_MAX_RETRIES:
+            if attempt < retries:
                 delay = _API_RETRY_BASE_DELAY * (2 ** (attempt - 1))
-                logger.warning(f"[{pname}] API timeout (attempt {attempt}/{_API_MAX_RETRIES}), retry in {delay}s")
+                logger.warning(f"[{pname}] API timeout (attempt {attempt}/{retries}), retry in {delay}s")
                 await asyncio.sleep(delay)
                 continue
-            logger.error(f"[{pname}] API timeout (attempt {attempt}/{_API_MAX_RETRIES}): {e}")
+            logger.error(f"[{pname}] API timeout (attempt {attempt}/{retries}): {e}")
         except Exception as e:
             last_error = f"{type(e).__name__}: {e}"
             last_err_type = "unknown"
-            logger.error(f"[{pname}] API unexpected error (attempt {attempt}/{_API_MAX_RETRIES}): {last_error}")
-            if attempt < _API_MAX_RETRIES:
+            logger.error(f"[{pname}] API unexpected error (attempt {attempt}/{retries}): {last_error}")
+            if attempt < retries:
                 await asyncio.sleep(_API_RETRY_BASE_DELAY)
                 continue
 
-    logger.error(f"[{pname}] API failed after {_API_MAX_RETRIES} attempts: {last_error}")
+    logger.error(f"[{pname}] API failed after {retries} attempts: {last_error}")
     return None, last_err_type
 
 
-async def _api_request_stream_inner(payload: dict, provider: dict):
+async def _api_request_stream_inner(
+    payload: dict,
+    provider: dict,
+    *,
+    timeout: float | None = None,
+    max_retries: int | None = None,
+):
     """对指定 provider 的流式 API 请求。成功 yield True，全部重试耗尽 yield False。"""
     base = provider["base_url"].rstrip("/")
     if base.endswith("/v1"):
@@ -233,18 +270,19 @@ async def _api_request_stream_inner(payload: dict, provider: dict):
     adapted = {**adapted, "stream": True}
     client = get_http_client()
     pname = provider["name"]
+    retries = max_retries if max_retries and max_retries > 0 else _API_MAX_RETRIES
 
-    for attempt in range(1, _API_MAX_RETRIES + 1):
+    for attempt in range(1, retries + 1):
         try:
-            async with client.stream("POST", url, headers=headers, json=adapted) as resp:
+            async with client.stream("POST", url, headers=headers, json=adapted, timeout=timeout) as resp:
                 if resp.status_code != 200:
                     body = await resp.aread()
                     body_text = body.decode("utf-8", errors="replace")[:200]
-                    if resp.status_code in (429, 500, 502, 503, 529) and attempt < _API_MAX_RETRIES:
+                    if resp.status_code in (429, 500, 502, 503, 529) and attempt < retries:
                         delay = _API_RETRY_BASE_DELAY * (2 ** (attempt - 1))
                         logger.warning(
                             f"[{pname}] stream API {resp.status_code} "
-                            f"(attempt {attempt}/{_API_MAX_RETRIES}), retry in {delay}s"
+                            f"(attempt {attempt}/{retries}), retry in {delay}s"
                         )
                         await asyncio.sleep(delay)
                         continue
@@ -280,20 +318,25 @@ async def _api_request_stream_inner(payload: dict, provider: dict):
             yield True  # stream ended normally
             return
 
+        except httpx.ConnectError as e:
+            logger.error(f"[{pname}] stream connect error (attempt {attempt}/{retries}): {e}")
+            yield False
+            return
+
         except httpx.TimeoutException as e:
-            if attempt < _API_MAX_RETRIES:
+            if attempt < retries:
                 delay = _API_RETRY_BASE_DELAY * (2 ** (attempt - 1))
                 logger.warning(
                     f"[{pname}] stream timeout "
-                    f"(attempt {attempt}/{_API_MAX_RETRIES}), retry in {delay}s"
+                    f"(attempt {attempt}/{retries}), retry in {delay}s"
                 )
                 await asyncio.sleep(delay)
                 continue
-            logger.error(f"[{pname}] stream timeout after {_API_MAX_RETRIES} attempts: {e}")
+            logger.error(f"[{pname}] stream timeout after {retries} attempts: {e}")
             yield False
             return
         except Exception as e:
-            if attempt < _API_MAX_RETRIES:
+            if attempt < retries:
                 await asyncio.sleep(_API_RETRY_BASE_DELAY)
                 continue
             logger.error(f"[{pname}] stream unexpected error: {e}")
@@ -301,22 +344,33 @@ async def _api_request_stream_inner(payload: dict, provider: dict):
             return
 
 
-async def api_request_stream(payload: dict, provider: dict | None = None):
+async def api_request_stream(payload: dict, provider: dict | None = None, *, timeout: float | None = None, max_retries: int | None = None):
     """流式 API 请求。失败时直接报错，不自动回退另一家 Provider。
 
     路由（2026-06-28）：
     - 如果 caller 显式传 provider（chat_handler 已 route 过）→ 用 caller 的
     - 否则自动路由：含图 → vision provider（minimax），无图 → active（默认 deepseek）
+
+    2026-10-30: 冷却中的 provider 直接返回（不产出 token），避免白等。
     """
     if provider is None:
         routed_payload, routed_name = prov.route_payload(payload)
         provider = prov.get_provider_for_route(routed_name)
         payload = routed_payload
 
+    cooldown = prov.get_provider_cooldown_remaining(provider["name"])
+    if cooldown > 0:
+        cfg.chat_logger.warning(
+            f"[LLM] stream: {provider['name']} 冷却中（约 {cooldown}s），跳过请求"
+        )
+        return
+
     sent_any = False
     result = None
 
-    async for chunk in _api_request_stream_inner(payload, provider):
+    async for chunk in _api_request_stream_inner(
+        payload, provider, timeout=timeout, max_retries=max_retries
+    ):
         if chunk is True:
             prov.mark_provider_healthy(provider["name"])
             return

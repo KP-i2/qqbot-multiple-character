@@ -141,6 +141,20 @@ MAX_HISTORY_ROUNDS = 40
 REQUEST_TIMEOUT = 60
 MAX_HISTORY_MESSAGES = MAX_HISTORY_ROUNDS * 2
 
+# ── LLM 调用超时（2026-10-30 修复）──
+# 背景：22:32 那次 Provider 断连后，内层 3×60s 重试和外层 120s 硬超时不匹配，
+# 报错文案还写死成 180s；冷却中的 Provider 也会被继续打 120s。
+# 现在：外层总预算可配，单次请求可配，重试次数可配，文案跟随实际值。
+LLM_TOTAL_TIMEOUT: float = float(
+    getattr(config, "llm_total_timeout", "") or os.getenv("LLM_TOTAL_TIMEOUT", "") or 120
+)
+LLM_REQUEST_TIMEOUT: float = float(
+    getattr(config, "llm_request_timeout", "") or os.getenv("LLM_REQUEST_TIMEOUT", "") or 45
+)
+LLM_MAX_RETRIES: int = int(
+    getattr(config, "llm_max_retries", "") or os.getenv("LLM_MAX_RETRIES", "") or 2
+)
+
 # 管理员
 ADMIN_QQ = getattr(config, "admin_qq", "") or os.getenv("ADMIN_QQ", "")
 DEFAULT_SKILL_NAME_CONFIG = str(getattr(config, "default_skill", "") or os.getenv("DEFAULT_SKILL", "") or "")
