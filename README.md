@@ -64,7 +64,7 @@ QQ 客户端 ←→ SnowLuma（OneBot v11 协议端，WebUI :5099）
       Dashboard（FastAPI :8501）— 进程管理 / 日志 / 语料 / Skill / 参数 / 对话流水
 ```
 
-三个独立进程统一由 `manage.bat` 启动的 Dashboard 托管；`char_chat` 插件是唯一业务插件（21 个功能模块）。
+三个独立进程统一由 Dashboard 托管（桌面「QQ Bot」快捷方式或 `scripts\bat\start_stack.ps1` 启动）；`char_chat` 插件是唯一业务插件（21 个功能模块）。
 完整架构、目录结构、Provider 细节、运行环境见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，单条消息链路见 [docs/message-flow.png](docs/message-flow.png)。
 
 ## 快速开始
@@ -106,13 +106,13 @@ DEFAULT_SKILL=makise-kurisu          # 公开仓库自带示例角色
 2. 运行 `scripts\bat\setup_snowluma.bat` 写入反向 WS 配置（已存在配置不会覆盖）
 3. 首次登录：启动后打开 WebUI `http://localhost:5099` → 同意 EULA/隐私政策 → 输入机器人 QQ 号 → 扫码
 
-**第 4 步：启动**
+**第 4 步：启动与关闭**
 
-```bat
-manage.bat
-```
+- 启动：双击桌面 **「QQ Bot」** 快捷方式（等价于 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\bat\start_stack.ps1`）
+- 关闭：双击桌面 **「停止 QQ Bot」** 快捷方式（等价于 `scripts\bat\stop_stack.ps1`：优雅停 NoneBot2 / SnowLuma，再关 Dashboard）
+- 只想停机器人、保留面板：打开 `http://localhost:8501`，点顶部 **「关闭 NoneBot2」**
 
-一次完成：后台拉起 Dashboard → 自动启动 SnowLuma + NoneBot2 → 等 WebSocket 连上后自动打开 `http://localhost:8501`。
+启动会后台拉起 Dashboard → 自动启动 SnowLuma + NoneBot2 → 等 WebSocket 连上后自动打开 `http://localhost:8501`。
 （也仍可在 Dashboard 里手动启停 / 重启单个进程。）首次使用登录 Dashboard，Token 即 `DASHBOARD_TOKEN`。
 
 **第 5 步：验证**

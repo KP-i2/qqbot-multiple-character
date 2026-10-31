@@ -49,7 +49,15 @@ A: Dashboard 本身重启按钮会自动 clean_stale_port。如果连 Dashboard 
 Get-NetTCPConnection -LocalPort 8501 -State Listen -ErrorAction SilentlyContinue | % { Stop-Process -Id $_.OwningProcess -Force }
 Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue | % { Stop-Process -Id $_.OwningProcess -Force }
 ```
-然后重开 manage.bat。
+然后重开桌面「QQ Bot」快捷方式。
+
+**Q: 怎么关闭 bot？**
+A: 三种方式，按需要选：
+1. **双击桌面「停止 QQ Bot」**：优雅停 NoneBot2 / SnowLuma，再关隐藏的 Dashboard（等价于 `scripts\bat\stop_stack.ps1`）
+2. **只停机器人**：Dashboard 顶部「关闭 NoneBot2」；SnowLuma 要停就再点它卡片上的「停止」
+3. **手动**：任务管理器结束 `python.exe`（bot，8080）、`node.exe`（SnowLuma，5099）、`pythonw.exe`（Dashboard，8501）
+
+> 关闭浏览器标签或启动窗口**不会**停 bot，进程是后台启动的。
 
 **Q: Bot 重启后端口冲突 Errno 10048？**
 A: 2026-06-27 后 Dashboard 的「重启」按钮都会先调用 `clean_stale_port()` 自动杀占用进程。如果还出现 → 说明有非 Dashboard 启动的残留 python 进程占用，按上面的 PowerShell 命令手动杀一轮。
