@@ -67,6 +67,13 @@ class Skill:
     # memory_extract=false 可以只读不写（例如公共角色怕污染）。
     memory_enabled: bool = False
     memory_extract: bool = True
+    # 2026-11-10 P1: 主动消息（默认关；只走私聊、限额、静默时段）
+    proactive_enabled: bool = False
+    proactive_daily_limit: int = 20
+    proactive_quiet_hours: str = "2-8"
+    proactive_min_gap_minutes: int = 25
+    proactive_random: bool = False
+    proactive_random_chance: float = 0.08
 
 
 def _split_list(raw: str) -> list[str]:
@@ -122,6 +129,12 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
     emoji_images = True             # 是否允许发"表情包图片"（emoji_system）
     memory_enabled = False          # 是否启用长期记忆（检索 + 抽取）
     memory_extract = True           # 启用记忆时，是否允许写新记忆
+    proactive_enabled = False       # 是否允许主动私聊
+    proactive_daily_limit = 20      # 每个用户每天最多主动几条
+    proactive_quiet_hours = "2-8"   # 静默时段（24 小时制，跨零点用 start>end）
+    proactive_min_gap_minutes = 25  # 两条主动消息最小间隔
+    proactive_random = False        # 没有记忆理由时，是否允许「随机想你」
+    proactive_random_chance = 0.08  # 每次扫描随机触发的概率
     skill_body = ""
     if skill_md.exists():
         content = skill_md.read_text(encoding="utf-8")
@@ -172,6 +185,33 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
                         memory_extract = (
                             line.split(":", 1)[1].strip().strip('"').strip("'").lower() == "true"
                         )
+                    elif line.startswith("proactive_enabled:"):
+                        proactive_enabled = (
+                            line.split(":", 1)[1].strip().strip('"').strip("'").lower() == "true"
+                        )
+                    elif line.startswith("proactive_daily_limit:"):
+                        try:
+                            proactive_daily_limit = max(0, int(line.split(":", 1)[1].strip()))
+                        except ValueError:
+                            logger.warning(f"[{name}] proactive_daily_limit 不是数字，按 20 处理")
+                    elif line.startswith("proactive_quiet_hours:"):
+                        proactive_quiet_hours = line.split(":", 1)[1].strip().strip('"').strip("'")
+                    elif line.startswith("proactive_min_gap_minutes:"):
+                        try:
+                            proactive_min_gap_minutes = max(0, int(line.split(":", 1)[1].strip()))
+                        except ValueError:
+                            logger.warning(f"[{name}] proactive_min_gap_minutes 不是数字，按 25 处理")
+                    elif line.startswith("proactive_random:"):
+                        proactive_random = (
+                            line.split(":", 1)[1].strip().strip('"').strip("'").lower() == "true"
+                        )
+                    elif line.startswith("proactive_random_chance:"):
+                        try:
+                            proactive_random_chance = max(
+                                0.0, min(1.0, float(line.split(":", 1)[1].strip()))
+                            )
+                        except ValueError:
+                            logger.warning(f"[{name}] proactive_random_chance 不是数字，按 0.08 处理")
                 # 正文 = 结束标记之后的内容（lstrip("-") 兼容 "xxx---" 这类没换行的畸形写法）
                 skill_body = content[end:].lstrip("-").strip()
     # display_name 默认用目录名
@@ -286,6 +326,12 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
         emoji_images=emoji_images,
         memory_enabled=memory_enabled,
         memory_extract=memory_extract,
+        proactive_enabled=proactive_enabled,
+        proactive_daily_limit=proactive_daily_limit,
+        proactive_quiet_hours=proactive_quiet_hours,
+        proactive_min_gap_minutes=proactive_min_gap_minutes,
+        proactive_random=proactive_random,
+        proactive_random_chance=proactive_random_chance,
     )
 
 

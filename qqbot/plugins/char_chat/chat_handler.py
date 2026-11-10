@@ -325,6 +325,12 @@ async def _handle_chat_inner(bot: Bot, event: Event):
 
         # 注入说话人身份到 system prompt
         effective_prompt = skill.system_prompt
+        _mem_scope = _memory_scope(event)
+        if getattr(skill, "memory_enabled", False):
+            try:
+                memory.touch(active_name, _mem_scope)
+            except Exception as e:
+                logger.warning(f"[MEMORY] 更新活跃时间失败: {e}")
         context_parts = []
         if sender_name:
             context_parts.append(f"当前和你聊天的人叫「{sender_name}」，你可以在回复中自然地称呼对方，但不要刻意重复名字")
@@ -338,13 +344,12 @@ async def _handle_chat_inner(bot: Bot, event: Event):
         # ── 长期记忆注入（2026-11-10，仅 memory_enabled 角色）──
         if getattr(skill, "memory_enabled", False):
             try:
-                _scope = _memory_scope(event)
-                _mems = memory.retrieve(active_name, _scope, text, limit=8)
+                _mems = memory.retrieve(active_name, _mem_scope, text, limit=8)
                 _mem_text = memory.format_for_prompt(_mems)
                 if _mem_text:
                     context_parts.append(_mem_text)
                     cfg.chat_logger.info(
-                        f"[MEMORY] 注入 {len(_mems)} 条 | skill={active_name} scope={_scope}"
+                        f"[MEMORY] 注入 {len(_mems)} 条 | skill={active_name} scope={_mem_scope}"
                     )
             except Exception as e:
                 logger.warning(f"[MEMORY] 检索/注入失败: {type(e).__name__}: {e}")
@@ -643,7 +648,7 @@ async def _handle_chat_inner(bot: Bot, event: Event):
                 and reply and not reply.lstrip().startswith("⚠️")
                 and "LLM 调用失败" not in reply[:40]
                 and len(text.strip()) >= 4):
-            _scope = _memory_scope(event)
+            _scope = _mem_scope
             _channel = "group" if isinstance(event, GroupMessageEvent) else "private"
             _safe_create_task(
                 memory.extract_and_store(

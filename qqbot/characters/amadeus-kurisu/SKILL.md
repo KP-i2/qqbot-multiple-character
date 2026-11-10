@@ -11,6 +11,12 @@ research_profile: budget-friendly
 privacy: public
 memory_enabled: true
 memory_extract: true
+proactive_enabled: true
+proactive_daily_limit: 20
+proactive_quiet_hours: "2-8"
+proactive_min_gap_minutes: 25
+proactive_random: true
+proactive_random_chance: 0.08
 ---
 
 # Amadeus 牧濑红莉栖 — Character Skill

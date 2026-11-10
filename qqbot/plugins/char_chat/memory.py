@@ -30,7 +30,7 @@ from nonebot import logger
 from . import config as cfg
 
 DB_PATH = Path(os.getenv("MEMORY_DB_PATH", "") or (cfg.QQBOT_DIR / "data" / "memory.db"))
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _KINDS = {"fact", "preference", "promise", "relationship", "interest", "boundary", "event"}
 _KIND_CN = {
@@ -99,6 +99,27 @@ def init_db() -> None:
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS memory_activity (
+                skill TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                last_seen REAL NOT NULL,
+                PRIMARY KEY (skill, scope)
+            );
+            CREATE TABLE IF NOT EXISTS proactive_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                skill TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                user_id TEXT NOT NULL DEFAULT '',
+                reason TEXT NOT NULL DEFAULT '',
+                memory_id INTEGER,
+                text TEXT NOT NULL DEFAULT '',
+                ok INTEGER NOT NULL DEFAULT 0,
+                message_id TEXT NOT NULL DEFAULT '',
+                error TEXT NOT NULL DEFAULT '',
+                sent_at REAL NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_proactive_lookup
+                ON proactive_log(skill, scope, sent_at);
             """
         )
         conn.execute(
@@ -316,6 +337,84 @@ def stats(skill: str, scope: str) -> dict:
             (skill, scope),
         ).fetchone()
     return {"count": int(row["n"] or 0), "last": float(row["last"] or 0)}
+
+
+# ── 活跃时间 / 主动消息日志（P1）──────────────────────────────────
+
+def touch(skill: str, scope: str, ts: float | None = None) -> None:
+    """记录「这个作用域刚有对话」，主动消息据此避免打扰。"""
+    _ensure_init()
+    now = float(ts or time.time())
+    with _WRITE_LOCK, _db() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO memory_activity(skill, scope, last_seen) VALUES(?,?,?)",
+            (skill, scope, now),
+        )
+
+
+def last_activity(skill: str, scope: str) -> float:
+    _ensure_init()
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT last_seen FROM memory_activity WHERE skill=? AND scope=?",
+            (skill, scope),
+        ).fetchone()
+    return float(row["last_seen"] or 0) if row else 0.0
+
+
+def log_proactive(
+    skill: str,
+    scope: str,
+    user_id: str,
+    reason: str,
+    text: str,
+    ok: bool,
+    memory_id: int | None = None,
+    message_id: str = "",
+    error: str = "",
+) -> None:
+    _ensure_init()
+    now = time.time()
+    with _WRITE_LOCK, _db() as conn:
+        conn.execute(
+            "INSERT INTO proactive_log"
+            "(skill, scope, user_id, reason, memory_id, text, ok, message_id, error, sent_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (skill, scope, user_id, reason, memory_id, text[:500],
+             1 if ok else 0, message_id, error[:300], now),
+        )
+
+
+def proactive_count_since(skill: str, scope: str, since_ts: float) -> int:
+    _ensure_init()
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM proactive_log "
+            "WHERE skill=? AND scope=? AND ok=1 AND sent_at>=?",
+            (skill, scope, since_ts),
+        ).fetchone()
+    return int(row["n"] or 0)
+
+
+def last_proactive(skill: str, scope: str) -> float:
+    _ensure_init()
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT MAX(sent_at) AS ts FROM proactive_log WHERE skill=? AND scope=? AND ok=1",
+            (skill, scope),
+        ).fetchone()
+    return float(row["ts"] or 0) if row else 0.0
+
+
+def used_memory_ids(skill: str, scope: str, since_ts: float) -> set[int]:
+    _ensure_init()
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT memory_id FROM proactive_log "
+            "WHERE skill=? AND scope=? AND ok=1 AND memory_id IS NOT NULL AND sent_at>=?",
+            (skill, scope, since_ts),
+        ).fetchall()
+    return {int(r["memory_id"]) for r in rows if r["memory_id"] is not None}
 
 
 # ── 抽取 ──────────────────────────────────────────────────────────
