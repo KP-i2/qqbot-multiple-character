@@ -259,7 +259,7 @@ _URL_PATTERN_INTENT = re.compile(r'https?://\S+')
 
 
 def has_search_intent(text: str) -> bool:
-    """检测用户消息是否包含搜索意图（命中则跳过 probe 直接走工具调用）"""
+    """关键词/URL 启发式：命中后只给 probe 加一句提示，不强制跳过 probe。"""
     lower = text.lower()
     for kw in SEARCH_INTENT_KEYWORDS:
         if kw in lower:
