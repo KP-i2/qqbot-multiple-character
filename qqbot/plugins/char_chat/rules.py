@@ -64,11 +64,30 @@ async def respond_rule(event: Event) -> bool:
     if isinstance(event, GroupMessageEvent):
         try:
             bot = nonebot.get_bot()
+            text = event.get_plaintext().strip()
+            is_slash = text.startswith("/") or text.startswith("／")
+
+            # 2026-11-10: 群聊非管理员斜杠命令直接静默，不回复拒绝提示。
+            if is_slash and not cfg.is_admin(event.get_user_id()):
+                logger.debug(
+                    f"Group slash ignored (non-admin): group={event.group_id} "
+                    f"user={event.get_user_id()} text={text[:60]!r}"
+                )
+                return False
+
             if is_at_me(event, bot):
                 return True
-            # 命令前缀 → 强制触发（让 admin 无 @ 时也能稳定使用命令）
-            if _looks_like_command(event):
+
+            # 2026-11-10: 管理员把命令发给别的 bot/账号（@ 了别人且没 @ 本 bot）时不触发。
+            if is_slash:
+                if _at_other_account(event, bot):
+                    logger.debug(
+                        f"Group slash ignored (target other account): group={event.group_id} "
+                        f"user={event.get_user_id()} text={text[:60]!r}"
+                    )
+                    return False
                 return True
+
             # 其他群消息一律忽略（@ 才回，不再做白名单自动回复）
             logger.debug(
                 f"Group msg ignored (no @): group={event.group_id} "
@@ -79,6 +98,17 @@ async def respond_rule(event: Event) -> bool:
             logger.error(f"respond_rule error: {e}")
             return False
     return False
+
+
+def _at_other_account(event: GroupMessageEvent, bot) -> bool:
+    """消息里 @ 了其他账号，且没有 @ 当前 bot。"""
+    self_id = str(bot.self_id)
+    targets = [
+        str(seg.data.get("qq", ""))
+        for seg in event.message
+        if seg.type == "at"
+    ]
+    return bool(targets) and self_id not in targets
 
 
 def _sender_allowed(event: Event) -> bool:
