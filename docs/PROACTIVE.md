@@ -1,4 +1,4 @@
-# 主动消息（P1）· amadeus-kurisu
+# 主动消息（P1）· amadeus-kurisu / iteru
 
 > 2026-11-10 起接入；用户确认参数：每天最多 20 条、静默 02:00–08:00、允许「随机想你」。
 
@@ -43,4 +43,4 @@ proactive_random_chance: 0.08
 
 - 20 条/天是**硬上限**，实际还会被 25 分钟间隔、30 分钟打扰保护、静默时段和随机概率压低，通常远低于 20。
 - 主动消息会真实消耗模型 token；失败不会重试轰炸。
-- 目前只给 `amadeus-kurisu` 打开；其他角色需要同时开 `memory_enabled` 才会用记忆做理由。
+- 目前 `amadeus-kurisu`、`iteru` 打开；其他角色需要同时开 `memory_enabled` 才会用记忆做理由。
