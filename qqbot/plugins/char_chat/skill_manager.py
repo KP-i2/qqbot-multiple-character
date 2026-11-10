@@ -14,11 +14,11 @@ from . import config as cfg
 
 
 def _load_normal_paper() -> str:
-    """加载 normal-paper/basic/ 下的 .md（含子目录）作为通用背景知识（全量注入 prompt）。
+    """加载 normal-paper/basic/ 下的 .md（含子目录）作为通用背景知识。
 
     2026-11-10: 从 glob("*.md") 改成 rglob("**/*.md")。
-    之前 basic/ 子目录里的 md 不会被注入，容易踩坑；现在递归读取。
-    标题：顶层文件仍用文件名（如「规则」）；子目录文件用相对路径（如「子目录/规则」），避免重名。
+    2026-11-10 二改: humanlike.md 不属于“地偶圈背景”，单独加载；
+    这里跳过它，避免关掉 normal-paper 时连通用说话风格一起关掉。
     """
     basic_dir = cfg.NORMAL_PAPER_DIR / "basic"
     if not basic_dir.exists():
@@ -27,6 +27,8 @@ def _load_normal_paper() -> str:
     for md_file in sorted(basic_dir.rglob("*.md")):
         rel = md_file.relative_to(basic_dir)
         if any(part.startswith(".") or part == "__pycache__" for part in rel.parts):
+            continue
+        if rel.as_posix() == "humanlike.md":
             continue
         content = md_file.read_text(encoding="utf-8").strip()
         if content:
@@ -37,10 +39,24 @@ def _load_normal_paper() -> str:
     return "# 通用背景知识\n以下是所有角色共享的领域背景资料，请在回复中自然运用这些知识。\n\n" + "\n\n".join(parts)
 
 
+def _load_humanlike() -> str:
+    """加载 normal-paper/basic/humanlike.md（通用说话风格，所有角色默认注入）。"""
+    path = cfg.NORMAL_PAPER_DIR / "basic" / "humanlike.md"
+    if not path.exists():
+        return ""
+    content = path.read_text(encoding="utf-8").strip()
+    if not content:
+        return ""
+    return "# 通用说话方式\n" + content
+
+
 # 启动时加载通用背景
 NORMAL_PAPER_CONTEXT = _load_normal_paper()
+HUMANLIKE_CONTEXT = _load_humanlike()
 if NORMAL_PAPER_CONTEXT:
     logger.info(f"[normal-paper] Loaded {len(NORMAL_PAPER_CONTEXT)} chars from {cfg.NORMAL_PAPER_DIR}")
+if HUMANLIKE_CONTEXT:
+    logger.info(f"[humanlike] Loaded {len(HUMANLIKE_CONTEXT)} chars")
 
 
 @dataclass
@@ -82,6 +98,9 @@ class Skill:
     learning_summary_interval_minutes: int = 120
     # 2026-11-10: 偶像/OTA 角色挂 search_events（花音街/秀动/官微）
     event_search: bool = False
+    # 2026-11-10: prompt 注入开关（normal-paper 领域背景 / 通用说话风格）
+    include_normal_paper: bool = True
+    include_humanlike: bool = True
 
 
 def _split_list(raw: str) -> list[str]:
@@ -131,6 +150,7 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
     include_subdirs: list[str] = []  # 额外注入哪些子目录下的 .md
     allowed_users: frozenset[str] = frozenset()  # 访问白名单，空 = 所有人
     include_normal_paper = True     # 是否注入 normal-paper/ 公共背景（默认注入）
+    include_humanlike = True        # 是否注入通用说话风格（默认注入；二次元也别关）
     exclude_files: list[str] = []   # 角色目录下"外挂层"文件，存在但不常驻注入（如 deep.md）
     initiate_probability = 0.0      # 「主动暗示」命中率，0 = 关闭（见 initiate.py）
     initiate_hint = ""              # 命中时注入 system prompt 的那句话
@@ -174,6 +194,10 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
                         allowed_users = frozenset(_split_list(line.split(":", 1)[1]))
                     elif line.startswith("include_normal_paper:"):
                         include_normal_paper = (
+                            line.split(":", 1)[1].strip().strip('"').strip("'").lower() == "true"
+                        )
+                    elif line.startswith("include_humanlike:"):
+                        include_humanlike = (
                             line.split(":", 1)[1].strip().strip('"').strip("'").lower() == "true"
                         )
                     elif line.startswith("exclude_files:"):
@@ -312,6 +336,8 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
     # 对"只跟一个人说话 / 不需要地偶圈通用知识"的角色是纯稀释，可在 SKILL.md 里关掉。
     if include_normal_paper and NORMAL_PAPER_CONTEXT:
         parts.append(NORMAL_PAPER_CONTEXT)
+    if include_humanlike and HUMANLIKE_CONTEXT:
+        parts.append(HUMANLIKE_CONTEXT)
 
     if persona_md.exists():
         parts.append(f"# 角色人格\n{persona_md.read_text(encoding='utf-8')}")
@@ -376,6 +402,8 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
         learning_min_messages=learning_min_messages,
         learning_summary_interval_minutes=learning_summary_interval_minutes,
         event_search=event_search,
+        include_normal_paper=include_normal_paper,
+        include_humanlike=include_humanlike,
     )
 
 
@@ -426,11 +454,14 @@ RELOAD_TRIGGER = cfg.QQBOT_DIR.parent / ".reload_skills_trigger"
 
 def reload_skills():
     """重新加载所有 Skill（热重载）"""
-    global ALL_SKILLS, DEFAULT_SKILL_NAME, NORMAL_PAPER_CONTEXT
+    global ALL_SKILLS, DEFAULT_SKILL_NAME, NORMAL_PAPER_CONTEXT, HUMANLIKE_CONTEXT
     # 刷新通用背景
     NORMAL_PAPER_CONTEXT = _load_normal_paper()
+    HUMANLIKE_CONTEXT = _load_humanlike()
     if NORMAL_PAPER_CONTEXT:
         logger.info(f"[normal-paper] Reloaded {len(NORMAL_PAPER_CONTEXT)} chars")
+    if HUMANLIKE_CONTEXT:
+        logger.info(f"[humanlike] Reloaded {len(HUMANLIKE_CONTEXT)} chars")
     old_names = set(ALL_SKILLS.keys())
     ALL_SKILLS = load_all_skills()
     new_names = set(ALL_SKILLS.keys())

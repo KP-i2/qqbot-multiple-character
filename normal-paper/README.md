@@ -4,7 +4,9 @@
 
 ## 注入规则
 
-- `basic/` 下的所有 `.md`（**含子目录，递归**）会**全量注入**到每个角色的 system prompt（`skill_manager._load_normal_paper()`）；
+- `basic/` 下的 `.md`（**含子目录，递归**）默认会**全量注入**到每个角色的 system prompt（`skill_manager._load_normal_paper()`）；
+- **例外**：`basic/humanlike.md` 是通用说话风格，单独加载（`include_humanlike`，默认开）；`include_normal_paper` 只控制领域背景（现场礼仪/人设补充），不会把说话风格一起关掉；
+- 二次元角色建议在 `SKILL.md` 写 `include_normal_paper: false`，避免地偶圈礼仪稀释人设；需要保留说话风格就不要关 `include_humanlike`；
 - 顶层文件用文件名做标题（如「规则」），子目录文件用相对路径（如「子目录/规则」），避免重名；
 - 隐藏目录（`.` 开头）和 `__pycache__` 会跳过；不要在 `basic/` 下放备份目录，否则备份 md 也会被注入；
 - `basic/` 之外的文件**不进 prompt**，只在角色调用 `search_corpus` 工具时被检索到。

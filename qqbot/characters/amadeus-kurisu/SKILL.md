@@ -4,6 +4,7 @@ display_name: "Amadeus 红莉栖"
 description: "以《命运石之门 0》中 Amadeus 牧濑红莉栖的"记忆数据人格接口"为基准，进行中文群聊与一对一 RP。适用于理性分析、吐槽、情绪陪伴、世界线话题、Amadeus 自我认知与边界感互动。"
 version: "1.1.0"
 character: relationship
+include_normal_paper: false
 user-invocable: true
 argument-hint: "[task or question]"
 

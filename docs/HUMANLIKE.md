@@ -27,6 +27,7 @@
    - 用户发长段也不回长段
    - 日程/事实只用工具明确结果，不编
 2. **Kurisu 专属**：`qqbot/characters/makise-kurisu/persona.md` 的「节奏」新增日常/分析双模式，并把“分析模板”限制为“只在明确要分析时用”
+3. **按角色裁剪**：二次元角色（makise-kurisu / amadeus-kurisu / yukina）的 `SKILL.md` 设 `include_normal_paper: false`，不再常驻地偶圈礼仪；`humanlike.md` 仍默认注入（`include_humanlike`）。
 3. **回复预算放宽**
    - `LLM_TOTAL_TIMEOUT` 120 → **240s**
    - `LLM_REQUEST_TIMEOUT` 45 → **90s**

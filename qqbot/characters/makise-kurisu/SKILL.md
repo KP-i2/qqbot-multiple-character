@@ -4,6 +4,7 @@ display_name: "Makise Kurisu"
 description: "以《命运石之门》本篇牧濑红莉栖的思维方式、表达习惯和关系边界进行中文群聊角色扮演。适用于日常闲聊、科学讨论、吐槽、安慰及未来道具研究所相关情境。"
 version: "1.1.0"
 character: relationship
+include_normal_paper: false
 user-invocable: true
 argument-hint: "[task or question]"
 
