@@ -101,6 +101,8 @@ class Skill:
     # 2026-11-10: prompt 注入开关（normal-paper 领域背景 / 通用说话风格）
     include_normal_paper: bool = True
     include_humanlike: bool = True
+    # 2026-11-10: 默认头像文件名（photo/<skill>/ 下）；空 = 旧逻辑扫描
+    avatar_file: str = ""
 
 
 def _split_list(raw: str) -> list[str]:
@@ -151,6 +153,7 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
     allowed_users: frozenset[str] = frozenset()  # 访问白名单，空 = 所有人
     include_normal_paper = True     # 是否注入 normal-paper/ 公共背景（默认注入）
     include_humanlike = True        # 是否注入通用说话风格（默认注入；二次元也别关）
+    avatar_file = ""                # 默认头像文件名（photo/<skill>/ 下）
     exclude_files: list[str] = []   # 角色目录下"外挂层"文件，存在但不常驻注入（如 deep.md）
     initiate_probability = 0.0      # 「主动暗示」命中率，0 = 关闭（见 initiate.py）
     initiate_hint = ""              # 命中时注入 system prompt 的那句话
@@ -200,6 +203,8 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
                         include_humanlike = (
                             line.split(":", 1)[1].strip().strip('"').strip("'").lower() == "true"
                         )
+                    elif line.startswith("avatar_file:"):
+                        avatar_file = line.split(":", 1)[1].strip().strip('"').strip("'")
                     elif line.startswith("exclude_files:"):
                         exclude_files = _split_list(line.split(":", 1)[1])
                     elif line.startswith("initiate_probability:"):
@@ -404,6 +409,7 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
         event_search=event_search,
         include_normal_paper=include_normal_paper,
         include_humanlike=include_humanlike,
+        avatar_file=avatar_file,
     )
 
 

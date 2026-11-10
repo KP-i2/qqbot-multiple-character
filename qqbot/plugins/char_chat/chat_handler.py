@@ -265,6 +265,27 @@ async def _handle_chat_inner(bot: Bot, event: Event):
                 await char_chat.finish("窝还没有给泥准备可以聊天的角色呢 [对手指] 泥想选谁呀？")
             return
 
+        if cmd in ("avatar", "头像"):
+            active = hist.global_active_skill or skill_manager.DEFAULT_SKILL_NAME or ""
+            files = avatar.list_avatars(active)
+            if not arg or arg.strip().lower() in ("list", "列表", "ls"):
+                current = avatar.selected_avatar_name(active)
+                if not current:
+                    current = str(getattr(skill_manager.ALL_SKILLS.get(active), "avatar_file", "") or "自动扫描")
+                names = "\n".join(f"  - {f.name}" for f in files) or "  （没有图片）"
+                await char_chat.finish(
+                    f"🖼️ {active} 可选头像：\n{names}\n当前：{current}\n"
+                    f"用 /avatar <文件名> 切换（旧图不会删除）"
+                )
+                return
+            path = avatar.select_avatar(active, arg.strip())
+            if not path:
+                await char_chat.finish("找不到这个头像文件，先用 /avatar 看列表。")
+                return
+            await avatar.set_profile(bot, active)
+            await char_chat.finish(f"✅ 已切换头像：{path.name}")
+            return
+
         if cmd in ("reloademoji", "重载表情"):
             if event.get_user_id() != str(cfg.ADMIN_QQ):
                 await char_chat.finish("这个也是只有窝才能弄的啦 🙈💦")
