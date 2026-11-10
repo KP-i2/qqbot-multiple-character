@@ -39,7 +39,7 @@ async def respond_rule(event: Event) -> bool:
     2. 角色级访问控制 → 受限角色只对白名单用户响应（2026-09-10 新增）
     3. 私聊消息 → 一律放行（命令是否可执行由 handle_chat 内的 admin 校验决定）
     4. 群消息 @bot → 总是触发
-    5. 群消息 未@bot 但以 / 或 ／ 开头（命令） → 强制触发（让 admin 无 @ 时也能用命令）
+    5. 群消息 斜杠命令 → 只有 **@了本 bot 且是管理员** 才触发；不带 @ 的命令一律忽略
     6. 其他群消息 → 忽略（不再有白名单群自动回复）
 
     命令是否真的能执行由 handle_chat 里的 admin 校验决定，规则层只决定消息能否进入 handler。
@@ -66,26 +66,25 @@ async def respond_rule(event: Event) -> bool:
             bot = nonebot.get_bot()
             text = event.get_plaintext().strip()
             is_slash = text.startswith("/") or text.startswith("／")
+            at_me = is_at_me(event, bot)
 
-            # 2026-11-10: 群聊非管理员斜杠命令直接静默，不回复拒绝提示。
-            if is_slash and not cfg.is_admin(event.get_user_id()):
-                logger.debug(
-                    f"Group slash ignored (non-admin): group={event.group_id} "
-                    f"user={event.get_user_id()} text={text[:60]!r}"
-                )
-                return False
-
-            if is_at_me(event, bot):
-                return True
-
-            # 2026-11-10: 管理员把命令发给别的 bot/账号（@ 了别人且没 @ 本 bot）时不触发。
+            # 群聊斜杠命令：必须 @本 bot，且必须是管理员。
             if is_slash:
-                if _at_other_account(event, bot):
+                if not cfg.is_admin(event.get_user_id()):
                     logger.debug(
-                        f"Group slash ignored (target other account): group={event.group_id} "
+                        f"Group slash ignored (non-admin): group={event.group_id} "
                         f"user={event.get_user_id()} text={text[:60]!r}"
                     )
                     return False
+                if not at_me:
+                    logger.debug(
+                        f"Group slash ignored (no @bot): group={event.group_id} "
+                        f"user={event.get_user_id()} text={text[:60]!r}"
+                    )
+                    return False
+                return True
+
+            if at_me:
                 return True
 
             # 其他群消息一律忽略（@ 才回，不再做白名单自动回复）
@@ -98,17 +97,6 @@ async def respond_rule(event: Event) -> bool:
             logger.error(f"respond_rule error: {e}")
             return False
     return False
-
-
-def _at_other_account(event: GroupMessageEvent, bot) -> bool:
-    """消息里 @ 了其他账号，且没有 @ 当前 bot。"""
-    self_id = str(bot.self_id)
-    targets = [
-        str(seg.data.get("qq", ""))
-        for seg in event.message
-        if seg.type == "at"
-    ]
-    return bool(targets) and self_id not in targets
 
 
 def _sender_allowed(event: Event) -> bool:
@@ -141,11 +129,3 @@ def _sender_allowed(event: Event) -> bool:
     except Exception as e:
         logger.error(f"[access] 访问控制检查异常，保守拒绝本次消息: {type(e).__name__}: {e}")
         return False
-
-
-def _looks_like_command(event: GroupMessageEvent) -> bool:
-    """检查消息文本是否以命令前缀开头（/ 或 ／），用于在 respond_rule 中提前放行命令"""
-    text = event.get_plaintext().strip()
-    if not text:
-        return False
-    return text.startswith("/") or text.startswith("／")
