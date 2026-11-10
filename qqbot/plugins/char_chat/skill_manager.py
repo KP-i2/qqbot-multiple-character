@@ -63,6 +63,10 @@ class Skill:
     # 2026-09-13: 是否允许这个角色触发"表情包图片"（emoji_system）。
     # front-matter 写 emoji_images: false 就完全不发图。
     emoji_images: bool = True
+    # 2026-11-10: 长期记忆（memory.py）。memory_enabled=true 才检索/抽取；
+    # memory_extract=false 可以只读不写（例如公共角色怕污染）。
+    memory_enabled: bool = False
+    memory_extract: bool = True
 
 
 def _split_list(raw: str) -> list[str]:
@@ -116,6 +120,8 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
     initiate_probability = 0.0      # 「主动暗示」命中率，0 = 关闭（见 initiate.py）
     initiate_hint = ""              # 命中时注入 system prompt 的那句话
     emoji_images = True             # 是否允许发"表情包图片"（emoji_system）
+    memory_enabled = False          # 是否启用长期记忆（检索 + 抽取）
+    memory_extract = True           # 启用记忆时，是否允许写新记忆
     skill_body = ""
     if skill_md.exists():
         content = skill_md.read_text(encoding="utf-8")
@@ -156,6 +162,14 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
                         initiate_hint = line.split(":", 1)[1].strip().strip('"').strip("'")
                     elif line.startswith("emoji_images:"):
                         emoji_images = (
+                            line.split(":", 1)[1].strip().strip('"').strip("'").lower() == "true"
+                        )
+                    elif line.startswith("memory_enabled:"):
+                        memory_enabled = (
+                            line.split(":", 1)[1].strip().strip('"').strip("'").lower() == "true"
+                        )
+                    elif line.startswith("memory_extract:"):
+                        memory_extract = (
                             line.split(":", 1)[1].strip().strip('"').strip("'").lower() == "true"
                         )
                 # 正文 = 结束标记之后的内容（lstrip("-") 兼容 "xxx---" 这类没换行的畸形写法）
@@ -270,6 +284,8 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
         initiate_probability=initiate_probability,
         initiate_hint=initiate_hint,
         emoji_images=emoji_images,
+        memory_enabled=memory_enabled,
+        memory_extract=memory_extract,
     )
 
 

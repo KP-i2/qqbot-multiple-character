@@ -9,6 +9,8 @@ argument-hint: "[task or question]"
 
 research_profile: budget-friendly
 privacy: public
+memory_enabled: true
+memory_extract: true
 ---
 
 # Amadeus 牧濑红莉栖 — Character Skill

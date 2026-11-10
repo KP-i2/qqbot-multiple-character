@@ -23,6 +23,7 @@ from . import llm
 from . import turn_recorder
 from . import url_fetcher
 from . import image_handler
+from . import memory
 from .rich_message import parse_rich_message
 from .rules import respond_rule
 from .dsml_cleaner import strip_dsml_markup
@@ -42,6 +43,17 @@ def _safe_create_task(coro, name: str = ""):
             logger.error(f"Background task '{name}' failed: {t.exception()}")
     task.add_done_callback(_on_done)
     return task
+
+
+def _memory_scope(event: Event) -> str:
+    """长期记忆作用域：私聊 user_<uid> / 群聊 group_<gid>_<uid>。
+
+    与 history_key 同一隔离粒度（群里每个人和角色的对话各自独立），
+    不同角色再由 memory 表的 skill 列隔离。
+    """
+    if isinstance(event, GroupMessageEvent):
+        return f"group_{event.group_id}_{event.user_id}"
+    return f"user_{event.user_id}"
 
 
 @char_chat.handle()
@@ -153,6 +165,33 @@ async def _handle_chat_inner(bot: Bot, event: Event):
             key = hist.get_history_key(event)
             hist.clear_history(key)
             await char_chat.finish("✅ 对话历史已清空。")
+            return
+
+        if cmd in ("memory", "记忆"):
+            if event.get_user_id() != str(cfg.ADMIN_QQ):
+                await char_chat.finish("这个只有窝自己才能看哦 🙈")
+                return
+            active = hist.global_active_skill or skill_manager.DEFAULT_SKILL_NAME or ""
+            await char_chat.finish(memory.format_stats_text(active, _memory_scope(event)))
+            return
+
+        if cmd in ("forget", "忘记"):
+            if event.get_user_id() != str(cfg.ADMIN_QQ):
+                await char_chat.finish("这个只有窝自己才能操作哦 🙈")
+                return
+            active = hist.global_active_skill or skill_manager.DEFAULT_SKILL_NAME or ""
+            scope = _memory_scope(event)
+            arg = arg.strip()
+            if not arg:
+                await char_chat.finish("用法：/forget <id> | all | 关键词")
+                return
+            if arg.lower() in ("all", "全部", "所有"):
+                n = memory.forget(active, scope, all=True)
+            elif arg.isdigit():
+                n = memory.forget(active, scope, ids=[int(arg)])
+            else:
+                n = memory.forget(active, scope, query=arg)
+            await char_chat.finish(f"🧽 已遗忘 {n} 条记忆（{active} · {scope}）")
             return
 
         if cmd in ("skills", "角色", "列表"):
@@ -295,6 +334,20 @@ async def _handle_chat_inner(bot: Bot, event: Event):
         profile_text = user_profile.get_profile_summary(uid, active_name)
         if profile_text:
             context_parts.append(f"用户画像（{profile_text}）")
+
+        # ── 长期记忆注入（2026-11-10，仅 memory_enabled 角色）──
+        if getattr(skill, "memory_enabled", False):
+            try:
+                _scope = _memory_scope(event)
+                _mems = memory.retrieve(active_name, _scope, text, limit=8)
+                _mem_text = memory.format_for_prompt(_mems)
+                if _mem_text:
+                    context_parts.append(_mem_text)
+                    cfg.chat_logger.info(
+                        f"[MEMORY] 注入 {len(_mems)} 条 | skill={active_name} scope={_scope}"
+                    )
+            except Exception as e:
+                logger.warning(f"[MEMORY] 检索/注入失败: {type(e).__name__}: {e}")
 
         # ── 上下文风格自适应 ──
         style_hints = []
@@ -583,6 +636,28 @@ async def _handle_chat_inner(bot: Bot, event: Event):
         # 添加到历史
         hist.add_to_history(history_key, "assistant", reply)
         hist.save_histories()
+
+        # ── 长期记忆抽取（2026-11-10，后台任务，不阻塞回复）──
+        if (getattr(skill, "memory_enabled", False)
+                and getattr(skill, "memory_extract", True)
+                and reply and not reply.lstrip().startswith("⚠️")
+                and "LLM 调用失败" not in reply[:40]
+                and len(text.strip()) >= 4):
+            _scope = _memory_scope(event)
+            _channel = "group" if isinstance(event, GroupMessageEvent) else "private"
+            _safe_create_task(
+                memory.extract_and_store(
+                    skill=active_name,
+                    scope=_scope,
+                    channel=_channel,
+                    user_id=str(uid),
+                    user_text=text,
+                    reply=reply,
+                    sender_name=sender_name,
+                    source_msg_id=str(getattr(event, "message_id", "") or ""),
+                ),
+                f"memory-{uid}",
+            )
 
         # ── 用户画像更新触发 ──
         user_profile.profile_turn_count[uid] = user_profile.profile_turn_count.get(uid, 0) + 1
