@@ -52,6 +52,13 @@
 
 > 仅管理员可用；普通用户看不到也删不了。
 
+### /reset 与长期记忆的关系
+
+- `/reset`（`/重置`、`/清空记忆`）**只清当前会话的短期历史**（conversation_histories），不动 `memory_events`
+- 因此 reset 后下一轮仍会注入长期记忆，这是**设计如此**，不是 bug
+- 想连长期记忆一起清：`/reset all`（管理员）或 `/reset` 后 `/forget all`
+- 只想保留长期、重开一段对话：用 `/reset` 就够
+
 ## 限制（P1/P2 继续）
 
 - 检索是关键词 + 规则打分，没有 embedding / 向量召回。

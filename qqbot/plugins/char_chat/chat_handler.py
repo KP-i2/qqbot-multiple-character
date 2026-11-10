@@ -164,7 +164,21 @@ async def _handle_chat_inner(bot: Bot, event: Event):
         if cmd in ("reset", "重置", "清空记忆"):
             key = hist.get_history_key(event)
             hist.clear_history(key)
-            await char_chat.finish("✅ 对话历史已清空。")
+            _hard = arg.strip().lower() in ("all", "全部", "both", "长期", "记忆")
+            if _hard:
+                if not cfg.is_admin(event.get_user_id()):
+                    await char_chat.finish("短期已清空；连长期记忆一起清需要管理员。")
+                    return
+                active = hist.global_active_skill or skill_manager.DEFAULT_SKILL_NAME or ""
+                n = memory.forget(active, _memory_scope(event), all=True) if active else 0
+                await char_chat.finish(
+                    f"✅ 已清空当前会话短期历史 + {n} 条长期记忆（{active or '无角色'}）。"
+                )
+            else:
+                await char_chat.finish(
+                    "✅ 当前会话短期历史已清空。\n"
+                    "长期记忆仍保留；要一起清用 /reset all（管理员），或 /forget all。"
+                )
             return
 
         if cmd in ("memory", "记忆"):
@@ -722,9 +736,13 @@ async def _handle_chat_inner(bot: Bot, event: Event):
 
         # ── 情绪表情（角色级开关）──
         # 2026-09-13: SKILL.md front-matter 写 emoji_images: false 的角色完全不发图。
-        _emoji_on = getattr(skill, "emoji_images", True) if skill else True
+        # 2026-11-10: 再加全局 allowlist（EMOJI_SKILL_ALLOWLIST），当前只给 makise-kurisu。
+        _emoji_on = (
+            (getattr(skill, "emoji_images", True) if skill else True)
+            and cfg.is_emoji_allowed(active_name)
+        )
         if not _emoji_on:
-            logger.debug(f"[EMOJI] 角色 {active_name} 已关闭表情包（emoji_images: false）")
+            logger.debug(f"[EMOJI] 角色 {active_name} 未在表情包 allowlist 内，跳过")
         if _emoji_on and reply and reply != "⚠️ LLM 调用失败，请稍后重试或检查 Dashboard 设置。":
             try:
                 await emoji_system.maybe_send_emoji(bot, event, text, reply, uid)

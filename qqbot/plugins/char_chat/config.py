@@ -159,6 +159,11 @@ LLM_MAX_RETRIES: int = int(
 ADMIN_QQ = getattr(config, "admin_qq", "") or os.getenv("ADMIN_QQ", "")
 DEFAULT_SKILL_NAME_CONFIG = str(getattr(config, "default_skill", "") or os.getenv("DEFAULT_SKILL", "") or "")
 
+# 表情包图片允许的角色（逗号分隔）；空 = 不限。2026-11-10 起默认只给 kurisu。
+EMOJI_SKILL_ALLOWLIST_RAW: str = str(
+    getattr(config, "emoji_skill_allowlist", "") or os.getenv("EMOJI_SKILL_ALLOWLIST", "") or ""
+)
+
 # 白名单群自动回复配置（无需 @，按概率回复）
 # NoneBot2 pydantic 对 custom fields 不会自动从 env 读，fallback 到 os.environ
 AUTO_REPLY_GROUP_IDS_RAW: str = str(
@@ -180,6 +185,14 @@ def _parse_qq_set(raw: str) -> set[str]:
 
 ADMIN_QQ_SET: set[str] = _parse_qq_set(ADMIN_QQ)
 AUTO_REPLY_GROUP_IDS_SET: set[str] = _parse_qq_set(AUTO_REPLY_GROUP_IDS_RAW)
+EMOJI_SKILL_ALLOWLIST: set[str] = _parse_qq_set(EMOJI_SKILL_ALLOWLIST_RAW)
+
+
+def is_emoji_allowed(skill_name: str) -> bool:
+    """表情包图片是否允许发给这个角色。空 allowlist = 不限制。"""
+    if not EMOJI_SKILL_ALLOWLIST:
+        return True
+    return str(skill_name) in EMOJI_SKILL_ALLOWLIST
 
 
 def is_admin(uid: str | int) -> bool:
