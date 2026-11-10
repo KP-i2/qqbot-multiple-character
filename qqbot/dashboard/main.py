@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import monitor, skill_manager
-from .routers import corpus, docs, logs, process, settings, skills, turns, ws
+from .routers import corpus, docs, logs, process, settings, skills, turns, ws, memory
 from .routers._shared import (
     STATIC_DIR, _AUTH_ENABLED, DASHBOARD_TOKEN, token_ok,
 )
@@ -84,6 +84,7 @@ app.include_router(skills.router)
 app.include_router(settings.router)
 app.include_router(logs.router)
 app.include_router(ws.router)
+app.include_router(memory.router)
 
 
 # ── 前端 ──
