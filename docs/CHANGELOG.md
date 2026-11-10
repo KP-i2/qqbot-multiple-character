@@ -3,6 +3,12 @@
 按时间倒序记录功能演进与重要修复。
 
 
+### 2026-11-10（主动消息降频 + 流式工具标记泄露修复）
+- **主动消息**：每天上限从 20 降到 2，最小间隔 25 分钟改为 480 分钟；只在有记忆或最近 12 小时对话可接时发送，对方未回上一条时不追发；prompt 注入当前时间，禁止中午说“睡了吗”等时间错位。
+- **群命令触发**：群聊斜杠命令必须 @ 本 bot 且为管理员；非管理员斜杠静默，管理员不带 @ 也不再触发。
+- **流式工具调用泄露**：`dsml_cleaner` 增加 `<system>web_search</system>`、`<parameter>`、`<function>` 等正文工具标记的检测与整块清洗；流式路径检测到标记时丢弃该段并回退到非流式工具循环，避免把 `web_search` 调用原文发给用户。
+- **232 群历史消化**：按全量粗读 / 近三个月抽样 / 最近一个月全读三段分析，写入 8 条 `group_232079122` 群体记忆，见 [GROUP_232_DIGEST.md](GROUP_232_DIGEST.md)。
+
 ### 2026-10-24（SnowLuma v1.10.3 → v2.2.0 升级）
 - **QQ 协议层升级到 SnowLuma v2.2.0**（bundled Node v24.22.1）：
   - 旧版 `snowluma/SnowLuma-v1.10.3-win-x64/` 完整归档到 `archive/2026-10-24-snowluma-v2.2.0-upgrade/`（本地目录，`.gitignore` 已排除），含 `config-backup/`、`data-backup/` 与 `MIGRATION-NOTES.md`（回滚步骤）
