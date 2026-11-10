@@ -80,6 +80,8 @@ class Skill:
     learning_groups: frozenset[str] = frozenset()
     learning_min_messages: int = 8
     learning_summary_interval_minutes: int = 120
+    # 2026-11-10: 偶像/OTA 角色挂 search_events（花音街/秀动/官微）
+    event_search: bool = False
 
 
 def _split_list(raw: str) -> list[str]:
@@ -146,6 +148,7 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
     learning_groups: list[str] = []   # 允许学习的群号
     learning_min_messages = 8       # 攒够多少条才摘要一次
     learning_summary_interval_minutes = 120  # 两次摘要最小间隔
+    event_search = False             # 是否挂 search_events 活动检索工具
     skill_body = ""
     if skill_md.exists():
         content = skill_md.read_text(encoding="utf-8")
@@ -243,6 +246,10 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
                             )
                         except ValueError:
                             logger.warning(f"[{name}] learning_summary_interval_minutes 不是数字，按 120 处理")
+                    elif line.startswith("event_search:"):
+                        event_search = (
+                            line.split(":", 1)[1].strip().strip('"').strip("'").lower() == "true"
+                        )
                 # 正文 = 结束标记之后的内容（lstrip("-") 兼容 "xxx---" 这类没换行的畸形写法）
                 skill_body = content[end:].lstrip("-").strip()
     # display_name 默认用目录名
@@ -368,6 +375,7 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
         learning_groups=frozenset(learning_groups),
         learning_min_messages=learning_min_messages,
         learning_summary_interval_minutes=learning_summary_interval_minutes,
+        event_search=event_search,
     )
 
 

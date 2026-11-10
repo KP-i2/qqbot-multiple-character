@@ -14,6 +14,7 @@ from . import config as cfg
 from . import provider as prov
 from . import api_client
 from . import search
+from . import events
 from . import turn_recorder
 from .dsml_cleaner import clean_llm_reply, strip_dsml_markup
 
@@ -90,6 +91,8 @@ async def probe_tool_usage(
         active_tools.append(search.SEARCH_TOOLS[0])   # web_search
     if skill_name:
         active_tools.append(search.SEARCH_TOOLS[1])   # search_corpus
+    if skill_name and events.enabled_for_skill(skill_name):
+        active_tools.append(events.EVENT_TOOL)         # search_events（偶像/OTA）
 
     now = datetime.now()
     date_hint = f"\n\n[当前时间：{now.strftime('%Y年%m月%d日 %H:%M')}，星期{['一','二','三','四','五','六','日'][now.weekday()]}]"
@@ -378,6 +381,8 @@ async def _call_deepseek_inner(
         active_tools.append(search.SEARCH_TOOLS[0])
     if skill_name:
         active_tools.append(search.SEARCH_TOOLS[1])
+    if skill_name and events.enabled_for_skill(skill_name):
+        active_tools.append(events.EVENT_TOOL)
 
     # ── Function Calling 循环 ──
     turn_recorder.add_step({
@@ -513,6 +518,15 @@ async def _call_deepseek_inner(
                 search_text = await asyncio.get_event_loop().run_in_executor(
                     None, search.execute_corpus_search, skill_name, kw
                 )
+
+            elif func_name == "search_events":
+                entity = func_args.get("entity", "")
+                city = func_args.get("city", "")
+                days = func_args.get("days", 7)
+                cfg.chat_logger.info(
+                    f"[EVENT] 活动检索: entity='{entity}', city='{city}', days={days}"
+                )
+                search_text = await events.execute_search_events(entity, city=city, days=days)
 
             else:
                 search_text = f"未知工具: {func_name}"

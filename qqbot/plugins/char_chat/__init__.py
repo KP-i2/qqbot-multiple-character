@@ -1,4 +1,4 @@
-"""
+﻿"""
 多 Skill 角色聊天插件 (char_chat)
 支持多个角色 Skill 目录，可通过命令切换
 
@@ -11,6 +11,7 @@
   user_profile.py    - 用户画像提取
   emoji_system.py    - 情绪表情系统
   search.py          - 搜索引擎（搜狗/百度/微博/DDG/语料库）
+  events.py          - 活动检索（花音街/秀动/官微/B站）
   url_fetcher.py     - URL 提取与内容抓取（B站API）
   api_client.py      - HTTP 客户端、API 请求、流式
   llm.py             - LLM 调用逻辑（探测+Function Calling）

@@ -145,11 +145,13 @@ MAX_HISTORY_MESSAGES = MAX_HISTORY_ROUNDS * 2
 # 背景：22:32 那次 Provider 断连后，内层 3×60s 重试和外层 120s 硬超时不匹配，
 # 报错文案还写死成 180s；冷却中的 Provider 也会被继续打 120s。
 # 现在：外层总预算可配，单次请求可配，重试次数可配，文案跟随实际值。
+# 2026-11-10: 不再追求“秒回”。给足思考和工具调用时间，慢一点更像真人；
+# 外层总预算仍是安全阀，避免请求无限挂住。
 LLM_TOTAL_TIMEOUT: float = float(
-    getattr(config, "llm_total_timeout", "") or os.getenv("LLM_TOTAL_TIMEOUT", "") or 120
+    getattr(config, "llm_total_timeout", "") or os.getenv("LLM_TOTAL_TIMEOUT", "") or 240
 )
 LLM_REQUEST_TIMEOUT: float = float(
-    getattr(config, "llm_request_timeout", "") or os.getenv("LLM_REQUEST_TIMEOUT", "") or 45
+    getattr(config, "llm_request_timeout", "") or os.getenv("LLM_REQUEST_TIMEOUT", "") or 90
 )
 LLM_MAX_RETRIES: int = int(
     getattr(config, "llm_max_retries", "") or os.getenv("LLM_MAX_RETRIES", "") or 2
