@@ -17,10 +17,20 @@ photo/<角色>/avatar_huayinjie_20261110.jpg
 | ytj | 羽悠Yuu | `cmtk7ojxv000e01pfskkat2ny` | ✅ |
 | iteru | 小凍Iteru | `cmtl4bnm106q701pfrg0kqmbd` | ✅ |
 | aoyi | Aoyi | `cmtk7pqrg004201pfbigkughp` | ✅ |
-| momo | 兔月桃桃 | 花音街未找到对应成员页 | ❌ 保留旧图 |
-| rose | 罗姐 | 花音街未找到对应成员页 | ❌ 保留旧图 |
+| momo | 兎月もも（君に、胸キュン。） | 花音街无；用 **IDOL Watch 官方档案图**（399×399） | ✅ `avatar_idolwatch_20261110.jpg` |
+| rose | 神代ロゼ（ジエメイ） | 花音街无；用 **X/Twitter 官方头像 CDN**（400×400） | ✅ `avatar_twitter_20261110.jpg` |
 
 来源：`https://www.huayinjie.com/idols/<成员页 ID>`
+
+## momo / rose 的其他渠道
+
+- **X 不登录**：直接打开 `x.com/<handle>` 会返回登录墙，页面正文读不到
+- **Twitter 头像 CDN**：`pbs.twimg.com/profile_images/...` 不需要登录；但 momo 语料里的旧 URL 已 404
+- **momo**：改用 [IDOL Watch 官方档案](https://idolwatch.jp/member/7984) 的 `profile_kimikyun_momo.jpg`（官方渠道，399×399）
+- **rose**：`@jiemei_rose` 的 400×400 头像 CDN 可用，已保存 `avatar_twitter_20261110.jpg`
+- 也试过 `unavatar.io/x/<handle>`（第三方头像代理），momo 拿到的是另一张官方图；最终 momo 用 IDOL Watch 原始档案图
+
+momo 的 X 账号：`@kimikyun_momo`；rose：`@jiemei_rose`。旧图都保留。
 
 ## 配置
 
