@@ -182,7 +182,43 @@ def _extract_group_events(url: str, page: str) -> list[dict]:
     return events
 
 
-def _extract_event_page(url: str, page: str) -> dict | None:
+def _extract_entity_slot(page: str, entity: str) -> dict:
+    """从活动页“出演阵容”里抽这个团的上台/特典时间。"""
+    plain = _plain(page)
+    anchor = plain.find("出演团体")
+    start_at = anchor if anchor >= 0 else 0
+    candidates = [entity] + [x for x in re.split(r"[\s/｜|]+", entity) if len(x) >= 2]
+    idx = -1
+    for cand in candidates:
+        idx = plain.find(cand, start_at)
+        if idx < 0:
+            idx = plain.find(cand)
+        if idx >= 0:
+            break
+    if idx < 0:
+        return {}
+    window = plain[idx:idx + 320]
+    times = re.findall(r"(\d{1,2}:\d{2})\s*[–\-~]\s*(\d{1,2}:\d{2})", window)
+    tok_m = re.search(r"特典\s*(\d{1,2}:\d{2})\s*[–\-~]\s*(\d{1,2}:\d{2})", window)
+    tokuten = f"{tok_m.group(1)}–{tok_m.group(2)}" if tok_m else ""
+    if times:
+        for a, b in times:
+            val = f"{a}–{b}"
+            if val == tokuten:
+                continue
+            # 跳过紧跟在“特典”后的时间（有些表格把特典放在前面）
+            pos = window.find(val)
+            if pos > 0 and "特典" in window[max(0, pos - 8):pos]:
+                continue
+            return {"slot": val, "tokuten": tokuten}
+    # 单人/团体 row 可能只写一个时间，没有区间（如“午前4時 19:30”）
+    single = re.search(r"(?<!\d)(\d{1,2}:\d{2})(?!\d)", window[:140])
+    if single:
+        return {"slot": single.group(1), "tokuten": tokuten}
+    return {"tokuten": tokuten}
+
+
+def _extract_event_page(url: str, page: str, entity: str = "") -> dict | None:
     plain = _plain(page)
     title_m = re.search(r"<title>(.*?)</title>", page, re.S)
     title = html.unescape(title_m.group(1)).replace("花音街｜", "").strip() if title_m else ""
@@ -211,8 +247,12 @@ def _extract_event_page(url: str, page: str) -> dict | None:
         if s in plain:
             status = s
             break
-    return {"date": dt, "date_text": dt.strftime("%Y/%m/%d %H:%M"), "title": title,
-            "venue": venue, "status": status, "source": "花音街", "url": url}
+    slot = _extract_entity_slot(page, entity) if entity else {}
+    return {
+        "date": dt, "date_text": dt.strftime("%Y/%m/%d %H:%M"), "title": title,
+        "venue": venue, "status": status, "source": "花音街", "url": url,
+        "slot": slot.get("slot", ""), "tokuten": slot.get("tokuten", ""),
+    }
 
 
 def _title_key(title: str) -> str:
@@ -301,20 +341,25 @@ async def execute_search_events(entity: str, city: str = "", days: int = 7) -> s
             except Exception as e:
                 logger.debug(f"[EVENT] live fetch failed {u}: {e}")
 
-    # 团体页 meta 没写 venue 的，最多补抓 3 个活动页
+    # 团体页 meta 没写 venue/上台时间的，最多补抓 3 个活动页
     for e in events[:3]:
-        if e.get("venue") or not e.get("url"):
+        if (e.get("venue") and e.get("slot")) or not e.get("url"):
             continue
         try:
             page = await _fetch(e["url"])
             if page:
-                ev = _extract_event_page(e["url"], page)
-                if ev and ev.get("venue"):
-                    e["venue"] = ev["venue"]
-                if ev and not e.get("status"):
-                    e["status"] = ev.get("status", "")
+                ev = _extract_event_page(e["url"], page, entity)
+                if ev:
+                    if not e.get("venue") and ev.get("venue"):
+                        e["venue"] = ev["venue"]
+                    if not e.get("status") and ev.get("status"):
+                        e["status"] = ev["status"]
+                    if not e.get("slot") and ev.get("slot"):
+                        e["slot"] = ev["slot"]
+                    if not e.get("tokuten") and ev.get("tokuten"):
+                        e["tokuten"] = ev["tokuten"]
         except Exception as ex:
-            logger.debug(f"[EVENT] venue enrich failed {e.get('url')}: {ex}")
+            logger.debug(f"[EVENT] venue/slot enrich failed {e.get('url')}: {ex}")
 
     # 去重：同一天 + 同标题 key；保留第一条（团体页优先）
     deduped, seen_ev = [], set()
@@ -368,6 +413,10 @@ async def execute_search_events(entity: str, city: str = "", days: int = 7) -> s
                 bits.append(e["venue"])
             if e.get("status"):
                 bits.append(e["status"])
+            if e.get("slot"):
+                bits.append(f"出演 {e['slot']}")
+            if e.get("tokuten"):
+                bits.append(f"特典 {e['tokuten']}")
             lines.append("- " + " | ".join(bits))
             if e.get("url"):
                 lines.append(f"  来源: {e['url']}")
