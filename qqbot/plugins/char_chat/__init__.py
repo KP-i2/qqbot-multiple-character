@@ -58,6 +58,9 @@ from . import rules                           # noqa: F401
 # 命令注册（on_command handlers）
 from . import commands                        # noqa: F401
 
+# 只读学习（QQ 群采集 + 摘要；priority=1 采集，不 block）
+from . import learning                        # noqa: F401
+
 # 主聊天处理器（on_message handler）
 from . import chat_handler                    # noqa: F401
 

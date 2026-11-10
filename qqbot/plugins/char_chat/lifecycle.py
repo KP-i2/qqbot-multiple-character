@@ -13,10 +13,12 @@ from . import emoji_system
 from . import history as hist
 from . import skill_manager
 from . import proactive
+from . import learning
 
 
 _cleanup_task: Optional[asyncio.Task] = None
 _proactive_task: Optional[asyncio.Task] = None
+_learning_task: Optional[asyncio.Task] = None
 
 
 def _safe_create_task(coro, name: str = ""):
@@ -91,11 +93,13 @@ async def on_startup():
     # P1 主动消息循环（默认只有显式开启 proactive_enabled 的角色会发）
     _proactive_task = _safe_create_task(proactive.run_loop(), "proactive-loop")
     logger.info("主动消息循环已启动（10 分钟扫描；仅 proactive_enabled 角色）")
+    _learning_task = _safe_create_task(learning.run_loop(), "learning-loop")
+    logger.info("QQ 群学习循环已启动（10 分钟扫描；仅 learning_enabled 角色）")
 
 
 @cfg.driver.on_shutdown
 async def on_shutdown():
-    global _cleanup_task, _proactive_task
+    global _cleanup_task, _proactive_task, _learning_task
     # 关闭 HTTP 客户端
     client = api_client.close_http_client()
     if client and not client.is_closed:
@@ -105,4 +109,6 @@ async def on_shutdown():
         _cleanup_task.cancel()
     if _proactive_task and not _proactive_task.done():
         _proactive_task.cancel()
-    logger.info("char_chat QQ Bot 已关闭（HTTP client closed, cleanup/proactive task cancelled）")
+    if _learning_task and not _learning_task.done():
+        _learning_task.cancel()
+    logger.info("char_chat QQ Bot 已关闭（HTTP client closed, cleanup/proactive/learning task cancelled）")

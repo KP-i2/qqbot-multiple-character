@@ -14,3 +14,6 @@ playwright>=1.40.0
 
 # 推特语料抓取（twikit 纯 HTTP，playwright 备用登录）
 twikit>=2.0.0
+
+# B站数据源（学习/采集；现有 B站 语料行为不变）
+bilibili-api-python>=17.0.0

@@ -74,6 +74,12 @@ class Skill:
     proactive_min_gap_minutes: int = 25
     proactive_random: bool = False
     proactive_random_chance: float = 0.08
+    # 2026-11-10 P1: QQ 群学习（只读采集 + 定期摘要成群体记忆）
+    learning_enabled: bool = False
+    learning_sources: frozenset[str] = frozenset()
+    learning_groups: frozenset[str] = frozenset()
+    learning_min_messages: int = 8
+    learning_summary_interval_minutes: int = 120
 
 
 def _split_list(raw: str) -> list[str]:
@@ -135,6 +141,11 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
     proactive_min_gap_minutes = 25  # 两条主动消息最小间隔
     proactive_random = False        # 没有记忆理由时，是否允许「随机想你」
     proactive_random_chance = 0.08  # 每次扫描随机触发的概率
+    learning_enabled = False        # 是否允许从群聊只读学习
+    learning_sources: list[str] = []  # qq / bilibili（当前只实现 qq）
+    learning_groups: list[str] = []   # 允许学习的群号
+    learning_min_messages = 8       # 攒够多少条才摘要一次
+    learning_summary_interval_minutes = 120  # 两次摘要最小间隔
     skill_body = ""
     if skill_md.exists():
         content = skill_md.read_text(encoding="utf-8")
@@ -212,6 +223,26 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
                             )
                         except ValueError:
                             logger.warning(f"[{name}] proactive_random_chance 不是数字，按 0.08 处理")
+                    elif line.startswith("learning_enabled:"):
+                        learning_enabled = (
+                            line.split(":", 1)[1].strip().strip('"').strip("'").lower() == "true"
+                        )
+                    elif line.startswith("learning_sources:"):
+                        learning_sources = _split_list(line.split(":", 1)[1])
+                    elif line.startswith("learning_groups:"):
+                        learning_groups = _split_list(line.split(":", 1)[1])
+                    elif line.startswith("learning_min_messages:"):
+                        try:
+                            learning_min_messages = max(1, int(line.split(":", 1)[1].strip()))
+                        except ValueError:
+                            logger.warning(f"[{name}] learning_min_messages 不是数字，按 8 处理")
+                    elif line.startswith("learning_summary_interval_minutes:"):
+                        try:
+                            learning_summary_interval_minutes = max(
+                                5, int(line.split(":", 1)[1].strip())
+                            )
+                        except ValueError:
+                            logger.warning(f"[{name}] learning_summary_interval_minutes 不是数字，按 120 处理")
                 # 正文 = 结束标记之后的内容（lstrip("-") 兼容 "xxx---" 这类没换行的畸形写法）
                 skill_body = content[end:].lstrip("-").strip()
     # display_name 默认用目录名
@@ -332,6 +363,11 @@ def load_skill(skill_path: Path) -> Optional[Skill]:
         proactive_min_gap_minutes=proactive_min_gap_minutes,
         proactive_random=proactive_random,
         proactive_random_chance=proactive_random_chance,
+        learning_enabled=learning_enabled,
+        learning_sources=frozenset(x.lower() for x in learning_sources),
+        learning_groups=frozenset(learning_groups),
+        learning_min_messages=learning_min_messages,
+        learning_summary_interval_minutes=learning_summary_interval_minutes,
     )
 
 

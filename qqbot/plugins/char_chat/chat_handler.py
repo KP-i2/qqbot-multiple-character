@@ -344,12 +344,16 @@ async def _handle_chat_inner(bot: Bot, event: Event):
         # ── 长期记忆注入（2026-11-10，仅 memory_enabled 角色）──
         if getattr(skill, "memory_enabled", False):
             try:
-                _mems = memory.retrieve(active_name, _mem_scope, text, limit=8)
+                _mem_scopes = [_mem_scope]
+                if isinstance(event, GroupMessageEvent):
+                    # 群共享记忆（来自 learning.py，scope=group_<gid>）+ 该用户自己的记忆
+                    _mem_scopes.append(f"group_{event.group_id}")
+                _mems = memory.retrieve_scopes(active_name, _mem_scopes, text, limit=8)
                 _mem_text = memory.format_for_prompt(_mems)
                 if _mem_text:
                     context_parts.append(_mem_text)
                     cfg.chat_logger.info(
-                        f"[MEMORY] 注入 {len(_mems)} 条 | skill={active_name} scope={_mem_scope}"
+                        f"[MEMORY] 注入 {len(_mems)} 条 | skill={active_name} scopes={_mem_scopes}"
                     )
             except Exception as e:
                 logger.warning(f"[MEMORY] 检索/注入失败: {type(e).__name__}: {e}")

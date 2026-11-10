@@ -30,7 +30,7 @@ from nonebot import logger
 from . import config as cfg
 
 DB_PATH = Path(os.getenv("MEMORY_DB_PATH", "") or (cfg.QQBOT_DIR / "data" / "memory.db"))
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _KINDS = {"fact", "preference", "promise", "relationship", "interest", "boundary", "event"}
 _KIND_CN = {
@@ -120,6 +120,27 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_proactive_lookup
                 ON proactive_log(skill, scope, sent_at);
+            CREATE TABLE IF NOT EXISTS learning_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                skill TEXT NOT NULL,
+                group_id TEXT NOT NULL,
+                user_id TEXT NOT NULL DEFAULT '',
+                sender_name TEXT NOT NULL DEFAULT '',
+                text TEXT NOT NULL,
+                msg_id TEXT NOT NULL DEFAULT '',
+                created_at REAL NOT NULL,
+                processed INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_learning_dedupe
+                ON learning_messages(skill, group_id, msg_id);
+            CREATE INDEX IF NOT EXISTS idx_learning_lookup
+                ON learning_messages(skill, group_id, processed, created_at);
+            CREATE TABLE IF NOT EXISTS learning_state (
+                skill TEXT NOT NULL,
+                group_id TEXT NOT NULL,
+                last_summary_at REAL NOT NULL DEFAULT 0,
+                PRIMARY KEY (skill, group_id)
+            );
             """
         )
         conn.execute(
@@ -212,16 +233,25 @@ def _query_tokens(query: str) -> list[str]:
 
 
 def retrieve(skill: str, scope: str, query: str, limit: int = 8) -> list[dict]:
-    """按关键词 + 重要度 + 新近度取相关记忆。"""
+    """按关键词 + 重要度 + 新近度取相关记忆（单作用域）。"""
+    return retrieve_scopes(skill, [scope], query, limit)
+
+
+def retrieve_scopes(skill: str, scopes: list[str], query: str, limit: int = 8) -> list[dict]:
+    """多作用域检索：群聊可同时取「群共享记忆 + 该用户私聊记忆」。"""
     _ensure_init()
+    scopes = [s for s in dict.fromkeys(scopes or []) if s]
+    if not scopes:
+        return []
     now = time.time()
+    ph = ",".join("?" for _ in scopes)
     with _db() as conn:
         rows = conn.execute(
-            "SELECT * FROM memory_events "
-            "WHERE skill=? AND scope=? AND deleted=0 "
-            "  AND (expires_at=0 OR expires_at>?) "
-            "ORDER BY created_at DESC LIMIT 300",
-            (skill, scope, now),
+            f"SELECT * FROM memory_events "
+            f"WHERE skill=? AND scope IN ({ph}) AND deleted=0 "
+            f"  AND (expires_at=0 OR expires_at>?) "
+            f"ORDER BY created_at DESC LIMIT 300",
+            [skill] + scopes + [now],
         ).fetchall()
     if not rows:
         return []
@@ -417,6 +447,86 @@ def used_memory_ids(skill: str, scope: str, since_ts: float) -> set[int]:
     return {int(r["memory_id"]) for r in rows if r["memory_id"] is not None}
 
 
+# ── QQ 群学习缓冲区（P1 学习线）────────────────────────────────
+
+def record_learning_message(
+    skill: str, group_id: str, user_id: str, sender_name: str,
+    text: str, msg_id: str = "",
+) -> bool:
+    """记录一条群消息（只给 learning_enabled 且群在白名单的角色）。"""
+    _ensure_init()
+    text = re.sub(r"\s+", " ", str(text or "")).strip()[:500]
+    if len(text) < 2:
+        return False
+    if not msg_id:
+        msg_id = f"local-{time.time_ns()}"   # 避免空 msg_id 被唯一索引误判成同一条
+    now = time.time()
+    with _WRITE_LOCK, _db() as conn:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO learning_messages"
+            "(skill, group_id, user_id, sender_name, text, msg_id, created_at) "
+            "VALUES(?,?,?,?,?,?,?)",
+            (skill, str(group_id), str(user_id), sender_name[:40], text, str(msg_id), now),
+        )
+    return bool(cur.rowcount)
+
+
+def unprocessed_learning_messages(skill: str, group_id: str, limit: int = 120) -> list[dict]:
+    _ensure_init()
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM learning_messages "
+            "WHERE skill=? AND group_id=? AND processed=0 "
+            "ORDER BY created_at ASC LIMIT ?",
+            (skill, str(group_id), max(1, min(limit, 300))),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def mark_learning_processed(ids: list[int]) -> int:
+    if not ids:
+        return 0
+    _ensure_init()
+    ph = ",".join("?" for _ in ids)
+    with _WRITE_LOCK, _db() as conn:
+        cur = conn.execute(
+            f"UPDATE learning_messages SET processed=1 WHERE id IN ({ph})",
+            [int(i) for i in ids],
+        )
+    return int(cur.rowcount or 0)
+
+
+def prune_learning_messages(days: int = 7) -> int:
+    """删除已处理且超过 N 天的原始群消息（记忆里只留摘要）。"""
+    _ensure_init()
+    cutoff = time.time() - max(1, days) * 86400
+    with _WRITE_LOCK, _db() as conn:
+        cur = conn.execute(
+            "DELETE FROM learning_messages WHERE processed=1 AND created_at<?",
+            (cutoff,),
+        )
+    return int(cur.rowcount or 0)
+
+
+def last_learning_summary(skill: str, group_id: str) -> float:
+    _ensure_init()
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT last_summary_at FROM learning_state WHERE skill=? AND group_id=?",
+            (skill, str(group_id)),
+        ).fetchone()
+    return float(row["last_summary_at"] or 0) if row else 0.0
+
+
+def set_learning_summary(skill: str, group_id: str, ts: float | None = None) -> None:
+    _ensure_init()
+    with _WRITE_LOCK, _db() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO learning_state(skill, group_id, last_summary_at) VALUES(?,?,?)",
+            (skill, str(group_id), float(ts or time.time())),
+        )
+
+
 # ── 抽取 ──────────────────────────────────────────────────────────
 
 _EXTRACT_PROMPT = """你是角色记忆抽取器。根据一轮 QQ 对话，提取「值得长期记住」的稳定信息。
@@ -496,7 +606,8 @@ async def extract_and_store(
         payload = {
             "model": cfg.DEEPSEEK_SEARCH_MODEL,
             "temperature": 0.1,
-            "max_tokens": 700,
+            "max_tokens": 1200,
+            "thinking": {"type": "disabled"},
             "messages": [
                 {"role": "system", "content": _EXTRACT_PROMPT},
                 {"role": "user", "content": user_content},
