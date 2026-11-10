@@ -26,7 +26,7 @@ from . import image_handler
 from . import memory
 from .rich_message import parse_rich_message
 from .rules import respond_rule
-from .dsml_cleaner import strip_dsml_markup
+from .dsml_cleaner import contains_tool_markup, strip_dsml_markup
 from .message_utils import normalize_qq_faces, parse_qq_faces, split_message, split_at_breath_pauses, dedup_consecutive_chunks, clean_chat_output
 
 
@@ -627,7 +627,22 @@ async def _handle_chat_inner(bot: Bot, event: Event):
                 cfg.chat_logger.info(
                     f"[DEDUP] 删除复读段: {len(full_reply.strip())} → {len(_deduped)} chars"
                 )
-            reply = strip_dsml_markup(normalize_qq_faces(_deduped)) if _deduped else None
+            # 2026-11-10: 流式 content 里可能直接混入 <system>web_search</system>
+            # <parameter ...> 工具调用原文。检测到就丢弃，回退到非流式工具循环，
+            # 绝不能把标记当正文发给用户。
+            _tool_leak = bool(_deduped and contains_tool_markup(_deduped))
+            if _tool_leak:
+                cfg.chat_logger.warning(
+                    f"[STREAM] 检测到工具调用标记，丢弃流式内容并回退到非流式工具路径 | raw={_deduped[:100]!r}"
+                )
+                turn_recorder.add_step({
+                    "kind": "error",
+                    "title": "流式输出混入工具调用标记，已丢弃并回退",
+                    "data": {"raw": _deduped[:1000]},
+                })
+                reply = None
+            else:
+                reply = strip_dsml_markup(normalize_qq_faces(_deduped)) if _deduped else None
             turn_recorder.add_step({
                 "kind": "reply",
                 "title": f"生成回复 ({len(reply) if reply else 0} 字)",

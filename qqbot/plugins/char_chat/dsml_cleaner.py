@@ -49,6 +49,37 @@ _TOOL_LIKE_TAG = re.compile(
     r'</?\s*(?:web_search|search_corpus|search)\b[^>]*/?>',
     re.IGNORECASE
 )
+# ── 模型把工具调用写成正文的 XML 变体 ──
+# 实测 DeepSeek 会在 content 里输出：
+#   <system>web_search</system>
+#   <parameter name="query">...</parameter>
+# 这不是正常回复，必须整块剥掉；否则会原样发给用户。
+_TOOL_SYSTEM_BLOCK = re.compile(
+    r'<\s*system\b[^>]*>.*?<\s*/\s*system\s*>',
+    re.DOTALL | re.IGNORECASE
+)
+_TOOL_PARAMETER_BLOCK = re.compile(
+    r'<\s*parameter\b[^>]*>.*?<\s*/\s*parameter\s*>',
+    re.DOTALL | re.IGNORECASE
+)
+_TOOL_FUNCTION_BLOCK = re.compile(
+    r'<\s*function\b[^>]*>.*?<\s*/\s*function\s*>',
+    re.DOTALL | re.IGNORECASE
+)
+# 兜底：这些开标签一旦出现，基本可判定为工具调用泄露；删到末尾
+_TOOL_MARKUP_TRUNC = re.compile(
+    r'<\s*(?:system|parameter|function|tool_calls?)\b.*',
+    re.DOTALL | re.IGNORECASE
+)
+_TOOL_MARKUP_DETECT = re.compile(
+    r'<\s*(?:system|parameter|function|tool_calls?)\b|DSML|<\s*\|[^>]*\|>',
+    re.IGNORECASE
+)
+
+
+def contains_tool_markup(text: str) -> bool:
+    """正文里是否混入了工具调用/系统标记（用于流式路径提前丢弃）。"""
+    return bool(_TOOL_MARKUP_DETECT.search(text or ""))
 # ── 思考块清洗 ──
 # 部分 LLM (minimax M3 等) 把 reasoning 字段塞到 content 前面,以 <think>...</think> 块呈现,
 # 若不剥掉会原样发给用户。兼容 Anthropic / DeepSeek / OpenAI o1 三家风格。
@@ -72,14 +103,19 @@ def strip_dsml_markup(text: str) -> str:
     text = _TOOL_CALL_TRUNCATED.sub('', text)
     # 通用工具调用标签（GPT-5.5 等模型模仿 function calling）
     text = _TOOL_LIKE_TAG.sub('', text)
+    # <system>web_search</system><parameter ...> 这类正文工具调用
+    text = _TOOL_SYSTEM_BLOCK.sub('', text)
+    text = _TOOL_PARAMETER_BLOCK.sub('', text)
+    text = _TOOL_FUNCTION_BLOCK.sub('', text)
     # 思考块(多模型通用: minimax M3 / Claude / DeepSeek 风格),防止模型内心独白泄露给用户
     text = _THINK_BLOCK_FULL.sub('', text)
     text = _THINK_BLOCK_TRUNC.sub('', text)
     text = _THINK_BLOCK_ALT.sub('', text)
     text = _THINK_BLOCK_ALT_TRUNC.sub('', text)
-    # 截断兜底：如果还有残留的 DSML / tool_calls 开标签，删除从那里到末尾
+    # 截断兜底：如果还有残留的 DSML / tool_calls / system 开标签，删除从那里到末尾
     text = _DSML_TRUNCATED.sub('', text)
     text = _TOOL_CALLS_OPEN_TRUNC.sub('', text)
+    text = _TOOL_MARKUP_TRUNC.sub('', text)
     # 清理多余空行
     text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
