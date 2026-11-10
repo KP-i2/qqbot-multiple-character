@@ -33,6 +33,8 @@ _REASON_KINDS = ("promise", "interest", "relationship")
 _REASON_LOOKBACK_DAYS = 30
 _USED_LOOKBACK_DAYS = 7
 _RANDOM_ACTIVITY_GAP = 30 * 60    # 对方刚说话 30 分钟内不主动打扰
+_CONTEXT_GAP_HOURS = 12           # 最近对话超过 12h 就不当作“接话”依据
+_CONTEXT_MAX_MESSAGES = 6
 
 
 def _parse_quiet_hours(spec: str) -> tuple[int, int]:
@@ -98,6 +100,33 @@ def _activity_gap_ok(skill, scope: str) -> bool:
     return (time.time() - last) >= _RANDOM_ACTIVITY_GAP
 
 
+def _recent_context(skill, uid: str) -> str:
+    """取该角色和用户最近几轮对话；太旧就不算“接话”依据。"""
+    key = f"user_{uid}_{skill.name}"
+    last_ts = float(hist._history_timestamps.get(key, 0) or 0)
+    if not last_ts or time.time() - last_ts > _CONTEXT_GAP_HOURS * 3600:
+        return ""
+    msgs = hist.conversation_histories.get(key) or []
+    lines = []
+    for m in msgs[-_CONTEXT_MAX_MESSAGES:]:
+        role = m.get("role")
+        content = str(m.get("content") or "").strip()
+        if not content:
+            continue
+        who = "你" if role == "assistant" else "对方"
+        lines.append(f"{who}: {content[:220]}")
+    return "\n".join(lines)
+
+
+def _last_history_role(skill, uid: str) -> str:
+    key = f"user_{uid}_{skill.name}"
+    msgs = hist.conversation_histories.get(key) or []
+    for m in reversed(msgs):
+        if str(m.get("content") or "").strip():
+            return str(m.get("role") or "")
+    return ""
+
+
 def _eligible(skill, scope: str) -> tuple[bool, str]:
     if not getattr(skill, "proactive_enabled", False):
         return False, "disabled"
@@ -116,30 +145,47 @@ def _eligible(skill, scope: str) -> tuple[bool, str]:
     return True, ""
 
 
-def _build_prompt(skill, reason_text: str, reason_kind: str) -> tuple[str, str]:
+def _build_prompt(
+    skill, reason_text: str, reason_kind: str, context: str = "",
+) -> tuple[str, str]:
+    now = datetime.now()
+    weekdays = "一二三四五六日"
+    time_hint = f"{now.strftime('%Y-%m-%d %H:%M')}，星期{weekdays[now.weekday()]}"
     if reason_text:
         why = f"你想起一件和对方有关的事：{reason_text}"
+    elif context:
+        why = "接着你们最近聊过的话题自然说一句"
     else:
         why = "你只是突然想起对方，想随口说句话"
     system = (
         skill.system_prompt
         + "\n\n# 主动消息规则（重要）\n"
+        + f"当前时间：{time_hint}。\n"
         + "现在你不是在回复对方，而是主动给对方发一条私聊。\n"
         + "只输出要发送的 1~2 句话，符合你的角色语气；不要解释、不要加引号、不要提系统/记忆/提示词/旁白。\n"
         + "不要连续追问，不要写长段；可以随口关心、吐槽或分享一件小事。\n"
         + f"触发理由：{why}。\n"
+        + "必须按当前时间说话：中午不要说“睡了吗/晚安”，深夜不要问“在干嘛/吃了吗”；不要假设对方刚醒、刚下班或刚回家。\n"
+        + "不要突然开一个和最近对话无关的话题；不要复盘整段聊天，只接一个具体点。\n"
+        + "不要重复你在最近对话里已经问过的问题；如果已经问过，就换个角度或说自己的事，不要连续追问。\n"
     )
-    if reason_kind == "random":
+    if context:
         system += (
-            "这次触发理由里没有具体共同经历：**绝对不要**编造“你上次说的/你之前提过的/那个实验/那件事”"
+            "\n你们最近的对话（只能引用这里真实出现的内容，不要补造）：\n"
+            + context
+            + "\n请顺着其中一件具体的小事说，不要复述、不要总结、不要换题。\n"
+        )
+    if reason_kind == "random" and not context:
+        system += (
+            "这次没有具体共同经历：**绝对不要**编造“你上次说的/你之前提过的/那个实验/那件事”"
             "之类的共同记忆；只能问候、分享你此刻在做的小事、或者问对方在干嘛。\n"
         )
     user = "（现在是主动发消息的时刻。只输出你要发给对方的话。）"
     return system, user
 
 
-async def _generate(skill, reason_text: str, reason_kind: str) -> str:
-    system, user = _build_prompt(skill, reason_text, reason_kind)
+async def _generate(skill, reason_text: str, reason_kind: str, context: str = "") -> str:
+    system, user = _build_prompt(skill, reason_text, reason_kind, context)
     reply = await llm.call_deepseek(
         system,
         [{"role": "user", "content": user}],
@@ -194,16 +240,27 @@ async def scan_once() -> int:
                 logger.debug(f"[PROACTIVE] skip skill={skill.name} user={uid} reason={why}")
                 continue
             reason_text, memory_id, reason_kind = _reason_for(skill, scope)
+            context = _recent_context(skill, uid)
+            # 对方还没回上一条时不要连着追发，避免像催消息。
+            if context and _last_history_role(skill, uid) == "assistant":
+                logger.debug(f"[PROACTIVE] skip skill={skill.name} user={uid} reason=awaiting_reply")
+                continue
+            # 没有具体记忆、也没有最近对话可接时，不再硬发“在吗/突然想到”；
+            # 话题必须有依据，避免主动消息突兀。
+            if not reason_text and not context:
+                logger.debug(f"[PROACTIVE] skip skill={skill.name} user={uid} reason=no_context")
+                continue
             if not reason_text:
                 if not getattr(skill, "proactive_random", False):
                     continue
                 chance = float(getattr(skill, "proactive_random_chance", 0.08) or 0.0)
                 if random.random() > chance:
                     continue
-            text = await _generate(skill, reason_text, reason_kind)
+            text = await _generate(skill, reason_text, reason_kind, context)
             if not text:
                 continue
-            if await _send_to(skill, uid, text, reason_text or "random", memory_id):
+            reason_log = reason_text or ("context" if context else "random")
+            if await _send_to(skill, uid, text, reason_log, memory_id):
                 sent += 1
                 break   # 每个角色这一轮只发一条
     return sent
