@@ -157,6 +157,13 @@ async def _handle_chat_inner(bot: Bot, event: Event):
 
     # 手动命令分发（群聊 @Bot 后 text 开头有空格，on_command 无法匹配）
     if text.startswith("/") or text.startswith("／"):
+        # 2026-11-10: 所有斜杠命令只允许管理员（ADMIN_QQ）；之前 /reset 漏了校验。
+        if not cfg.is_admin(event.get_user_id()):
+            cfg.chat_logger.info(
+                f"[CMD] 非管理员命令拒绝 | user={event.get_user_id()} text='{text[:60]}'"
+            )
+            await char_chat.finish("这个只有管理员才能操作哦 🙈")
+            return
         parts = text[1:].strip().split(maxsplit=1)
         cmd = parts[0].lower()
         arg = parts[1] if len(parts) > 1 else ""
@@ -166,9 +173,6 @@ async def _handle_chat_inner(bot: Bot, event: Event):
             hist.clear_history(key)
             _hard = arg.strip().lower() in ("all", "全部", "both", "长期", "记忆")
             if _hard:
-                if not cfg.is_admin(event.get_user_id()):
-                    await char_chat.finish("短期已清空；连长期记忆一起清需要管理员。")
-                    return
                 active = hist.global_active_skill or skill_manager.DEFAULT_SKILL_NAME or ""
                 n = memory.forget(active, _memory_scope(event), all=True) if active else 0
                 await char_chat.finish(
