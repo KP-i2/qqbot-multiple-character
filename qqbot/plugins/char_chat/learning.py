@@ -20,7 +20,7 @@ import json
 import re
 import time
 
-from nonebot import logger, on_message
+from nonebot import get_bots, logger, on_message
 from nonebot.adapters.onebot.v11 import Bot, Event, GroupMessageEvent
 
 from . import config as cfg
@@ -31,6 +31,9 @@ _SCAN_INTERVAL = 10 * 60
 _SCAN_START_DELAY = 90
 _MAX_SUMMARY_MESSAGES = 120
 _KEEP_RAW_DAYS = 7
+_BACKFILL_COUNT = 50
+_BACKFILL_MAX_AGE_DAYS = 30
+_BACKFILL_DONE: set[tuple[str, str]] = set()
 
 # 优先级 1：只记录，不 block；@ 的消息仍会继续走到 char_chat（priority 50）
 collector = on_message(priority=1, block=False)
@@ -225,8 +228,91 @@ async def scan_once() -> int:
     return total
 
 
+def _extract_history_text(msg: dict) -> str:
+    """从 OneBot get_group_msg_history 的消息段里取纯文本。"""
+    raw = ""
+    segs = msg.get("message")
+    if isinstance(segs, list):
+        for seg in segs:
+            if not isinstance(seg, dict):
+                if isinstance(seg, str):
+                    raw += seg
+                continue
+            typ = seg.get("type")
+            data = seg.get("data")
+            if typ == "text" and isinstance(data, dict):
+                raw += str(data.get("text") or "")
+            elif typ == "at":
+                raw += " "
+    if not raw:
+        raw = str(msg.get("raw_message") or "")
+    raw = re.sub(r"\[CQ:[^\]]+\]", " ", raw)
+    return re.sub(r"\s+", " ", raw).strip()
+
+
+async def backfill_history_once() -> None:
+    """启动后补拉白名单群最近历史；只补最近 30 天，去重靠 msg_id。"""
+    bots = get_bots()
+    bot = next(iter(bots.values()), None)
+    if bot is None:
+        logger.debug("[LEARN] 历史回补：没有已连接 Bot")
+        return
+    now = time.time()
+    cutoff = now - _BACKFILL_MAX_AGE_DAYS * 86400
+    for skill in skill_manager.ALL_SKILLS.values():
+        if not getattr(skill, "learning_enabled", False):
+            continue
+        if "qq" not in (getattr(skill, "learning_sources", frozenset()) or frozenset()):
+            continue
+        for gid in sorted({str(g) for g in (getattr(skill, "learning_groups", frozenset()) or [])}):
+            key = (skill.name, gid)
+            if key in _BACKFILL_DONE:
+                continue
+            _BACKFILL_DONE.add(key)
+            try:
+                resp = await bot.call_api(
+                    "get_group_msg_history", group_id=int(gid), count=_BACKFILL_COUNT
+                )
+            except Exception as e:
+                logger.warning(f"[LEARN] 历史回补失败 skill={skill.name} group={gid}: {type(e).__name__}: {e}")
+                continue
+            payload = resp
+            if isinstance(resp, dict) and isinstance(resp.get("data"), dict):
+                payload = resp["data"]
+            messages = payload.get("messages") if isinstance(payload, dict) else []
+            added = 0
+            for msg in messages or []:
+                if not isinstance(msg, dict):
+                    continue
+                uid = str(msg.get("user_id") or "")
+                if uid == str(bot.self_id):
+                    continue
+                ts = float(msg.get("time") or 0)
+                if ts and ts < cutoff:
+                    continue
+                text = _extract_history_text(msg)
+                if len(text) < 2 or text.startswith(("/", "／")):
+                    continue
+                sender = msg.get("sender") or {}
+                name = str(sender.get("card") or sender.get("nickname") or "")
+                if memory.record_learning_message(
+                    skill.name, gid, uid, name, text,
+                    msg_id=str(msg.get("message_id") or ""),
+                    created_at=ts or None,
+                ):
+                    added += 1
+            logger.info(
+                f"[LEARN] 历史回补 skill={skill.name} group={gid} "
+                f"fetch={len(messages or [])} added={added}"
+            )
+
+
 async def run_loop() -> None:
     await asyncio.sleep(_SCAN_START_DELAY)
+    try:
+        await backfill_history_once()
+    except Exception as e:
+        logger.warning(f"[LEARN] 历史回补失败: {type(e).__name__}: {e}")
     while True:
         try:
             n = await scan_once()

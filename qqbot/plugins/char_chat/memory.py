@@ -483,7 +483,7 @@ def used_memory_ids(skill: str, scope: str, since_ts: float) -> set[int]:
 
 def record_learning_message(
     skill: str, group_id: str, user_id: str, sender_name: str,
-    text: str, msg_id: str = "",
+    text: str, msg_id: str = "", created_at: float | None = None,
 ) -> bool:
     """记录一条群消息（只给 learning_enabled 且群在白名单的角色）。"""
     _ensure_init()
@@ -492,7 +492,7 @@ def record_learning_message(
         return False
     if not msg_id:
         msg_id = f"local-{time.time_ns()}"   # 避免空 msg_id 被唯一索引误判成同一条
-    now = time.time()
+    now = float(created_at or time.time())
     with _WRITE_LOCK, _db() as conn:
         cur = conn.execute(
             "INSERT OR IGNORE INTO learning_messages"
