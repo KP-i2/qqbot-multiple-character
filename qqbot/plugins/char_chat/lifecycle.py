@@ -14,6 +14,7 @@ from . import history as hist
 from . import skill_manager
 from . import proactive
 from . import learning
+from . import avatar
 
 
 _cleanup_task: Optional[asyncio.Task] = None
@@ -95,6 +96,23 @@ async def on_startup():
     logger.info("主动消息循环已启动（10 分钟扫描；仅 proactive_enabled 角色）")
     _learning_task = _safe_create_task(learning.run_loop(), "learning-loop")
     logger.info("QQ 群学习循环已启动（10 分钟扫描；仅 learning_enabled 角色）")
+
+
+@cfg.driver.on_bot_connect
+async def on_bot_connect(bot):
+    """每次连上 QQ 时，把头像/昵称同步成当前默认角色。
+
+    2026-11-10: 之前只在 /switch 时设置头像；进程重启后 QQ 头像会保留上一次的，
+    和默认角色（DEFAULT_SKILL=makise-kurisu）不一致。这里在 bot 连接后自动同步。
+    """
+    active = hist.global_active_skill or skill_manager.DEFAULT_SKILL_NAME or ""
+    if not active:
+        return
+    try:
+        cfg.chat_logger.info(f"[AVATAR] bot 已连接，同步角色头像/昵称: {active}")
+        await avatar.set_profile(bot, active)
+    except Exception as e:
+        logger.warning(f"[AVATAR] 启动同步失败 skill={active}: {type(e).__name__}: {e}")
 
 
 @cfg.driver.on_shutdown
