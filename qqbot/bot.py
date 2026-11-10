@@ -11,7 +11,9 @@ if hasattr(sys, "_base_executable") and sys._base_executable != sys.executable:
 _PRIVATE_ENV = Path(__file__).resolve().parent.parent / "private" / ".env"
 if _PRIVATE_ENV.exists():
     from dotenv import load_dotenv
-    load_dotenv(_PRIVATE_ENV)
+    # 2026-11-10: .env 是本地权威配置；override=True 避免从 Dashboard 继承的旧值
+    # （如 DEFAULT_SKILL）压住新值。
+    load_dotenv(_PRIVATE_ENV, override=True)
 
 import nonebot
 from nonebot.adapters.onebot.v11 import Adapter as OneBotV11Adapter
