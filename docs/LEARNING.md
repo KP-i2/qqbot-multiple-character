@@ -1,6 +1,6 @@
 # QQ 群只读学习（P1 学习线）
 
-> 2026-11-10 起，测试角色：`iteru`（小秋）；群：`473856739`。
+> 2026-11-10 起，测试角色：`iteru`（小秋）；群：`473856739`、`232079122`。
 
 ## 做什么
 
@@ -22,7 +22,7 @@ memory_enabled: true
 memory_extract: true
 learning_enabled: true
 learning_sources: qq
-learning_groups: 473856739
+learning_groups: 473856739,232079122
 learning_min_messages: 8
 learning_summary_interval_minutes: 60
 ```
