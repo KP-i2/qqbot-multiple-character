@@ -45,6 +45,18 @@ learning_summary_interval_minutes: 60
 [LEARN] 摘要入库 3 条 | skill=iteru group=...
 ```
 
+## 学习报告
+
+Dashboard →「记忆」→「学习报告（近 7 天）」：
+
+- 摘要次数、覆盖消息数
+- accepted / rejected（quote 校验没过或格式无效）
+- 最近入库的群体记忆
+
+API：`GET /api/learning/report?days=7&skill=iteru`
+
+每次摘要都会写一条 `learning_runs`，失败也会记录原因（无返回/冷却），不会再“只看日志猜”。
+
 ## B 站
 
 已安装并锁进 `requirements.txt`：`bilibili-api-python>=17.0.0`（实测 17.4.2 可搜索视频）。

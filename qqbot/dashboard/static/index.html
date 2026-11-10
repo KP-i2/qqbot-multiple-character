@@ -527,6 +527,23 @@
         <div style="text-align:center;padding:20px;color:var(--text2)">加载中...</div>
       </div>
     </div>
+
+    <div class="card">
+      <h3><span class="icon cyan">&#128200;</span> 用量账本（近 7 天）</h3>
+      <p class="desc">按用途统计 LLM token 与 Search 调用；流式回复按字符数估算，标为「估算」。</p>
+      <div id="usageTotals" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;font-size:13px"></div>
+      <div id="usageRows" style="max-height:30vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg-1)">
+        <div style="text-align:center;padding:20px;color:var(--text2)">加载中...</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="icon purple">&#128221;</span> 学习报告（近 7 天）</h3>
+      <p class="desc">QQ 群学习：摘要次数、接收/丢弃条数、最近入库的群体记忆。</p>
+      <div id="learningReport" style="border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg-1)">
+        <div style="text-align:center;padding:20px;color:var(--text2)">加载中...</div>
+      </div>
+    </div>
   </div>
 
   <!-- ═══ 参数设置 ═══ -->

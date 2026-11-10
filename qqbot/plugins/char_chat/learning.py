@@ -111,11 +111,21 @@ async def _summarize(skill, group_id: str, messages: list[dict]) -> int:
 
     if not messages:
         return 0
+    started_at = time.time()
+
+    def _done(accepted: int, ok: bool, rejected: int = 0, error: str = "") -> None:
+        memory.record_learning_run(
+            skill.name, group_id, started_at, len(messages),
+            accepted=accepted, rejected=rejected, ok=ok, error=error,
+        )
+
     try:
         provider = prov.get_active_provider()
     except RuntimeError:
+        _done(0, False, error="no_provider")
         return 0
     if prov.get_provider_cooldown_remaining(provider["name"]) > 0:
+        _done(0, False, error="provider_cooldown")
         return 0
 
     lines = []
@@ -138,12 +148,15 @@ async def _summarize(skill, group_id: str, messages: list[dict]) -> int:
             payload, provider,
             timeout=min(30.0, float(cfg.LLM_REQUEST_TIMEOUT)),
             max_retries=1,
+            purpose="learning_summary", skill=skill.name,
         )
     except Exception as e:
         logger.warning(f"[LEARN] 摘要请求失败 skill={skill.name}: {type(e).__name__}: {e}")
+        _done(0, False, error=f"{type(e).__name__}: {e}")
         return 0
     if not data:
         logger.warning(f"[LEARN] 摘要无返回 skill={skill.name} group={group_id}")
+        _done(0, False, error="empty_response")
         return 0
     raw = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
     items = _parse_items(raw)
@@ -168,6 +181,7 @@ async def _summarize(skill, group_id: str, messages: list[dict]) -> int:
             "confidence": 0.7,
         })
     if not valid:
+        _done(0, False, rejected=len(items[:3]))
         return 0
     n = memory.record_events(
         skill.name,
@@ -177,6 +191,7 @@ async def _summarize(skill, group_id: str, messages: list[dict]) -> int:
         events=valid,
         source_msg_id="",
     )
+    _done(n, ok=n > 0, rejected=max(0, len(items[:3]) - len(valid)))
     if n:
         logger.info(f"[LEARN] 摘要入库 {n} 条 | skill={skill.name} group={group_id}")
     return n

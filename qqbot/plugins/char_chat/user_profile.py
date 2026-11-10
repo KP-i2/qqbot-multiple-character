@@ -109,7 +109,9 @@ async def extract_user_profile(uid: str, history_key: str, skill_name: str):
         except RuntimeError:
             cfg.chat_logger.warning("[PROFILE] 主选 provider 不可用,跳过本次画像提取")
             return
-        data = await api_client.api_request(payload, profile_provider)
+        data = await api_client.api_request(
+            payload, profile_provider, purpose="profile", skill=skill_name,
+        )
         if data is None:
             return
 

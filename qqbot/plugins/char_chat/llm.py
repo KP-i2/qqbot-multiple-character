@@ -157,6 +157,8 @@ async def probe_tool_usage(
             probe_provider,
             timeout=min(30.0, float(cfg.LLM_REQUEST_TIMEOUT)),
             max_retries=1,
+            purpose="probe",
+            skill=skill_name or "",
         )
     finally:
         api_client.API_SEMAPHORE.release()
@@ -360,7 +362,8 @@ async def _call_deepseek_inner(
             turn_recorder.add_step({"kind": "error", "title": "LLM 预算耗尽", "data": {}})
             raise asyncio.TimeoutError("LLM budget exhausted")
         data = await api_client.api_request(
-            payload, provider, timeout=_req_timeout, max_retries=cfg.LLM_MAX_RETRIES
+            payload, provider, timeout=_req_timeout, max_retries=cfg.LLM_MAX_RETRIES,
+            purpose="chat", skill=skill_name or "",
         )
         if data is None:
             turn_recorder.add_step({"kind": "error", "title": "LLM 请求失败", "data": {}})
@@ -430,7 +433,8 @@ async def _call_deepseek_inner(
             })
             raise asyncio.TimeoutError("LLM budget exhausted")
         data = await api_client.api_request(
-            payload, provider, timeout=_req_timeout, max_retries=cfg.LLM_MAX_RETRIES
+            payload, provider, timeout=_req_timeout, max_retries=cfg.LLM_MAX_RETRIES,
+            purpose="chat_tool", skill=skill_name or "",
         )
         if data is None:
             turn_recorder.add_step({
@@ -571,7 +575,8 @@ async def _call_deepseek_inner(
         cfg.chat_logger.warning("[LLM] 预算不足，跳过强制总结轮")
         raise asyncio.TimeoutError("LLM budget exhausted")
     data = await api_client.api_request(
-        payload_final, provider, timeout=_req_timeout, max_retries=cfg.LLM_MAX_RETRIES
+        payload_final, provider, timeout=_req_timeout, max_retries=cfg.LLM_MAX_RETRIES,
+        purpose="chat_final", skill=skill_name or "",
     )
     if data is None:
         return None
@@ -597,7 +602,8 @@ async def _call_deepseek_inner(
         if _req_timeout is None:
             raise asyncio.TimeoutError("LLM budget exhausted")
         data2 = await api_client.api_request(
-            payload_retry, provider, timeout=_req_timeout, max_retries=cfg.LLM_MAX_RETRIES
+            payload_retry, provider, timeout=_req_timeout, max_retries=cfg.LLM_MAX_RETRIES,
+            purpose="chat_final", skill=skill_name or "",
         )
         if data2:
             raw2 = data2["choices"][0]["message"]["content"].strip()

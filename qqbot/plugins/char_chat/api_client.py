@@ -104,6 +104,68 @@ def _set_last_error(provider_name: str, err_type: str | None):
     _LAST_ERROR_TYPE[provider_name] = err_type
 
 
+def _record_llm_usage(
+    result: dict,
+    provider: dict,
+    payload: dict,
+    *,
+    purpose: str = "chat",
+    skill: str = "",
+) -> None:
+    """从 OpenAI 兼容响应里取 usage，写本地账本；失败静默。"""
+    try:
+        usage = (result or {}).get("usage") or {}
+        prompt = int(usage.get("prompt_tokens") or 0)
+        completion = int(usage.get("completion_tokens") or 0)
+        total = int(usage.get("total_tokens") or 0)
+        cached = int((usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
+        from . import memory
+        memory.record_usage(
+            "llm",
+            provider=provider.get("name", ""),
+            model=str((result or {}).get("model") or payload.get("model") or ""),
+            skill=skill,
+            purpose=purpose,
+            prompt_tokens=prompt,
+            completion_tokens=completion,
+            total_tokens=total,
+            cached_tokens=cached,
+            calls=1,
+            estimated=not bool(usage),
+        )
+    except Exception as e:
+        logger.debug(f"[USAGE] LLM 记录失败: {type(e).__name__}: {e}")
+
+
+def _record_stream_usage(
+    payload: dict,
+    provider: dict,
+    prompt_chars: int,
+    completion_chars: int,
+    *,
+    purpose: str = "chat_stream",
+    skill: str = "",
+) -> None:
+    """流式响应通常不带 usage：按字符数估算，estimated=1，至少让账本有量。"""
+    try:
+        from . import memory
+        memory.record_usage(
+            "llm",
+            provider=provider.get("name", ""),
+            model=str(payload.get("model") or ""),
+            skill=skill,
+            purpose=purpose,
+            prompt_tokens=max(1, prompt_chars // 3),
+            completion_tokens=max(1, completion_chars // 3),
+            total_tokens=max(2, (prompt_chars + completion_chars) // 3),
+            calls=1,
+            estimated=True,
+            meta="estimated from chars",
+        )
+    except Exception as e:
+        logger.debug(f"[USAGE] stream 记录失败: {type(e).__name__}: {e}")
+
+
 def _classify_error(status: int, body: str) -> str:
     """根据 HTTP 状态码 + body 分类错误类型"""
     if status == 422 and "sensitive" in body:
@@ -126,7 +188,15 @@ def _classify_error(status: int, body: str) -> str:
     return "unknown"
 
 
-async def api_request(payload: dict, provider: dict = None, *, timeout: float | None = None, max_retries: int | None = None) -> Optional[dict]:
+async def api_request(
+    payload: dict,
+    provider: dict = None,
+    *,
+    timeout: float | None = None,
+    max_retries: int | None = None,
+    purpose: str = "chat",
+    skill: str = "",
+) -> Optional[dict]:
     """底层 API 请求，带重试。返回 JSON dict 或 None。
 
     路由策略（2026-06-28 重构）：
@@ -160,6 +230,7 @@ async def api_request(payload: dict, provider: dict = None, *, timeout: float | 
     if result is not None:
         prov.mark_provider_healthy(provider["name"])
         _set_last_error(provider["name"], None)
+        _record_llm_usage(result, provider, payload, purpose=purpose, skill=skill)
         return result
 
     # 标记当前 provider 不健康，但不切换到另一家
@@ -344,7 +415,15 @@ async def _api_request_stream_inner(
             return
 
 
-async def api_request_stream(payload: dict, provider: dict | None = None, *, timeout: float | None = None, max_retries: int | None = None):
+async def api_request_stream(
+    payload: dict,
+    provider: dict | None = None,
+    *,
+    timeout: float | None = None,
+    max_retries: int | None = None,
+    purpose: str = "chat_stream",
+    skill: str = "",
+):
     """流式 API 请求。失败时直接报错，不自动回退另一家 Provider。
 
     路由（2026-06-28）：
@@ -367,22 +446,34 @@ async def api_request_stream(payload: dict, provider: dict | None = None, *, tim
 
     sent_any = False
     result = None
+    _prompt_chars = len(json.dumps(payload.get("messages") or [], ensure_ascii=False))
+    _completion_chars = 0
 
     async for chunk in _api_request_stream_inner(
         payload, provider, timeout=timeout, max_retries=max_retries
     ):
         if chunk is True:
             prov.mark_provider_healthy(provider["name"])
+            if sent_any:
+                _record_stream_usage(
+                    payload, provider, _prompt_chars, _completion_chars,
+                    purpose=purpose, skill=skill,
+                )
             return
         elif chunk is False:
             result = False
             break
         else:
             sent_any = True
+            _completion_chars += len(str(chunk))
             yield chunk
 
     # 已发送部分内容则不再做其他动作
     if sent_any:
+        _record_stream_usage(
+            payload, provider, _prompt_chars, _completion_chars,
+            purpose=purpose, skill=skill,
+        )
         return
 
     # 主 provider 失败且未产出任何内容 → 标记不健康，不回退

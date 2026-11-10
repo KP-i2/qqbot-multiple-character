@@ -271,7 +271,7 @@ async def _fetch(url: str) -> str:
 
 async def _search_one(q: str) -> list[dict]:
     try:
-        return await search.deepseek_search(q, 6, ori_question=q)
+        return await search.deepseek_search(q, 6, ori_question=q, purpose="search_events")
     except Exception as e:
         logger.debug(f"[EVENT] search failed q={q!r}: {type(e).__name__}: {e}")
         return []

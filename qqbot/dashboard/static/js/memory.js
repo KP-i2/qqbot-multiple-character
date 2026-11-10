@@ -13,6 +13,12 @@ function _memTime(ts) {
   return new Date(n * 1000).toLocaleString('zh-CN', { hour12: false });
 }
 const _MEM_KIND = { fact: '事实', preference: '偏好', promise: '约定', relationship: '关系', interest: '兴趣', boundary: '边界', event: '事件' };
+const _USAGE_PURPOSE = {
+  chat: '主对话', chat_stream: '主对话(流式)', chat_tool: '工具轮', chat_final: '收尾',
+  probe: '工具判断', memory_extract: '记忆抽取', profile: '用户画像',
+  learning_summary: '群学习摘要', vision: '识图', web_search: '联网搜索',
+  search_events: '活动检索',
+};
 
 async function loadMemory(reset) {
   try {
@@ -32,6 +38,8 @@ async function loadMemory(reset) {
     await loadMemoryList();
     await loadMemoryProactive();
     await loadMemoryLearning();
+    await loadUsage();
+    await loadLearningReport();
   } catch (e) {
     toast('记忆读取失败: ' + e.message, false);
   }
@@ -154,6 +162,62 @@ async function loadMemoryLearning() {
         <td>${r.last_summary_at ? _esc(_memTime(r.last_summary_at)) : '—'}</td>
         <td>${r.pending ?? '—'}</td>
       </tr>`).join('')}</tbody></table>`;
+  } catch (e) {
+    box.innerHTML = `<div style="padding:20px;color:var(--coral)">读取失败: ${_esc(e.message)}</div>`;
+  }
+}
+
+async function loadUsage() {
+  const totals = document.getElementById('usageTotals');
+  const box = document.getElementById('usageRows');
+  try {
+    const d = await (await safeFetch('/api/usage/summary?days=7')).json();
+    const t = d.totals || {};
+    totals.innerHTML = `<span>调用：<b>${t.calls ?? 0}</b></span>
+      <span>总 tokens：<b>${t.total_tokens ?? 0}</b></span>
+      <span>输入：${t.prompt_tokens ?? 0}</span>
+      <span>输出：${t.completion_tokens ?? 0}</span>
+      <span style="color:var(--text2)">其中估算：${t.estimated_calls ?? 0} 次</span>`;
+    const rows = d.rows || [];
+    if (!rows.length) { box.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2)">还没有用量记录</div>'; return; }
+    box.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="color:var(--text2);text-align:left"><th style="padding:6px">类型</th><th>用途</th><th>角色</th><th>模型/来源</th><th>调用</th><th>tokens</th><th>估算</th></tr></thead>
+      <tbody>${rows.map(r => `<tr style="border-top:1px solid var(--border)">
+        <td style="padding:6px">${_esc(r.kind)}</td>
+        <td>${_esc(_USAGE_PURPOSE[r.purpose] || r.purpose)}</td>
+        <td>${_esc(r.skill || '—')}</td>
+        <td>${_esc(r.model || r.provider)}</td>
+        <td>${r.calls ?? 0}</td>
+        <td>${r.total_tokens ?? 0}</td>
+        <td>${r.estimated_calls ?? 0}</td>
+      </tr>`).join('')}</tbody></table>`;
+  } catch (e) {
+    box.innerHTML = `<div style="padding:20px;color:var(--coral)">读取失败: ${_esc(e.message)}</div>`;
+  }
+}
+
+async function loadLearningReport() {
+  const box = document.getElementById('learningReport');
+  try {
+    const d = await (await safeFetch('/api/learning/report?days=7')).json();
+    const t = d.totals || {};
+    const recent = d.recent || [];
+    let html = `<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin-bottom:8px">
+      <span>摘要：<b>${t.runs ?? 0}</b> 次</span>
+      <span>接收：<b>${t.accepted ?? 0}</b> 条</span>
+      <span>丢弃：<b>${t.rejected ?? 0}</b> 条</span>
+      <span>覆盖消息：${t.messages ?? 0} 条</span>
+    </div>`;
+    if (!recent.length) {
+      html += '<div style="text-align:center;padding:16px;color:var(--text2)">近 7 天没有新入库的群体记忆</div>';
+    } else {
+      html += recent.map(m => `<div style="padding:6px 0;border-top:1px solid var(--border);font-size:12px">
+        <b>${_esc(m.skill)}</b> · ${_esc(m.scope)} · ${_esc(_MEM_KIND[m.kind] || m.kind)}
+        <div>${_esc(m.text)}</div>
+        ${m.source_quote ? `<div style="color:var(--text2);font-size:11px">引用：${_esc(m.source_quote)}</div>` : ''}
+      </div>`).join('');
+    }
+    box.innerHTML = html;
   } catch (e) {
     box.innerHTML = `<div style="padding:20px;color:var(--coral)">读取失败: ${_esc(e.message)}</div>`;
   }

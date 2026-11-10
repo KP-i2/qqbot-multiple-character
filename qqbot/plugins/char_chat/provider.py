@@ -312,7 +312,7 @@ async def describe_image(image_url: str, user_text: str = "") -> str | None:
 
     # 直接调 api_request，provider 显式传 vision（不走 route_payload）
     from . import api_client
-    data = await api_client.api_request(payload, provider=vision)
+    data = await api_client.api_request(payload, provider=vision, purpose="vision")
     if data is None:
         return None
     try:

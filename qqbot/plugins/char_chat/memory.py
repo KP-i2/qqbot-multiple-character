@@ -30,7 +30,7 @@ from nonebot import logger
 from . import config as cfg
 
 DB_PATH = Path(os.getenv("MEMORY_DB_PATH", "") or (cfg.QQBOT_DIR / "data" / "memory.db"))
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _KINDS = {"fact", "preference", "promise", "relationship", "interest", "boundary", "event"}
 _KIND_CN = {
@@ -141,6 +141,38 @@ def init_db() -> None:
                 last_summary_at REAL NOT NULL DEFAULT 0,
                 PRIMARY KEY (skill, group_id)
             );
+            CREATE TABLE IF NOT EXISTS usage_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts REAL NOT NULL,
+                kind TEXT NOT NULL DEFAULT 'llm',
+                provider TEXT NOT NULL DEFAULT '',
+                model TEXT NOT NULL DEFAULT '',
+                skill TEXT NOT NULL DEFAULT '',
+                purpose TEXT NOT NULL DEFAULT '',
+                prompt_tokens INTEGER NOT NULL DEFAULT 0,
+                completion_tokens INTEGER NOT NULL DEFAULT 0,
+                total_tokens INTEGER NOT NULL DEFAULT 0,
+                cached_tokens INTEGER NOT NULL DEFAULT 0,
+                calls INTEGER NOT NULL DEFAULT 1,
+                estimated INTEGER NOT NULL DEFAULT 0,
+                meta TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_usage_lookup
+                ON usage_events(ts, kind, skill, purpose);
+            CREATE TABLE IF NOT EXISTS learning_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                skill TEXT NOT NULL,
+                group_id TEXT NOT NULL,
+                started_at REAL NOT NULL,
+                finished_at REAL NOT NULL,
+                messages INTEGER NOT NULL DEFAULT 0,
+                accepted INTEGER NOT NULL DEFAULT 0,
+                rejected INTEGER NOT NULL DEFAULT 0,
+                ok INTEGER NOT NULL DEFAULT 0,
+                error TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_learning_runs
+                ON learning_runs(skill, finished_at);
             """
         )
         conn.execute(
@@ -527,6 +559,139 @@ def set_learning_summary(skill: str, group_id: str, ts: float | None = None) -> 
         )
 
 
+# ── 用量账本 & 学习报告（P2） ────────────────────────────────
+
+def record_usage(
+    kind: str,
+    provider: str = "",
+    model: str = "",
+    skill: str = "",
+    purpose: str = "",
+    prompt_tokens: int = 0,
+    completion_tokens: int = 0,
+    total_tokens: int = 0,
+    cached_tokens: int = 0,
+    calls: int = 1,
+    estimated: bool = False,
+    meta: str = "",
+) -> None:
+    """记录一次 LLM/Search 用量。失败不影响主流程。"""
+    try:
+        _ensure_init()
+        prompt_tokens = max(0, int(prompt_tokens or 0))
+        completion_tokens = max(0, int(completion_tokens or 0))
+        total_tokens = max(0, int(total_tokens or 0)) or (prompt_tokens + completion_tokens)
+        with _WRITE_LOCK, _db() as conn:
+            conn.execute(
+                "INSERT INTO usage_events"
+                "(ts, kind, provider, model, skill, purpose, prompt_tokens, "
+                " completion_tokens, total_tokens, cached_tokens, calls, estimated, meta) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    time.time(), str(kind or "llm"), str(provider or ""), str(model or ""),
+                    str(skill or ""), str(purpose or ""), prompt_tokens, completion_tokens,
+                    total_tokens, max(0, int(cached_tokens or 0)), max(1, int(calls or 1)),
+                    1 if estimated else 0, str(meta or "")[:500],
+                ),
+            )
+    except Exception as e:
+        logger.debug(f"[USAGE] 记录失败: {type(e).__name__}: {e}")
+
+
+def usage_summary(days: int = 7, skill: str = "", purpose: str = "") -> dict:
+    _ensure_init()
+    days = max(1, min(int(days or 7), 365))
+    since = time.time() - days * 86400
+    where = ["ts>=?"]
+    args: list = [since]
+    if skill:
+        where.append("skill=?"); args.append(skill)
+    if purpose:
+        where.append("purpose=?"); args.append(purpose)
+    w = " AND ".join(where)
+    with _db() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT kind, purpose, provider, model, skill, "
+            "SUM(calls) AS calls, SUM(prompt_tokens) AS prompt_tokens, "
+            "SUM(completion_tokens) AS completion_tokens, SUM(total_tokens) AS total_tokens, "
+            "SUM(cached_tokens) AS cached_tokens, SUM(estimated) AS estimated_calls "
+            f"FROM usage_events WHERE {w} "
+            "GROUP BY kind, purpose, provider, model, skill "
+            "ORDER BY total_tokens DESC, calls DESC",
+            args,
+        ).fetchall()]
+        totals = {
+            "calls": sum(int(r["calls"] or 0) for r in rows),
+            "prompt_tokens": sum(int(r["prompt_tokens"] or 0) for r in rows),
+            "completion_tokens": sum(int(r["completion_tokens"] or 0) for r in rows),
+            "total_tokens": sum(int(r["total_tokens"] or 0) for r in rows),
+            "estimated_calls": sum(int(r["estimated_calls"] or 0) for r in rows),
+        }
+    return {"ok": True, "days": days, "totals": totals, "rows": rows}
+
+
+def record_learning_run(
+    skill: str,
+    group_id: str,
+    started_at: float,
+    messages: int,
+    accepted: int,
+    rejected: int,
+    ok: bool,
+    error: str = "",
+) -> None:
+    try:
+        _ensure_init()
+        with _WRITE_LOCK, _db() as conn:
+            conn.execute(
+                "INSERT INTO learning_runs"
+                "(skill, group_id, started_at, finished_at, messages, accepted, rejected, ok, error) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
+                (
+                    str(skill), str(group_id), float(started_at), time.time(),
+                    max(0, int(messages or 0)), max(0, int(accepted or 0)),
+                    max(0, int(rejected or 0)), 1 if ok else 0, str(error or "")[:300],
+                ),
+            )
+    except Exception as e:
+        logger.debug(f"[LEARN] run 记录失败: {type(e).__name__}: {e}")
+
+
+def learning_report(days: int = 7, skill: str = "") -> dict:
+    _ensure_init()
+    days = max(1, min(int(days or 7), 365))
+    since = time.time() - days * 86400
+    args: list = [since]
+    skill_sql = ""
+    if skill:
+        skill_sql = " AND skill=?"
+        args.append(skill)
+    with _db() as conn:
+        runs = [dict(r) for r in conn.execute(
+            "SELECT * FROM learning_runs WHERE finished_at>=?"
+            + skill_sql + " ORDER BY finished_at DESC LIMIT 50",
+            args,
+        ).fetchall()]
+        totals = {
+            "runs": len(runs),
+            "messages": sum(int(r["messages"] or 0) for r in runs),
+            "accepted": sum(int(r["accepted"] or 0) for r in runs),
+            "rejected": sum(int(r["rejected"] or 0) for r in runs),
+        }
+        mem_args: list = [since]
+        mem_skill = ""
+        if skill:
+            mem_skill = " AND skill=?"
+            mem_args.append(skill)
+        recent = [dict(r) for r in conn.execute(
+            "SELECT id, skill, scope, kind, text, source_quote, created_at "
+            "FROM memory_events WHERE deleted=0 AND scope LIKE 'group_%' AND created_at>=?"
+            + mem_skill + " ORDER BY created_at DESC LIMIT 30",
+            mem_args,
+        ).fetchall()]
+    return {"ok": True, "days": days, "totals": totals, "runs": runs, "recent": recent}
+
+
 # ── 抽取 ──────────────────────────────────────────────────────────
 
 _EXTRACT_PROMPT = """你是角色记忆抽取器。根据一轮 QQ 对话，提取「值得长期记住」的稳定信息。
@@ -617,6 +782,7 @@ async def extract_and_store(
             payload, provider,
             timeout=min(30.0, float(cfg.LLM_REQUEST_TIMEOUT)),
             max_retries=1,
+            purpose="memory_extract", skill=skill,
         )
         if not data:
             return 0

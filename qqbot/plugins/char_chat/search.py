@@ -708,7 +708,7 @@ def _fix_site_name(name) -> str:
     return s
 
 
-async def deepseek_search(query: str, count: int = 5, ori_question: str = "") -> list:
+async def deepseek_search(query: str, count: int = 5, ori_question: str = "", purpose: str = "web_search") -> list:
     """调用 DeepSeek 官方 Search API，返回原始 results（已修正 site_name）。"""
     if not cfg.DEEPSEEK_API_KEY or cfg.DEEPSEEK_API_KEY.startswith("sk-your"):
         raise RuntimeError("DEEPSEEK_API_KEY 未配置")
@@ -740,6 +740,15 @@ async def deepseek_search(query: str, count: int = 5, ori_question: str = "") ->
             results = (resp.json() or {}).get("results") or []
             for r in results:
                 r["site_name"] = _fix_site_name(r.get("site_name"))
+            try:
+                from . import memory
+                memory.record_usage(
+                    "search", provider="deepseek_search", model="",
+                    skill="", purpose=purpose, calls=1,
+                    meta=str(query or "")[:200],
+                )
+            except Exception as _ue:
+                cfg.chat_logger.debug(f"[USAGE] search 记录失败: {_ue}")
             return results
         except httpx.TransportError as e:
             last_exc = e

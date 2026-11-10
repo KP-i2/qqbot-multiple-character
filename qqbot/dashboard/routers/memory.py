@@ -53,6 +53,100 @@ def _table_exists(conn, name: str) -> bool:
         return False
 
 
+@router.get("/api/usage/summary")
+def usage_summary(days: int = Query(7, ge=1, le=365), skill: str = Query(""), purpose: str = Query("")):
+    conn = _ro_conn()
+    if conn is None or not _table_exists(conn, "usage_events"):
+        return {"ok": True, "days": days, "totals": {"calls": 0, "prompt_tokens": 0,
+                "completion_tokens": 0, "total_tokens": 0, "estimated_calls": 0}, "rows": []}
+    try:
+        since = time.time() - days * 86400
+        where = ["ts>=?"]
+        args: list = [since]
+        if skill:
+            where.append("skill=?"); args.append(skill)
+        if purpose:
+            where.append("purpose=?"); args.append(purpose)
+        w = " AND ".join(where)
+        rows = _dicts(conn.execute(
+            "SELECT kind, purpose, provider, model, skill, "
+            "SUM(calls) AS calls, SUM(prompt_tokens) AS prompt_tokens, "
+            "SUM(completion_tokens) AS completion_tokens, SUM(total_tokens) AS total_tokens, "
+            "SUM(cached_tokens) AS cached_tokens, SUM(estimated) AS estimated_calls "
+            f"FROM usage_events WHERE {w} "
+            "GROUP BY kind, purpose, provider, model, skill "
+            "ORDER BY total_tokens DESC, calls DESC",
+            args,
+        ).fetchall())
+        totals = {
+            "calls": sum(int(r["calls"] or 0) for r in rows),
+            "prompt_tokens": sum(int(r["prompt_tokens"] or 0) for r in rows),
+            "completion_tokens": sum(int(r["completion_tokens"] or 0) for r in rows),
+            "total_tokens": sum(int(r["total_tokens"] or 0) for r in rows),
+            "estimated_calls": sum(int(r["estimated_calls"] or 0) for r in rows),
+        }
+        return {"ok": True, "days": days, "totals": totals, "rows": rows}
+    except sqlite3.Error as e:
+        return {"ok": False, "msg": f"db error: {e}", "rows": []}
+    finally:
+        conn.close()
+
+
+@router.get("/api/usage/recent")
+def usage_recent(limit: int = Query(100, ge=1, le=300)):
+    conn = _ro_conn()
+    if conn is None or not _table_exists(conn, "usage_events"):
+        return {"ok": True, "items": []}
+    try:
+        rows = _dicts(conn.execute(
+            "SELECT id, ts, kind, purpose, provider, model, skill, total_tokens, calls, estimated "
+            "FROM usage_events ORDER BY ts DESC LIMIT ?", (limit,)
+        ).fetchall())
+        return {"ok": True, "items": rows}
+    except sqlite3.Error as e:
+        return {"ok": False, "msg": f"db error: {e}", "items": []}
+    finally:
+        conn.close()
+
+
+@router.get("/api/learning/report")
+def learning_report(days: int = Query(7, ge=1, le=365), skill: str = Query("")):
+    conn = _ro_conn()
+    if conn is None:
+        return {"ok": True, "days": days, "totals": {"runs": 0, "messages": 0,
+                "accepted": 0, "rejected": 0}, "runs": [], "recent": []}
+    try:
+        since = time.time() - days * 86400
+        runs: list = []
+        if _table_exists(conn, "learning_runs"):
+            sql = "SELECT * FROM learning_runs WHERE finished_at>=?"
+            args: list = [since]
+            if skill:
+                sql += " AND skill=?"; args.append(skill)
+            sql += " ORDER BY finished_at DESC LIMIT 50"
+            runs = _dicts(conn.execute(sql, args).fetchall())
+        totals = {
+            "runs": len(runs),
+            "messages": sum(int(r["messages"] or 0) for r in runs),
+            "accepted": sum(int(r["accepted"] or 0) for r in runs),
+            "rejected": sum(int(r["rejected"] or 0) for r in runs),
+        }
+        recent: list = []
+        if _table_exists(conn, "memory_events"):
+            sql2 = ("SELECT id, skill, scope, kind, text, source_quote, created_at "
+                    "FROM memory_events WHERE deleted=0 AND scope LIKE 'group_%' AND created_at>=?")
+            args2: list = [since]
+            if skill:
+                sql2 += " AND skill=?"; args2.append(skill)
+            sql2 += " ORDER BY created_at DESC LIMIT 30"
+            recent = _dicts(conn.execute(sql2, args2).fetchall())
+        return {"ok": True, "days": days, "totals": totals, "runs": runs, "recent": recent}
+    except sqlite3.Error as e:
+        return {"ok": False, "msg": f"db error: {e}", "runs": [], "recent": []}
+    finally:
+        conn.close()
+
+
 @router.get("/api/memory/overview")
 def memory_overview():
     conn = _ro_conn()
