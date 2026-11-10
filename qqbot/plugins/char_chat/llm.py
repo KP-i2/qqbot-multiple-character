@@ -392,6 +392,7 @@ async def _call_deepseek_inner(
         },
     })
 
+    _first_web_search = True
     for round_num in range(search._MAX_TOOL_ROUNDS + 1):
         # 2026-07-22: force_tools=True 时第一轮强制 LLM 调工具, 后续轮次回到 auto 让 LLM 决定
         # 解决"minimax 凭知识答非所问"的问题 (7/21 念张师 case)
@@ -501,8 +502,10 @@ async def _call_deepseek_inner(
                 logger.info(f"[search] 联网搜索: {query} (max={max_results})")
                 cfg.chat_logger.info(f"[SEARCH] 联网搜索触发: query='{query}', max_results={max_results}")
                 search_text = await search.execute_web_search(
-                    query, max_results, ori_question=_ori_question
+                    query, max_results, ori_question=_ori_question,
+                    allow_multihop=_first_web_search,
                 )
+                _first_web_search = False
 
             elif func_name == "search_corpus":
                 kw = func_args.get("keywords", "")

@@ -55,6 +55,8 @@ SEARCH_TOOLS = [
                 "对于角色自身、所属圈子、过往经历等话题，**必须先调 search_corpus**，"
                 "不要直接用联网搜索代替本地语料。"
                 "搜索结果包含链接和日期，可以引用给对方参考；结果与问题无关时直接说没查到。"
+                "关系/别名/同一个人类问题：query 里带上双方称呼；如果你知道团名、公司、活动名，"
+                "一并带上会准很多（工具也会自动补搜微博/团名线索）。"
             ),
             "parameters": {
                 "type": "object",
@@ -62,9 +64,9 @@ SEARCH_TOOLS = [
                     "query": {
                         "type": "string",
                         "description": (
-                            "搜索关键词。要求：1.尽量简短，只写核心名称（如'阵雨电台'而非'阵雨电台 地下偶像'）"
-                            "2.不要加修饰词（如'官方''是谁''介绍'等）3.微博搜索对短关键词效果更好，"
-                            "关键词越长越容易搜不到结果"
+                            "搜索关键词。通常只写核心名称（如'阵雨电台'）；但问'A 和 B 什么关系/是不是同一个人'时，"
+                            "要同时写双方称呼，并尽量带一个上下文词（团名/公司/活动名），不要加'官方''是谁''介绍'这类修饰词。"
+                            "例：'角色A 昵称B 团名C'（把 A/B/C 换成实际名称）。"
                         ),
                     },
                     "max_results": {
@@ -751,9 +753,11 @@ async def deepseek_search(query: str, count: int = 5, ori_question: str = "") ->
     raise RuntimeError("DeepSeek Search 未知失败")
 
 
-def _format_deepseek_results(results: list) -> str:
+def _format_deepseek_results(results: list, extra_note: str = "") -> str:
     """把 Search API 结果格式化成给模型读的紧凑文本（带来源/日期/摘要）。"""
     lines = [f"## 网络搜索结果（DeepSeek Search {len(results)} 条）\n"]
+    if extra_note:
+        lines.append(extra_note.rstrip() + "\n")
     for i, r in enumerate(results, 1):
         title = (r.get("title") or "无标题").strip()
         url = (r.get("url") or "").strip()
@@ -776,13 +780,206 @@ def _format_deepseek_results(results: list) -> str:
     return "\n".join(lines)
 
 
-async def execute_web_search(query: str, max_results: int = 5, ori_question: str = "") -> str:
+# ── 关系/别名类查询：自动多跳补搜（2026-11-10）──
+# 背景：10-31 用户问「顾逸舟 和 弱弱yowa 什么关系」，模型 query='顾逸舟 弱弱yowa'，
+# DeepSeek Search 返回 8 条却全是 GP999/K-pop 资料，没命中关联。
+# 复测发现：光加「同一个人/本名」没用；先搜「弱弱yowa 微博」能拿到「夜色特调」，
+# 再搜「夜色特调 顾逸舟」能拿到天眼查法人记录——所以做两跳补搜。
+_RELATION_RE = re.compile(r"关系|同一个人|同一个|同一人|本名|真名|别名|昵称|称呼|是谁|身份|关联|马甲|小号|是不是|就是")
+_ENTITY_SPLIT_RE = re.compile(r"[\s,，、/|]+")
+_ENTITY_STOP = {
+    "关系", "同一个人", "同一个", "同一人", "本名", "真名", "别名", "昵称", "称呼",
+    "是谁", "身份", "关联", "马甲", "小号", "生日", "身高", "年龄", "籍贯", "成员",
+    "介绍", "资料", "微博", "照片", "视频", "情况", "信息", "背景", "经历",
+}
+_GROUP_STOP = {
+    "微博", "新浪", "手机", "粉丝", "演出", "视频", "特典", "直播", "超话", "偶像",
+    "地下", "上海", "北京", "广州", "深圳", "活动", "记录", "现场", "音乐", "歌曲",
+    "新歌", "空间", "豆瓣", "知乎", "天眼查", "百科", "维基", "资料", "主页", "个人",
+    "官方", "成员", "团体", "组合", "公司", "工作室", "同时", "关注", "转发", "评论",
+    "bilibili", "weibo", "twitter", "youtube", "b站", "微博视频", "地下偶像",
+    "来自", "以及", "相关", "关于", "一个", "什么", "怎么", "这个", "那个", "她的", "他的",
+    "我们", "你们", "他们", "时间", "今天", "昨天", "更新", "介绍", "链接", "内容",
+    "安利", "安利楼", "超话", "视频", "舞社", "开播", "全员", "看一下", "参加过",
+}
+
+
+def _clean_entity_text(s: str) -> str:
+    s = str(s or "").strip()
+    s = re.sub(r"^(?:你|帮我|给我|请|麻烦)?(?:搜搜|搜一下|搜索一下|搜索|查查|查一下|查|找找|找)+", "", s)
+    s = re.sub(r"(?:的)?(?:关系|同一个人|同一个|同一人|本名|真名|别名|昵称|称呼|是谁|身份|关联|马甲|小号)(?:是什么|是啥)?$", "", s)
+    return s.strip(" 的，,。.！!？?、")
+
+
+def _valid_entity(s: str) -> bool:
+    s = (s or "").strip()
+    if not (2 <= len(s) <= 12):
+        return False
+    if re.search(r"[0-9０-９]", s):          # 日期、年龄、编号不是实体
+        return False
+    if re.search(r"[\"'“”‘’「」『』]", s):   # 模型已经用引号精确检索过，不再补跳
+        return False
+    if s in _ENTITY_STOP:
+        return False
+    return True
+
+
+def _extract_relation_entities(query: str, ori_question: str) -> list[str]:
+    """从 query / 用户原话里抽两个实体（A、B）。抽不到两个就返回空。"""
+    parts = [_clean_entity_text(x) for x in _ENTITY_SPLIT_RE.split(query or "")]
+    parts = [p for p in parts if _valid_entity(p) and not _RELATION_RE.fullmatch(p)]
+    if len(parts) >= 2:
+        return parts[:2]
+    q = _clean_entity_text(ori_question or "")
+    pieces = [_clean_entity_text(x) for x in re.split(r"(?:和|与|跟|、|及|以及|VS|vs\.?)", q)]
+    pieces = [p for p in pieces if _valid_entity(p)]
+    return pieces[:2]
+
+
+def _looks_relation_question(query: str, ori_question: str) -> bool:
+    return bool(_RELATION_RE.search(f"{query} {ori_question}")) and len(_extract_relation_entities(query, ori_question)) >= 2
+
+
+def _result_blob(r: dict) -> str:
+    return f"{r.get('title', '')} {r.get('summary', '')} {r.get('snippet', '')} {r.get('url', '')}"
+
+
+def _dedupe_results(items: list) -> list:
+    seen = set()
+    out = []
+    for r in items:
+        key = (r.get("url") or "").strip() or (r.get("title") or "").strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+    return out
+
+
+def _both_entities_hit(results: list, entities: list[str]) -> bool:
+    return any(all(e in _result_blob(r) for e in entities) for r in results)
+
+
+def _extract_group_terms(results: list, entities: list[str], focus_entity: str = "", limit: int = 3) -> list[str]:
+    """从「B 微博」结果里提取候选上下文词（团名/公司名）。
+
+    例子：'夜色特调_弱弱yowa' / '夜色特调Carol' → '夜色特调'（出现 ≥2 次才收）。
+    focus_entity：只收「这个实体和候选词同时出现在标题里」的候选，避免把 K-pop 节目名当团名。
+    """
+    from collections import Counter
+
+    counter = Counter()
+    for r in results:
+        text = f"{r.get('title', '')} {r.get('summary', '')}"
+        for tok in re.split(r"[^\w\u4e00-\u9fff]+", text):
+            tok = tok.strip("_-.@#【】[]()（）:：|")
+            if not tok:
+                continue
+            m = re.match(r"^([\u4e00-\u9fff]{2,10})", tok)
+            if m:
+                cand = m.group(1)
+            elif re.fullmatch(r"[A-Za-z][A-Za-z0-9]{2,15}", tok):
+                cand = tok
+            else:
+                continue
+            if len(cand) < 2 or cand.lower() in _GROUP_STOP:
+                continue
+            if any(cand in e or e in cand for e in entities):
+                continue
+            if re.fullmatch(r"[0-9]+", cand):
+                continue
+            if focus_entity and not any(
+                focus_entity in (r.get("title") or "") and cand in (r.get("title") or "")
+                for r in results
+            ):
+                continue
+            counter[cand] += 1
+    return [c for c, n in counter.most_common() if n >= 2][:limit]
+
+
+async def _safe_deepseek_search(q: str, count: int, ori_question: str = "") -> list:
+    try:
+        return await deepseek_search(q, count=count, ori_question=ori_question or "")
+    except Exception as e:
+        logger.warning(f"[SEARCH] 多跳补搜失败: {q[:40]} | {type(e).__name__}: {e}")
+        return []
+
+
+async def _search_with_multihop(query: str, count: int, ori_question: str) -> tuple[list, dict]:
+    """关系/别名问题：先搜双方；没有同时命中就「B 微博 → 提取团名 → 团名+A」补搜。"""
+    entities = _extract_relation_entities(query, ori_question)
+    meta = {"entities": entities, "groups": [], "evidence": []}
+    base = await deepseek_search(query, count=count, ori_question=ori_question)
+    if _both_entities_hit(base, entities):
+        return base, meta
+
+    social_lists = await asyncio.gather(*[
+        _safe_deepseek_search(f"{e} 微博", min(5, count), ori_question) for e in entities
+    ])
+    social = _dedupe_results([r for lst in social_lists for r in lst])
+
+    groups: list[str] = []
+    # 优先从「像昵称/账号」的实体（含拉丁字母）的微博结果里提上下文；
+    # 提到就停，避免把另一个实体的 K-pop 节目名/安利楼当团名。
+    order = sorted(range(len(entities)), key=lambda i: (0 if re.search(r"[A-Za-z]", entities[i]) else 1, len(entities[i])))
+    for idx in order:
+        e = entities[idx]
+        gs = _extract_group_terms(social_lists[idx], entities, focus_entity=e)
+        if gs:
+            groups = gs
+            break
+    groups = groups[:3]
+    meta["groups"] = groups
+
+    evidence_queries = []
+    for g in groups[:2]:
+        for e in entities:
+            if e in g or g in e:
+                continue
+            evidence_queries.append((g, e))
+
+    evidence_results = []
+    if evidence_queries:
+        pairs = await asyncio.gather(*[
+            _safe_deepseek_search(f"{g} {e}", min(5, count), ori_question) for g, e in evidence_queries
+        ])
+        for (g, e), rs in zip(evidence_queries, pairs):
+            keep = [r for r in rs if g in _result_blob(r) and e in _result_blob(r)]
+            if keep:
+                meta["evidence"].append({"group": g, "entity": e, "query": f"{g} {e}", "count": len(keep)})
+                evidence_results.extend(keep)
+
+    # 证据优先；没有证据时先给「B 微博」（里面可能带团名）再给原搜索
+    ordered = (evidence_results + base + social) if evidence_results else (social + base)
+    merged = _dedupe_results(ordered)
+    limit = max(8, min(12, int(count) + 2))
+    return merged[:limit], meta
+
+
+def _relation_note(meta: dict) -> str:
+    if not meta or (not meta.get("groups") and not meta.get("evidence")):
+        return ""
+    lines = ["### 多跳检索线索（自动补搜）"]
+    lines.append("- 目标实体：" + "、".join(meta.get("entities") or []))
+    if meta.get("groups"):
+        lines.append("- 从「微博」结果提取到的上下文：" + "、".join(meta["groups"]))
+    for ev in meta.get("evidence") or []:
+        lines.append(f"- 用「{ev['query']}」找到 {ev['count']} 条同时包含「{ev['group']}」和「{ev['entity']}」的记录")
+    if not meta.get("evidence"):
+        lines.append("- 自动补搜没有找到同时包含双方的直接记录；下结论时要说明是推断/未确认")
+    lines.append("- 这些是关联证据，不等于已确认同一人；回答时说明依据和不确定性。")
+    lines.append("- 如果这些线索已经足够回答，不要重复搜索。")
+    return "\n".join(lines) + "\n"
+
+
+async def execute_web_search(query: str, max_results: int = 5, ori_question: str = "", allow_multihop: bool = True) -> str:
     """联网搜索：只走 DeepSeek 官方 Search API（2026-10-30 起）。
 
     参数：
       query:        搜索词（模型给出的核心关键词）
       max_results:  返回条数（会 clamp 到 1~10）
       ori_question: 用户原始问题（可选，帮助搜索理解意图）
+      allow_multihop: 关系/别名问题是否自动多跳补搜（默认 True；LLM 每轮只在第一次 web_search 打开）
     """
     cfg.record_metric("web_search", "calls")
     if not cfg.DEEPSEEK_SEARCH_ENABLED:
@@ -794,8 +991,13 @@ async def execute_web_search(query: str, max_results: int = 5, ori_question: str
         count = max(1, min(int(max_results), 10))
 
     t0 = time.time()
+    relation_meta = {}
+    is_relation = allow_multihop and _looks_relation_question(query, ori_question or "")
     try:
-        results = await deepseek_search(query, count=count, ori_question=ori_question or "")
+        if is_relation:
+            results, relation_meta = await _search_with_multihop(query, count, ori_question or "")
+        else:
+            results = await deepseek_search(query, count=count, ori_question=ori_question or "")
     except (asyncio.TimeoutError, httpx.TimeoutException):
         cfg.update_search_health("deepseek_search", False)
         logger.warning(f"[web_search] DeepSeek Search 超时（{cfg.DEEPSEEK_SEARCH_TIMEOUT}s）: {query[:60]}")
@@ -816,8 +1018,14 @@ async def execute_web_search(query: str, max_results: int = 5, ori_question: str
     cfg.record_metric("by_source", "deepseek_search", len(results))
     cfg.chat_logger.info(
         f"[SEARCH] DeepSeek Search {len(results)} 条 | {elapsed:.2f}s | query='{query[:60]}'"
+        + ("（含多跳补搜）" if is_relation else "")
     )
-    return _format_deepseek_results(results)
+    if relation_meta:
+        cfg.chat_logger.info(
+            f"[SEARCH] 多跳补搜: entities={relation_meta.get('entities')} "
+            f"groups={relation_meta.get('groups')} evidence={len(relation_meta.get('evidence') or [])}"
+        )
+    return _format_deepseek_results(results, _relation_note(relation_meta))
 
 
 # ── 旧版百度抓取实现（2026-10-30 起不再调用，仅保留供回溯/对比） ──
