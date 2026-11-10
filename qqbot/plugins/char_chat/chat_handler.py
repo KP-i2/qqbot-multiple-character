@@ -27,7 +27,103 @@ from . import memory
 from .rich_message import parse_rich_message
 from .rules import respond_rule
 from .dsml_cleaner import contains_tool_markup, strip_dsml_markup
+from .reply_guard import validate_reply
 from .message_utils import normalize_qq_faces, parse_qq_faces, split_message, split_at_breath_pauses, dedup_consecutive_chunks, clean_chat_output
+
+_SAFE_REPLY = "等一下…我刚刚那句没组织好，你再说一遍？"
+
+
+async def _send_capture(matcher, message) -> list[str]:
+    """发送一条消息，尽量拿到 OneBot 返回的 message_id。"""
+    resp = await matcher.send(message)
+    ids: list[str] = []
+    candidates = [resp]
+    if isinstance(resp, dict) and isinstance(resp.get("data"), dict):
+        candidates.append(resp["data"])
+    for item in candidates:
+        if not isinstance(item, dict):
+            continue
+        mid = item.get("message_id")
+        if mid is None:
+            mid = item.get("message_id_str")
+        if mid is not None:
+            ids.append(str(mid))
+    return ids
+
+
+async def _recall_sent(bot: Bot, message_ids: list[str]) -> None:
+    for mid in message_ids:
+        try:
+            await bot.call_api("delete_msg", message_id=int(mid))
+            cfg.chat_logger.warning(f"[REPLY_GUARD] 已请求撤回 message_id={mid}")
+        except Exception as e:
+            cfg.chat_logger.warning(f"[REPLY_GUARD] 撤回失败 message_id={mid}: {type(e).__name__}: {e}")
+
+
+async def _send_reply_segments(char_chat, reply_text: str) -> list[str]:
+    """按呼吸点分段发送；返回所有已发送消息的 message_id。"""
+    segments = [clean_chat_output(s) for s in (split_at_breath_pauses(reply_text) or [reply_text]) if s.strip()]
+    if not segments:
+        return []
+    cfg.chat_logger.info(
+        f"[REPLY] segments={len(segments)} | reply='{reply_text[:100]}{'...' if len(reply_text)>100 else ''}'"
+    )
+    ids: list[str] = []
+    if len(segments) == 1:
+        return await _send_capture(char_chat, parse_qq_faces(segments[0]))
+    sent_count = 0
+    try:
+        for i, seg in enumerate(segments):
+            ids.extend(await _send_capture(char_chat, parse_qq_faces(seg)))
+            sent_count += 1
+            if i < len(segments) - 1:
+                delay = min(0.5 + len(seg) / 300, 2.5)
+                await asyncio.sleep(delay)
+    except Exception as e:
+        cfg.chat_logger.warning(f"[REPLY] 分段发送中断 ({sent_count}/{len(segments)}): {e}")
+        remaining = "\n\n".join(segments[sent_count:])
+        if remaining.strip():
+            try:
+                ids.extend(await _send_capture(char_chat, parse_qq_faces(remaining)))
+            except Exception as e2:
+                cfg.chat_logger.warning(f"[REPLY] 剩余段发送失败: {type(e2).__name__}: {e2}")
+    return ids
+
+
+async def _retry_reply(prompt: str, history: list, skill_name: str, reason: str) -> str:
+    """校验失败后重写一次；调用方负责保证仅调用一次。"""
+    correction = (
+        prompt
+        + "\n\n# 输出校验失败，重写一次（仅一次）\n"
+        + f"上一次输出被判定为无效（{reason}）。请直接输出正常的最终聊天内容：\n"
+        + "- 不要输出 XML、<system>、<parameter>、<tool_calls>、DSML 等工具调用标记\n"
+        + "- 不要解释、不要提校验/重试/系统\n"
+        + "- 不要输出连续问号乱码\n"
+    )
+    try:
+        new_reply = await llm.call_deepseek(
+            correction, history, skill_name=skill_name
+        )
+    except Exception as e:
+        cfg.chat_logger.warning(f"[REPLY_GUARD] 重写失败: {type(e).__name__}: {e}")
+        return ""
+    return normalize_qq_faces(new_reply).strip() if new_reply else ""
+
+
+def _replace_last_assistant(history_key: str, old_reply: str, new_reply: str) -> None:
+    msgs = hist.conversation_histories.get(history_key) or []
+    for m in reversed(msgs):
+        if m.get("role") == "assistant" and str(m.get("content") or "") == old_reply:
+            m["content"] = new_reply
+            hist.save_histories()
+            return
+    # 内容被规整过或找不到完全相等时，兜底替换最后一条 assistant
+    for m in reversed(msgs):
+        if m.get("role") == "assistant":
+            m["content"] = new_reply
+            hist.save_histories()
+            return
+
 
 
 # --- 消息处理器 ---
@@ -697,6 +793,25 @@ async def _handle_chat_inner(bot: Bot, event: Event):
         if not use_stream:
             reply = normalize_qq_faces(reply)
 
+        # ── 输出校验（发送前，最多重写一次）──
+        _reply_retry_used = False
+        _reply_ok, _reply_why = validate_reply(reply)
+        if not _reply_ok:
+            _reply_retry_used = True
+            cfg.chat_logger.warning(
+                f"[REPLY_GUARD] 发送前校验失败 reason={_reply_why} raw={reply[:120]!r}"
+            )
+            _retried = await _retry_reply(effective_prompt, _effective_history, active_name, _reply_why)
+            _retried_ok, _retried_why = validate_reply(_retried)
+            if _retried and _retried_ok:
+                reply = _retried
+                cfg.chat_logger.info("[REPLY_GUARD] 重写通过，使用重写内容")
+            else:
+                cfg.chat_logger.warning(
+                    f"[REPLY_GUARD] 重写仍未通过 reason={_retried_why or 'empty'}，使用安全兜底"
+                )
+                reply = _SAFE_REPLY
+
         # 添加到历史
         hist.add_to_history(history_key, "assistant", reply)
         hist.save_histories()
@@ -737,38 +852,39 @@ async def _handle_chat_inner(bot: Bot, event: Event):
             )
 
         # ── 非流式分段发送 ──
+        sent_message_ids: list[str] = []
         if not _stream_already_sent:
-            # 2026-07-03: 改用 split_at_breath_pauses 按语义呼吸点切段,
-            # 能识别颜文字/emoji/日式句末(⁰̷̴͈う♡ / (´･ω･`) / ‼️) 等自然句末。
-            # split_message 仍保留供 web 搜索回复场景使用。
-            # 注: 在 split 之前不要调用 clean_chat_output(会把 \n\n 折叠成 \n,破坏段落识别)
-            segments = split_at_breath_pauses(reply) or [reply]
-            # split 完成后对每段单独 clean(去前后空白、压缩段内多空行)
-            segments = [clean_chat_output(s) for s in segments if s.strip()]
-            cfg.chat_logger.info(
-                f"[REPLY] user={uid} | segments={len(segments)} "
-                f"| reply='{reply[:100]}{'...' if len(reply)>100 else ''}'"
-            )
+            sent_message_ids = await _send_reply_segments(char_chat, reply)
 
-            if len(segments) == 1:
-                await char_chat.send(parse_qq_faces(segments[0]))
-            else:
-                sent_count = 0
-                try:
-                    for i, seg in enumerate(segments):
-                        await char_chat.send(parse_qq_faces(seg))
-                        sent_count += 1
-                        if i < len(segments) - 1:
-                            delay = min(0.5 + len(seg) / 300, 2.5)
-                            await asyncio.sleep(delay)
-                except Exception as e:
-                    logger.warning(f"[REPLY] 分段发送中断 ({sent_count}/{len(segments)}): {e}")
-                    remaining = "\n\n".join(segments[sent_count:])
-                    if remaining.strip():
-                        try:
-                            await char_chat.send(parse_qq_faces(remaining))
-                        except Exception:
-                            pass
+            # ── 发送后二次校验：仅在确实已发出时撤回，且最多重试一次 ──
+            _post_ok, _post_why = validate_reply(reply)
+            if not _post_ok:
+                cfg.chat_logger.warning(
+                    f"[REPLY_GUARD] 发送后校验失败 reason={_post_why} "
+                    f"ids={sent_message_ids} raw={reply[:120]!r}"
+                )
+                if sent_message_ids:
+                    await _recall_sent(bot, sent_message_ids)
+                if not _reply_retry_used and sent_message_ids:
+                    _reply_retry_used = True
+                    _retried = await _retry_reply(
+                        effective_prompt, _effective_history, active_name, _post_why
+                    )
+                    _retried_ok, _retried_why = validate_reply(_retried)
+                    if _retried and _retried_ok:
+                        _replace_last_assistant(history_key, reply, _retried)
+                        reply = _retried
+                        sent_message_ids = await _send_reply_segments(char_chat, reply)
+                        cfg.chat_logger.info("[REPLY_GUARD] 撤回后重写通过，已补发")
+                    else:
+                        cfg.chat_logger.warning(
+                            f"[REPLY_GUARD] 撤回后重写仍未通过 reason={_retried_why or 'empty'}；本轮不再发送"
+                        )
+                        reply = ""
+                else:
+                    cfg.chat_logger.warning(
+                        "[REPLY_GUARD] 已重试过或无 message_id，本轮不再重试"
+                    )
         else:
             cfg.chat_logger.info(
                 f"[STREAM] user={uid} | segments={sent_count} "
