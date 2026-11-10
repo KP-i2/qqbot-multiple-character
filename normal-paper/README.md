@@ -4,7 +4,9 @@
 
 ## 注入规则
 
-- 只有 `basic/*.md` 会**全量注入**到每个角色的 system prompt（`skill_manager._load_normal_paper()`）；
+- `basic/` 下的所有 `.md`（**含子目录，递归**）会**全量注入**到每个角色的 system prompt（`skill_manager._load_normal_paper()`）；
+- 顶层文件用文件名做标题（如「规则」），子目录文件用相对路径（如「子目录/规则」），避免重名；
+- 隐藏目录（`.` 开头）和 `__pycache__` 会跳过；不要在 `basic/` 下放备份目录，否则备份 md 也会被注入；
 - `basic/` 之外的文件**不进 prompt**，只在角色调用 `search_corpus` 工具时被检索到。
 
 ## 公开仓库只保留示例
@@ -18,4 +20,4 @@ normal-paper/
     └── basic-rules.example.md   # 示例：basic/ 下文件的写法
 ```
 
-想启用共享背景：在本地创建 `normal-paper/basic/`，把 `examples/basic-rules.example.md` 复制过去按需改写即可（`basic/*.md` 支持热重载，随角色技能一起刷新）。
+想启用共享背景：在本地创建 `normal-paper/basic/`，把 `examples/basic-rules.example.md` 复制过去按需改写即可（`basic/**/*.md` 支持热重载，随角色技能一起刷新）。

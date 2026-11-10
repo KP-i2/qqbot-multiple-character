@@ -14,15 +14,23 @@ from . import config as cfg
 
 
 def _load_normal_paper() -> str:
-    """加载 normal-paper/basic/ 目录下的 .md 文件作为通用背景知识（全量注入 prompt）"""
+    """加载 normal-paper/basic/ 下的 .md（含子目录）作为通用背景知识（全量注入 prompt）。
+
+    2026-11-10: 从 glob("*.md") 改成 rglob("**/*.md")。
+    之前 basic/ 子目录里的 md 不会被注入，容易踩坑；现在递归读取。
+    标题：顶层文件仍用文件名（如「规则」）；子目录文件用相对路径（如「子目录/规则」），避免重名。
+    """
     basic_dir = cfg.NORMAL_PAPER_DIR / "basic"
     if not basic_dir.exists():
         return ""
     parts = []
-    for md_file in sorted(basic_dir.glob("*.md")):
+    for md_file in sorted(basic_dir.rglob("*.md")):
+        rel = md_file.relative_to(basic_dir)
+        if any(part.startswith(".") or part == "__pycache__" for part in rel.parts):
+            continue
         content = md_file.read_text(encoding="utf-8").strip()
         if content:
-            title = md_file.stem  # 文件名去 .md 后缀
+            title = rel.with_suffix("").as_posix()
             parts.append(f"## {title}\n{content}")
     if not parts:
         return ""
