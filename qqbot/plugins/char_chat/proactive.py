@@ -22,6 +22,7 @@ from datetime import datetime
 from nonebot import get_bots, logger
 
 from . import config as cfg
+from . import history as hist
 from . import llm
 from . import memory
 from . import skill_manager
@@ -128,6 +129,11 @@ def _build_prompt(skill, reason_text: str, reason_kind: str) -> tuple[str, str]:
         + "不要连续追问，不要写长段；可以随口关心、吐槽或分享一件小事。\n"
         + f"触发理由：{why}。\n"
     )
+    if reason_kind == "random":
+        system += (
+            "这次触发理由里没有具体共同经历：**绝对不要**编造“你上次说的/你之前提过的/那个实验/那件事”"
+            "之类的共同记忆；只能问候、分享你此刻在做的小事、或者问对方在干嘛。\n"
+        )
     user = "（现在是主动发消息的时刻。只输出你要发给对方的话。）"
     return system, user
 
@@ -156,6 +162,10 @@ async def _send_to(skill, uid: str, text: str, reason: str, memory_id: int | Non
     try:
         resp = await bot.send_private_msg(user_id=int(uid), message=parse_qq_faces(text))
         message_id = str((resp or {}).get("message_id", ""))
+        # 主动消息必须进该角色的私聊历史；否则用户回复时模型完全不知道刚发过什么。
+        _key = f"user_{uid}_{skill.name}"
+        hist.add_to_history(_key, "assistant", text)
+        hist.save_histories()
         memory.log_proactive(skill.name, scope, uid, reason, text, True, memory_id, message_id)
         cfg.chat_logger.info(
             f"[PROACTIVE] 已发送 | skill={skill.name} user={uid} reason={reason or 'random'} "
@@ -169,10 +179,13 @@ async def _send_to(skill, uid: str, text: str, reason: str, memory_id: int | Non
 
 
 async def scan_once() -> int:
-    """扫描一轮：每个角色最多发 1 条。返回发送条数。"""
+    """扫描一轮：只让当前活跃角色主动，避免 A 角色发、B 角色接。返回发送条数。"""
     sent = 0
+    active = hist.global_active_skill or skill_manager.DEFAULT_SKILL_NAME or ""
     for skill in skill_manager.ALL_SKILLS.values():
         if not getattr(skill, "proactive_enabled", False):
+            continue
+        if active and skill.name != active:
             continue
         for uid in _targets(skill):
             scope = _scope_for(uid)
