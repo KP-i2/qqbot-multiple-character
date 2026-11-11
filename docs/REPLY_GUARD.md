@@ -6,7 +6,8 @@
 
 `reply_guard.validate_reply()`：
 
-- 工具调用/系统标记：`<system>`、`<parameter>`、`<function>`、`<tool_call(s)>`、DSML
+- 工具调用/系统标记：
+  `<tool_uses>`、`<tool_use>`、`<tool_name>`、`<parameters>`、`<query>`、`<system>`、`<parameter>`、`<function>`、`<tool_call(s)>`、DSML
 - 明确的错误兜底：`⚠️ 响应解析失败`、`⚠️ LLM 调用失败`
 - 连续问号乱码：`????`、`�` 替换字符
 - 空内容或只有标点
@@ -43,6 +44,7 @@
 
 ## 限制
 
+- 工具调用标记有多种模型变体（`<system>`、`<tool_uses>`、`<tool_invoke>` 等）；现在用通用 `<tool*>` 前缀兜底，但新变体仍可能先漏过后补规则
 - QQ 普通消息撤回有时限；发送后立即撤回通常可以，超过时限 `delete_msg` 可能返回成功但实际不生效
 - 如果 OneBot 发送响应没有 `message_id`，无法撤回，只能记录告警
 - 发送前的校验已经能拦住大部分模型输出错误；发送后校验主要防漏网

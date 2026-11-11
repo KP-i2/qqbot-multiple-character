@@ -46,20 +46,34 @@ _TOOL_CALLS_OPEN_TRUNC = re.compile(
 )
 # ── 通用工具调用标签清洗 ──
 _TOOL_LIKE_TAG = re.compile(
-    r'</?\s*(?:web_search|search_corpus|search)\b[^>]*/?>',
+    r'</?\s*(?:web_search|search_corpus|search|tool[a-z_]*|parameters?|query)\b[^>]*/?>',
     re.IGNORECASE
 )
 # ── 模型把工具调用写成正文的 XML 变体 ──
 # 实测 DeepSeek 会在 content 里输出：
 #   <system>web_search</system>
 #   <parameter name="query">...</parameter>
+# 也见过：
+#   <tool_uses><tool_use><tool_name>web_search</tool_name><parameters><query>...</query>
 # 这不是正常回复，必须整块剥掉；否则会原样发给用户。
+_TOOL_USES_BLOCK = re.compile(
+    r'<\s*tool_uses?\b[^>]*>.*?<\s*/\s*tool_uses?\s*>',
+    re.DOTALL | re.IGNORECASE
+)
 _TOOL_SYSTEM_BLOCK = re.compile(
     r'<\s*system\b[^>]*>.*?<\s*/\s*system\s*>',
     re.DOTALL | re.IGNORECASE
 )
 _TOOL_PARAMETER_BLOCK = re.compile(
-    r'<\s*parameter\b[^>]*>.*?<\s*/\s*parameter\s*>',
+    r'<\s*(?:parameter|parameters)\b[^>]*>.*?<\s*/\s*(?:parameter|parameters)\s*>',
+    re.DOTALL | re.IGNORECASE
+)
+_TOOL_NAME_BLOCK = re.compile(
+    r'<\s*tool_name\b[^>]*>.*?<\s*/\s*tool_name\s*>',
+    re.DOTALL | re.IGNORECASE
+)
+_TOOL_QUERY_BLOCK = re.compile(
+    r'<\s*query\b[^>]*>.*?<\s*/\s*query\s*>',
     re.DOTALL | re.IGNORECASE
 )
 _TOOL_FUNCTION_BLOCK = re.compile(
@@ -68,11 +82,11 @@ _TOOL_FUNCTION_BLOCK = re.compile(
 )
 # 兜底：这些开标签一旦出现，基本可判定为工具调用泄露；删到末尾
 _TOOL_MARKUP_TRUNC = re.compile(
-    r'<\s*(?:system|parameter|function|tool_calls?)\b.*',
+    r'<\s*(?:system|parameter|parameters|function|tool[a-z_]*|query)\b.*',
     re.DOTALL | re.IGNORECASE
 )
 _TOOL_MARKUP_DETECT = re.compile(
-    r'<\s*(?:system|parameter|function|tool_calls?)\b|DSML|<\s*\|[^>]*\|>',
+    r'<\s*(?:system|parameter|parameters|function|tool[a-z_]*|query)\b|DSML|<\s*\|[^>]*\|>',
     re.IGNORECASE
 )
 
@@ -101,12 +115,16 @@ def strip_dsml_markup(text: str) -> str:
     # 原生 <tool_calls> XML 格式
     text = _TOOL_CALLS_FULL.sub('', text)
     text = _TOOL_CALL_TRUNCATED.sub('', text)
-    # 通用工具调用标签（GPT-5.5 等模型模仿 function calling）
-    text = _TOOL_LIKE_TAG.sub('', text)
     # <system>web_search</system><parameter ...> 这类正文工具调用
+    # 必须先整块删除，再删零散标签，否则外层标签先被删掉、内容会漏出来
+    text = _TOOL_USES_BLOCK.sub('', text)
     text = _TOOL_SYSTEM_BLOCK.sub('', text)
     text = _TOOL_PARAMETER_BLOCK.sub('', text)
+    text = _TOOL_NAME_BLOCK.sub('', text)
+    text = _TOOL_QUERY_BLOCK.sub('', text)
     text = _TOOL_FUNCTION_BLOCK.sub('', text)
+    # 通用工具调用标签（GPT-5.5 等模型模仿 function calling）
+    text = _TOOL_LIKE_TAG.sub('', text)
     # 思考块(多模型通用: minimax M3 / Claude / DeepSeek 风格),防止模型内心独白泄露给用户
     text = _THINK_BLOCK_FULL.sub('', text)
     text = _THINK_BLOCK_TRUNC.sub('', text)
